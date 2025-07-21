@@ -51,7 +51,7 @@ pc_initdata(
   if ((prob_parm.case_type_int == 1) || (prob_parm.case_type_int == 2)) {
     amrex::Real xmod = std::fmod(x, prob_parm.L_x);
     int m = 0;
-    locate(prob_parm.d_xarray, prob_parm.nx, xmod, m);
+    pele::physics::utilities::locate(prob_parm.d_xarray, prob_parm.nx, xmod, m);
     const int mp1 = (m + 1) % prob_parm.nx;
     const amrex::Real fact =
       (x - prob_parm.d_input[prob_parm.input_x + m * prob_parm.nvars]) /
