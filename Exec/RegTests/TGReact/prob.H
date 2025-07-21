@@ -2,20 +2,22 @@
 #define PROB_H
 
 #include <AMReX_Print.H>
-#include <AMReX_ParmParse.H>
 #include <AMReX_Geometry.H>
 #include <AMReX_FArrayBox.H>
+#include <AMReX_REAL.H>
+#include <AMReX_GpuMemory.H>
+#include <AMReX_ParmParse.H>
 
 #include "mechanism.H"
 
+#include "PeleC.H"
 #include "IndexDefines.H"
-#include "Constants.H"
-#include "EOS.H"
+#include "PelePhysics.H"
 #include "Tagging.H"
-#include "Transport.H"
 #include "ProblemSpecificFunctions.H"
 #include "prob_parm.H"
 #include "PeleCUtilities.H"
+#include "Constants.H"
 
 AMREX_GPU_DEVICE
 AMREX_FORCE_INLINE
