@@ -75,12 +75,14 @@ InterpolateVelInflow(
 
   theta = std::fmod(theta, prob_parm.thetaMax);
   int idT = 0;
-  pele::physics::utilities::locate(prob_parm.d_thetaM, prob_parm.nt, theta, idT);
+  pele::physics::utilities::locate(
+    prob_parm.d_thetaM, prob_parm.nt, theta, idT);
   const int idTp1 = idT + 1;
 
   amrex::Real timeInflow = std::fmod(timeInp, prob_parm.timeInflowMax);
   int indxTime = 0;
-  pele::physics::utilities::locate(prob_parm.d_timeInput, prob_parm.inflowNtime, timeInflow, indxTime);
+  pele::physics::utilities::locate(
+    prob_parm.d_timeInput, prob_parm.inflowNtime, timeInflow, indxTime);
   const int indxTimeP1 = indxTime + 1;
 
   // Interpolate in space
@@ -250,7 +252,8 @@ pc_initdata(
     amrex::Real slp[3] = {0.0};
     for (int cnt = 0; cnt < 3; cnt++) {
       mod[cnt] = std::fmod(x[cnt], prob_parm.Linput);
-      pele::physics::utilities::locate(prob_parm.d_xarray, prob_parm.inres, mod[cnt], idx[cnt]);
+      pele::physics::utilities::locate(
+        prob_parm.d_xarray, prob_parm.inres, mod[cnt], idx[cnt]);
       idxp1[cnt] = (idx[cnt] + 1) % prob_parm.inres;
       slp[cnt] =
         (mod[cnt] - prob_parm.d_xarray[idx[cnt]]) / prob_parm.d_xdiff[idx[cnt]];
