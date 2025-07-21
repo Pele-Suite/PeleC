@@ -20,7 +20,7 @@
 
 #include "ProblemSpecificFunctions.H"
 #include "prob_parm.H"
-#include "Utilities.H"
+#include "PeleCUtilities.H"
 #include "turbinflow.H"
 
 AMREX_GPU_DEVICE

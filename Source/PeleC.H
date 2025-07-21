@@ -15,7 +15,7 @@
 #endif
 
 #include "Filter.H"
-#include "Utilities.H"
+#include "PeleCUtilities.H"
 #include "Tagging.H"
 #include "IndexDefines.H"
 #include "prob_parm.H"

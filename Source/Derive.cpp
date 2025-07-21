@@ -1,6 +1,6 @@
 #include "mechanism.H"
 
-#include "Utilities.H"
+#include "PeleCUtilities.H"
 #include "Derive.H"
 #include "PeleC.H"
 #include "IndexDefines.H"

@@ -2,7 +2,7 @@
 #define GEOMETRY_H
 #include "Factory.H"
 #include "EB.H"
-#include "Utilities.H"
+#include "PeleCUtilities.H"
 
 namespace pele::pelec {
 

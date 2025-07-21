@@ -21,7 +21,7 @@
 #include "prob_parm.H"
 #include "EB.H"
 #include <AMReX_EB2_IF_Rotation.H>
-#include "Utilities.H"
+#include "PeleCUtilities.H"
 #include "Geometry.H"
 
 class EBConcCylinders : public pele::pelec::Geometry::Register<EBConcCylinders>

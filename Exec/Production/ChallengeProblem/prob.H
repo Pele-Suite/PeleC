@@ -20,7 +20,7 @@
 #include "ProblemSpecificFunctions.H"
 #include "Tagging.H"
 #include "Transport.H"
-#include "Utilities.H"
+#include "PeleCUtilities.H"
 #include "prob_parm.H"
 #include "Geometry.H"
 

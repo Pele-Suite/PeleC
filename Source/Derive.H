@@ -9,7 +9,7 @@ using namespace MASA;
 #endif
 
 #include "EB.H"
-#include "Utilities.H"
+#include "PeleCUtilities.H"
 
 AMREX_GPU_DEVICE
 AMREX_FORCE_INLINE

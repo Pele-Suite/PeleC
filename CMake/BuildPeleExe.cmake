@@ -78,7 +78,7 @@ function(build_pele_exe pele_exe_name pele_physics_lib_name)
        ${SRC_DIR}/Tagging.cpp
        ${SRC_DIR}/Timestep.H
        ${SRC_DIR}/TransCoeff.H
-       ${SRC_DIR}/Utilities.H
+       ${SRC_DIR}/PeleCUtilities.H
        ${SRC_DIR}/Utilities.cpp
        ${SRC_DIR}/WENO.H
        ${SRC_DIR}/RotSource.cpp

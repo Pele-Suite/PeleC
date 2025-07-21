@@ -74,7 +74,7 @@ Primitive Forms
 PeleC uses the primitive form of the inviscid fluid equations, defined in terms of
 the state :math:`\mathbf{Q} = (\rho, \mathbf{u}, p, \rho e, Y_k, A_k, B_k)`, to construct the
 interface states that are input to the Riemann problem. All of the primitive variables are derived from the conservative state
-vector. This task is performed in the function ``pc_ctoprim`` located in ``Source/Utilities.H``.
+vector. This task is performed in the function ``pc_ctoprim`` located in ``Source/PeleCUtilities.H``.
 
 The inviscid equations for primitive variables namely density, velocity, and pressure are:
 

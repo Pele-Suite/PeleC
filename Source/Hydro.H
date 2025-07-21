@@ -4,7 +4,7 @@
 #include "PeleC.H"
 #include "IndexDefines.H"
 #include "PelePhysics.H"
-#include "Utilities.H"
+#include "PeleCUtilities.H"
 #include "Godunov.H"
 #include "AMReX_EB_Redistribution.H"
 
