@@ -2,7 +2,7 @@
 #define LES_H
 
 #include "PeleC.H"
-#include "Utilities.H"
+#include "PeleCUtilities.H"
 #include "Diffusion.H"
 #include "Diffterm.H"
 #include "GradUtil.H"

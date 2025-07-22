@@ -8,7 +8,7 @@
 #include <AMReX_FArrayBox.H>
 
 #include "PeleC.H"
-#include "Utilities.H"
+#include "PeleCUtilities.H"
 #include "GradUtil.H"
 #include "Diffterm.H"
 #include "MOL.H"

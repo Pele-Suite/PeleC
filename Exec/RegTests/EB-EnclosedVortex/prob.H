@@ -18,7 +18,7 @@
 #include "prob_parm.H"
 #include "EB.H"
 #include <AMReX_EB2_IF_Rotation.H>
-#include "Utilities.H"
+#include "PeleCUtilities.H"
 #include "Geometry.H"
 
 void parse_params(std::unique_ptr<ProbParmDevice>& prob_parm_device);

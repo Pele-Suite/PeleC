@@ -59,6 +59,12 @@ function(build_pele_physics_lib pele_physics_lib_name)
 
     target_sources(${pele_physics_lib_name}
       PRIVATE
+      ${PELE_PHYSICS_UTILITY_DIR}/Utilities/Utilities.H
+      ${PELE_PHYSICS_UTILITY_DIR}/Utilities/UnitConversions.H)
+    target_include_directories(${pele_physics_lib_name} PUBLIC ${PELE_PHYSICS_UTILITY_DIR}/Utilities)
+
+    target_sources(${pele_physics_lib_name}
+      PRIVATE
       ${PELE_PHYSICS_UTILITY_DIR}/Filter/Filter.cpp
       ${PELE_PHYSICS_UTILITY_DIR}/Filter/Filter.H)
     target_include_directories(${pele_physics_lib_name} PUBLIC ${PELE_PHYSICS_UTILITY_DIR}/Filter)

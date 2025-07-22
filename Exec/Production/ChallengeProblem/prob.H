@@ -20,7 +20,7 @@
 #include "ProblemSpecificFunctions.H"
 #include "Tagging.H"
 #include "Transport.H"
-#include "Utilities.H"
+#include "PeleCUtilities.H"
 #include "prob_parm.H"
 #include "Geometry.H"
 
@@ -97,7 +97,8 @@ pc_initdata(
     amrex::Real slp[3] = {0.0};
     for (int cnt = 0; cnt < 3; cnt++) {
       mod[cnt] = std::fmod(x[cnt], prob_parm.Linput);
-      locate(prob_parm.d_xarray, prob_parm.inres, mod[cnt], idx[cnt]);
+      pele::physics::utilities::locate(
+        prob_parm.d_xarray, prob_parm.inres, mod[cnt], idx[cnt]);
       idxp1[cnt] = (idx[cnt] + 1) % prob_parm.inres;
       slp[cnt] =
         (mod[cnt] - prob_parm.d_xarray[idx[cnt]]) / prob_parm.d_xdiff[idx[cnt]];

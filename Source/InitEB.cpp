@@ -3,7 +3,7 @@
 #include "AMReX_EB_Redistribution.H"
 #include "EB.H"
 #include "prob.H"
-#include "Utilities.H"
+#include "PeleCUtilities.H"
 #include "Geometry.H"
 
 inline bool

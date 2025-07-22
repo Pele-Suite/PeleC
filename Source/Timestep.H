@@ -8,7 +8,7 @@
 #include "PelePhysics.H"
 #include "IndexDefines.H"
 #include "Constants.H"
-#include "Utilities.H"
+#include "PeleCUtilities.H"
 #include "TransCoeff.H"
 
 // EstDt routines

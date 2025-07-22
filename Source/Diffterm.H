@@ -7,7 +7,7 @@
 #include "IndexDefines.H"
 #include "EBStencilTypes.H"
 #include "PelePhysics.H"
-#include "Utilities.H"
+#include "PeleCUtilities.H"
 #include "GradUtil.H"
 #include "TransCoeff.H"
 
