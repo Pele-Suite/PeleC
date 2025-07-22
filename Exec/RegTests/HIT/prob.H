@@ -16,6 +16,7 @@
 #include "Tagging.H"
 #include "ProblemSpecificFunctions.H"
 #include "prob_parm.H"
+#include "Utilities.H"
 #include "PeleCUtilities.H"
 
 AMREX_GPU_DEVICE
