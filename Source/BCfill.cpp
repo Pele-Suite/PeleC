@@ -115,7 +115,7 @@ struct PCHypFillExtDir
         }
 
         // turbulent fluctuations
-        if (m_do_turb_inflow && (iv[idir] == domlo[idir] - 1)) {
+        if (m_do_turb_inflow && (iv[idir] == domhi[idir] + 1)) {
           for (int n = 0; n < AMREX_SPACEDIM; n++) {
             turb_fluc[n] = dest(iv, UMX + n);
           }
