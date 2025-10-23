@@ -158,10 +158,10 @@ PeleC::removeGhostParticles(const int level)
 void
 PeleC::createDataParticles()
 {
-  SprayPC = std::make_unique<SprayParticleContainer>(parent, &phys_bc);
+  SprayPC = std::make_unique<SprayParticleContainer>(parent, phys_bc);
   SprayPC->SetVerbose(particle_verbose);
-  VirtPC = std::make_unique<SprayParticleContainer>(parent, &phys_bc);
-  GhostPC = std::make_unique<SprayParticleContainer>(parent, &phys_bc);
+  VirtPC = std::make_unique<SprayParticleContainer>(parent, phys_bc);
+  GhostPC = std::make_unique<SprayParticleContainer>(parent, phys_bc);
 }
 
 // Initialize the particles on the grid at level 0
