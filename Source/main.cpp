@@ -132,78 +132,79 @@ main(int argc, char* argv[])
                    << time_now.tm_mday << "." << std::endl;
   }
 
-  // Initialize random seed after we're running in parallel.
-  auto* amrptr = new PeleCAmr(getLevelBld());
+  bool raise_failure = false;
+  amrex::Real dRunTime2 = 0.0;
+  {
+    std::unique_ptr<PeleCAmr> amrptr =
+      std::make_unique<PeleCAmr>(getLevelBld());
+    amrex::AmrLevel::SetEBSupportLevel(
+      amrex::EBSupport::full); // need both area and volume fractions
+    amrex::AmrLevel::SetEBMaxGrowCells(
+      PeleC::numGrow() + 1, PeleC::numGrow() + 1, PeleC::numGrow() + 1);
 
-  amrex::AmrLevel::SetEBSupportLevel(
-    amrex::EBSupport::full); // need both area and volume fractions
-  amrex::AmrLevel::SetEBMaxGrowCells(
-    PeleC::numGrow() + 1, PeleC::numGrow() + 1, PeleC::numGrow() + 1);
+    initialize_EB2(
+      amrptr->Geom(PeleC::getEBMaxLevel()), PeleC::getEBMaxLevel(),
+      amrptr->maxLevel(), PeleC::getEBCoarsening(), amrptr->refRatio(),
+      amrptr->maxGridSize(amrptr->maxLevel()));
 
-  initialize_EB2(
-    amrptr->Geom(PeleC::getEBMaxLevel()), PeleC::getEBMaxLevel(),
-    amrptr->maxLevel(), PeleC::getEBCoarsening(), amrptr->refRatio(),
-    amrptr->maxGridSize(amrptr->maxLevel()));
+    amrptr->init(strt_time, stop_time);
 
-  amrptr->init(strt_time, stop_time);
-
-#ifdef AMREX_USE_ASCENT
-  amrptr->doInSituViz(amrptr->levelSteps(0));
-#endif
-
-  // If we set the regrid_on_restart flag and if we are *not* going to take
-  // a time step then we want to go ahead and regrid here.
-  if (
-    amrptr->RegridOnRestart() &&
-    ((amrptr->levelSteps(0) >= max_step) || (amrptr->cumTime() >= stop_time))) {
-    // Regrid only!
-    amrptr->RegridOnly(amrptr->cumTime());
-  }
-
-  amrex::Real dRunTime2 = amrex::ParallelDescriptor::second();
-  amrex::Real wall_time_elapsed{0.0};
-
-  while (
-    (amrptr->okToContinue() != 0) &&
-    (amrptr->levelSteps(0) < max_step || max_step < 0) &&
-    (amrptr->cumTime() < stop_time || stop_time < 0.0) &&
-    (wall_time_elapsed < (max_wall_time * 3600.0) || max_wall_time < 0.0)) {
-    // Do a timestep
-    amrptr->coarseTimeStep(stop_time);
 #ifdef AMREX_USE_ASCENT
     amrptr->doInSituViz(amrptr->levelSteps(0));
 #endif
-    // Get the elapsed time
-    wall_time_elapsed = amrex::ParallelDescriptor::second() - dRunTime1;
-    amrex::ParallelDescriptor::ReduceRealMax(wall_time_elapsed);
+
+    // If we set the regrid_on_restart flag and if we are *not* going to take
+    // a time step then we want to go ahead and regrid here.
+    if (
+      amrptr->RegridOnRestart() && ((amrptr->levelSteps(0) >= max_step) ||
+                                    (amrptr->cumTime() >= stop_time))) {
+      // Regrid only!
+      amrptr->RegridOnly(amrptr->cumTime());
+    }
+
+    dRunTime2 = amrex::ParallelDescriptor::second();
+    amrex::Real wall_time_elapsed{0.0};
+
+    while (
+      (amrptr->okToContinue() != 0) &&
+      (amrptr->levelSteps(0) < max_step || max_step < 0) &&
+      (amrptr->cumTime() < stop_time || stop_time < 0.0) &&
+      (wall_time_elapsed < (max_wall_time * 3600.0) || max_wall_time < 0.0)) {
+      // Do a timestep
+      amrptr->coarseTimeStep(stop_time);
+#ifdef AMREX_USE_ASCENT
+      amrptr->doInSituViz(amrptr->levelSteps(0));
+#endif
+      // Get the elapsed time
+      wall_time_elapsed = amrex::ParallelDescriptor::second() - dRunTime1;
+      amrex::ParallelDescriptor::ReduceRealMax(wall_time_elapsed);
+    }
+
+    // Write final checkpoint
+    if (amrptr->stepOfLastCheckPoint() < amrptr->levelSteps(0)) {
+      amrptr->checkPoint();
+    }
+
+    // Write final plotfile
+    if (amrptr->stepOfLastPlotFile() < amrptr->levelSteps(0)) {
+      amrptr->writePlotFile();
+    }
+
+    time(&time_type);
+    gmtime_r(&time_type, &time_now);
+
+    if (amrex::ParallelDescriptor::IOProcessor()) {
+      amrex::Print() << std::setfill('0') << "\nEnding run at " << std::setw(2)
+                     << time_now.tm_hour << ":" << std::setw(2)
+                     << time_now.tm_min << ":" << std::setw(2)
+                     << time_now.tm_sec << " UTC on " << time_now.tm_year + 1900
+                     << "-" << std::setw(2) << time_now.tm_mon + 1 << "-"
+                     << std::setw(2) << time_now.tm_mday << "." << std::endl;
+    }
+
+    raise_failure = (amrptr->okToContinue() == 0);
   }
 
-  // Write final checkpoint
-  if (amrptr->stepOfLastCheckPoint() < amrptr->levelSteps(0)) {
-    amrptr->checkPoint();
-  }
-
-  // Write final plotfile
-  if (amrptr->stepOfLastPlotFile() < amrptr->levelSteps(0)) {
-    amrptr->writePlotFile();
-  }
-
-  time(&time_type);
-  gmtime_r(&time_type, &time_now);
-
-  if (amrex::ParallelDescriptor::IOProcessor()) {
-    amrex::Print() << std::setfill('0') << "\nEnding run at " << std::setw(2)
-                   << time_now.tm_hour << ":" << std::setw(2) << time_now.tm_min
-                   << ":" << std::setw(2) << time_now.tm_sec << " UTC on "
-                   << time_now.tm_year + 1900 << "-" << std::setw(2)
-                   << time_now.tm_mon + 1 << "-" << std::setw(2)
-                   << time_now.tm_mday << "." << std::endl;
-  }
-
-  bool raise_failure = (amrptr->okToContinue() == 0);
-  delete amrptr;
-
-  // This MUST follow the above delete as ~Amr() may dump files to disk
   const int IOProc = amrex::ParallelDescriptor::IOProcessorNumber();
 
   amrex::Real dRunTime3 = amrex::ParallelDescriptor::second();

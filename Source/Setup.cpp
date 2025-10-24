@@ -723,6 +723,7 @@ PeleC::variableCleanUp()
   trans_parms.deallocate();
 #ifdef PELE_USE_SPRAY
   SprayParticleContainer::SprayCleanUp();
+  SprayPC.reset();
 #endif
 #ifdef PELE_USE_SOOT
   soot_model.cleanup();
