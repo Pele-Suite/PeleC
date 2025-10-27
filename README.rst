@@ -6,7 +6,7 @@ PeleC: An adaptive mesh refinement solver for compressible reacting flows
 Getting Started
 ~~~~~~~~~~~~~~~
 
-To compile and run `PeleC`, one needs a C++ compiler that supports the C++17 standard.  A hierarchical strategy for parallelism is supported, based on MPI, MPI + OpenMP, or MPI + GPU (CUDA/HIP/DPC++).  The code should work with all major MPI and OpenMP implementations.  PeleC should build and run with no modifications to the `make` system if using a Linux system with the GNU compilers, version 7 and above.  CMake, although used mostly for testing, is also an option for building the code.
+To compile and run `PeleC`, one needs a C++ compiler that supports the C++17 standard.  A hierarchical strategy for parallelism is supported, based on MPI, MPI + OpenMP, or MPI + GPU (CUDA/HIP/DPC++).  The code should work with all major MPI and OpenMP implementations.  PeleC should build and run with no modifications to the `make` system if using a Linux system with the GNU compilers, version 7 and above. The preferred build strategy for most users is to use GNU Make to build exectuables for individual cases as needed, from the directory containing the case files. CMake, although used mostly for testing, is also an option for building the code.
 
 To build `PeleC` (using the default submodules for AMReX, PelePhysics, and SUNDIALS) and run a sample 3D flame problem::
 
@@ -17,7 +17,16 @@ To build `PeleC` (using the default submodules for AMReX, PelePhysics, and SUNDI
 
 1. In the exec line above, xxx.yyy is a tag identifying your compiler and various build options, and will vary across pltaform.  (Note that GNU compilers must be at least version 7, and MPI should be at least of standard version 3).
 
-2. The example is a 3D premixed flame, flowing vertically upward through the domain with no gravity. The lateral boundaries are periodic.  A detailed hydrogen model is used.  The solution is initialized with a wrinkled (perturbed) 2D steady flame solution computed using the PREMIX code.  Two levels of solution-adaptive refinement are automatically triggered by the presence of the flame intermediate, HO2.
+   a. To run with MPI support, ensure `USE_MPI = TRUE` in the `GNUmakefile` or specify it on the command line::
+
+        make TPLrealclean && make realclean && make TPL USE_MPI=TRUE && make -j USE_MPI=TRUE
+        mpiexec -n 4 ./PeleC3d.xxx.MPI.ex example.inp
+
+   b. If the string `.MPI.` does not appear in your executable name, you have not successfully built PeleC with MPI support, and if you execute in parallel you will be running multiple instances of the solver in serial.
+
+   c. See the `GNUmakefile` for other build options, including the compiler used (`COMP`), and certain model settings that must determined at compile time, such as the solver dimensionality (`DIM`) and the chemical mechanism used (`Chemistry_Model`).
+
+2. The example is a 3D premixed flame, flowing vertically upward through the domain with no gravity. The lateral boundaries are periodic.  A detailed hydrogen model is used.  The solution is initialized with a wrinkled/perturbed 1D steady flame solution computed using Cantera (historically these used the PREMIX code).  Two levels of solution-adaptive refinement are automatically triggered by the presence of the flame intermediate, HO2.
 
 3. In addition to informative output to the terminal, periodic plotfiles are written in the run folder.  These may be viewed with AMReX's `Amrvis <https://amrex-codes.github.io/amrex/docs_html/Visualization.html>`_, `VisIt <https://visit-dav.github.io/visit-website/>`_, or `ParaView <https://www.paraview.org>`_:
 
