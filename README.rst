@@ -6,7 +6,7 @@ PeleC: An adaptive mesh refinement solver for compressible reacting flows
 Getting Started
 ~~~~~~~~~~~~~~~
 
-To compile and run `PeleC`, one needs a C++ compiler that supports the C++17 standard.  A hierarchical strategy for parallelism is supported, based on MPI, MPI + OpenMP, or MPI + GPU (CUDA/HIP/DPC++).  The code should work with all major MPI and OpenMP implementations.  PeleC should build and run with no modifications to the `make` system if using a Linux system with the GNU compilers, version 7 and above. The preferred build strategy for most users is to use GNU Make to build exectuables for individual cases as needed, from the directory containing the case files. CMake, although used mostly for testing, is also an option for building the code.
+To compile and run `PeleC`, one needs a C++ compiler that supports the C++17 standard.  A hierarchical strategy for parallelism is supported, based on MPI, MPI + OpenMP, or MPI + GPU (CUDA/HIP/DPC++).  The code should work with all major MPI and OpenMP implementations.  PeleC should build and run with no modifications to the `make` system if using a Linux system with the GNU compilers, version 7 and above. The preferred build strategy for most users is to use GNU Make to build executables for individual cases as needed, from the directory containing the case files. CMake, although used mostly for testing, is also an option for building the code.
 
 To build `PeleC` (using the default submodules for AMReX, PelePhysics, and SUNDIALS) and run a sample 3D flame problem::
 
