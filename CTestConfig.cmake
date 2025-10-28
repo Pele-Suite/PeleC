@@ -1,6 +1,12 @@
-set(CTEST_PROJECT_NAME "PeleC")
-set(CTEST_NIGHTLY_START_TIME "00:00:00 EDT")
-set(CTEST_DROP_METHOD "http")
-set(CTEST_DROP_SITE "my.cdash.org")
-set(CTEST_DROP_LOCATION "/submit.php?project=Pele")
+set(CTEST_PROJECT_NAME PeleC)
+set(CTEST_NIGHTLY_START_TIME 20:00:00 America/Denver)
+
+if(CMAKE_VERSION VERSION_GREATER 3.14)
+  set(CTEST_SUBMIT_URL https://my.cdash.org/submit.php?project=Pele)
+else()
+  set(CTEST_DROP_METHOD "https")
+  set(CTEST_DROP_SITE "my.cdash.org")
+  set(CTEST_DROP_LOCATION "/submit.php?project=Pele")
+endif()
+
 set(CTEST_DROP_SITE_CDASH TRUE)
