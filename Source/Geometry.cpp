@@ -193,7 +193,7 @@ ExtrudedTriangles::build(
       std::string pointstr =
         "tri_" + convertIntGG(itri) + "_point_" + convertIntGG(ipt);
       amrex::Vector<amrex::Real> vecpt;
-      pp.getarr(pointstr.c_str(), vecpt, 0, AMREX_SPACEDIM);
+      pp.getarr(pointstr, vecpt, 0, AMREX_SPACEDIM);
       for (int dir = 0; dir < AMREX_SPACEDIM; dir++) {
         point[dir] = vecpt[dir];
       }
