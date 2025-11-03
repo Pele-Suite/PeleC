@@ -102,7 +102,6 @@ amr.plot_int        = 77
 amr.plot_vars = density Temp rho_E xmom ymom zmom eden rho_O2 rho_N2 rho_NC10H22
 amr.derive_plot_vars = Mach x_velocity y_velocity pressure vfrac z_velocity
 #amr.derive_plot_vars = ALL
-amr.file_name_digits = 6
 
 prob.init_T = 1500.
 prob.init_p = 1.01325E7

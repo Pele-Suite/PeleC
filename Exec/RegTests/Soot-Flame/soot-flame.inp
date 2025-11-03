@@ -71,7 +71,6 @@ pelec.plot_reactions = 0
 pelec.plot_rhoy = 0
 pelec.plot_massfrac = 1
 pelec.plot_reactions = 0
-#amr.file_name_digits = 6
 
 pelec.plot_soot = 1
 
