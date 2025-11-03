@@ -90,7 +90,6 @@ amr.plot_file = plt
 amr.plot_int = 1
 amr.plot_vars = density Temp rho_E xmom ymom rho_N2 rho_O2 rho_NC10H22
 amr.derive_plot_vars = x_velocity y_velocity pressure MachNumber magvel
-amr.file_name_digits = 4
 
 # PROBLEM PARAMETERS
 prob.mach = 0.1

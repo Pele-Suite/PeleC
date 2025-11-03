@@ -81,7 +81,6 @@ amr.plot_file       = plt # root name of plotfile
 amr.plot_per        = 1.E-4
 amr.plot_vars = density Temp rho_E xmom ymom zmom
 amr.derive_plot_vars = x_velocity y_velocity z_velocity pressure MachNumber magvel
-amr.file_name_digits = 6
 
 # PROBLEM PARAMETERS
 prob.reynolds = 1600.
