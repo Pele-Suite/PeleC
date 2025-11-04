@@ -71,6 +71,7 @@ def multiRun(args):
         first_params += "max_step = {} ".format(iter_2)
         first_params += "amr.check_int = {} ".format(iter_1)
         first_params += "amr.checkpoint_files_output = 1 "
+        first_params += "amr.file_name_digits = 4 "
         first_params += "amr.plot_file = {}/{}_1_plt ".format(test_name, box)
         first_params += "amrex.abort_on_unused_inputs=1 "
         # Run first test to iter_2 and save a checkpoint at iter_1
