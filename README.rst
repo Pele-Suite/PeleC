@@ -11,7 +11,7 @@ To compile and run `PeleC`, one needs a C++ compiler that supports the C++17 sta
 The best way to download `PeleC` and its necessary dependencies AMReX, PelePhysics, and SUNDIALS (as git submodules) is through a recursive
 git clone. To reduce the download size, the ``--shallow-submodules`` and ``--single-branch`` flags can be added to the clone command to omit
 extraneous parts of the git history. By default, you will download the latest version of PeleC. If you'd like to use a specific
-[released version](https://github.com/AMReX-Combustion/PeleC/releases/)
+`released version <https://github.com/AMReX-Combustion/PeleC/releases/>`_
 of PeleC, you can add the option ``--branch=<version>``, e.g. ``--branch=v25.04``, to your clone command. ::
 
     git clone --recursive https://github.com/AMReX-Combustion/PeleC.git
