@@ -539,8 +539,6 @@ pc_adjust_fluxes_eb(
   });
 
 #endif
-
-  amrex::Gpu::streamSynchronize();
 }
 
 void
