@@ -17,8 +17,8 @@ std::unique_ptr<SprayParticleContainer> PeleC::SprayPC = nullptr;
 std::unique_ptr<SprayParticleContainer> PeleC::VirtPC = nullptr;
 std::unique_ptr<SprayParticleContainer> PeleC::GhostPC = nullptr;
 
-// momentum + density + fuel species + energy
-int PeleC::num_spray_src = AMREX_SPACEDIM + 2 + SPRAY_FUEL_NUM;
+// momentum + density + energy + fuel species (added later)
+int PeleC::num_spray_src = AMREX_SPACEDIM + 2;
 
 void
 PeleC::estTimeStepParticles(amrex::Real& est_dt)
@@ -81,6 +81,7 @@ PeleC::defineParticles()
   scomps.specSrcIndx = spraySpecSrcIndx;
   scomps.engSrcIndx = sprayEngSrcIndx;
   SprayParticleContainer::AssignSprayComps(scomps);
+  PeleC::num_spray_src += SprayParticleContainer::m_sprayData->N_pc;
 }
 
 int
