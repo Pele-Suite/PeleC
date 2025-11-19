@@ -8,9 +8,16 @@ Getting Started
 
 To compile and run `PeleC`, one needs a C++ compiler that supports the C++17 standard.  A hierarchical strategy for parallelism is supported, based on MPI, MPI + OpenMP, or MPI + GPU (CUDA/HIP/DPC++).  The code should work with all major MPI and OpenMP implementations.  PeleC should build and run with no modifications to the `make` system if using a Linux system with the GNU compilers, version 7 and above. The preferred build strategy for most users is to use GNU Make to build executables for individual cases as needed, from the directory containing the case files. CMake, although used mostly for testing, is also an option for building the code.
 
-To build `PeleC` (using the default submodules for AMReX, PelePhysics, and SUNDIALS) and run a sample 3D flame problem::
+The best way to download `PeleC` and its necessary dependencies AMReX, PelePhysics, and SUNDIALS (as git submodules) is through a recursive
+git clone. To reduce the download size, the  ``--shallow-submodules`` and ``--single-branch`` flags can be added to the clone command to omit
+extraneous parts of the git history. By default, you will download the latest version of PeleC. If you'd like to use a specific
+[released version](https://github.com/AMReX-Combustion/PeleC/releases/)
+of PeleC, you can add the option ``--branch=<version>``, e.g. ``--branch=v25.04``, to your clone command. ::
 
-    git clone --recursive git@github.com:AMReX-Combustion/PeleC.git
+    git clone --recursive https://github.com/AMReX-Combustion/PeleC.git
+
+To run `PeleC` for a sample 3D flame problem::
+
     cd PeleC/Exec/RegTests/PMF
     make TPLrealclean && make realclean && make TPL && make -j
     ./Pele3d.xxx.yyy.ex example.inp
