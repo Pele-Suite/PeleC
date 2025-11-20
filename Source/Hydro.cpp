@@ -539,8 +539,6 @@ pc_adjust_fluxes_eb(
   });
 
 #endif
-
-  amrex::Gpu::streamSynchronize();
 }
 
 void
@@ -701,13 +699,19 @@ pc_umdrv_eb(
   // Quantities for redistribution
   amrex::FArrayBox divc, redistwgt;
   if (redistribution_type == "StateRedist") {
-    divc.resize(bxg_i, NVAR); // This will hold "dUdt" before redistribution
+    divc.resize(
+      bxg_i, NVAR,
+      amrex::The_Async_Arena()); // This will hold "dUdt" before redistribution
     redistwgt.resize(
-      bxg_i, NVAR); // This will be "scratch" which holds "Uold + dt*dUdt"
+      bxg_i, NVAR, amrex::The_Async_Arena()); // This will be "scratch" which
+                                              // holds "Uold + dt*dUdt"
   } else {
-    divc.resize(bxg_i, NVAR); // This will hold "dUdt" before redistribution
+    divc.resize(
+      bxg_i, NVAR,
+      amrex::The_Async_Arena()); // This will hold "dUdt" before redistribution
     redistwgt.resize(
-      bxg_i, 1); // This will hold the weights used in flux redistribution
+      bxg_i, 1, amrex::The_Async_Arena()); // This will hold the weights used in
+                                           // flux redistribution
   }
   divc.setVal<amrex::RunOn::Device>(0.0);
   redistwgt.setVal<amrex::RunOn::Device>(0.0);
