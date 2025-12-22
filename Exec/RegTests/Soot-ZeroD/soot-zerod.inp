@@ -16,7 +16,7 @@ pelec.hi_bc =  "Interior" "Interior" "Interior"
 #amrex.fpe_trap_zero = 1
 #amrex.fpe_trap_overflow = 1
 
-cvode.solve_type = dense_direct
+cvode.solve_type = GMRES
 
 # WHICH PHYSICS
 pelec.do_hydro = 1
