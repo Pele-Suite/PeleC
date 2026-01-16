@@ -480,8 +480,8 @@ PeleC::PeleC(
 #ifdef PELE_USE_SPRAY
   if (do_spray_particles) {
     if (level > 0) {
-      nGrowS =
-        amrex::max(nGrowS, sprayStateGhosts(parent->MaxRefRatio(level - 1)));
+      nGrowS = amrex::max<amrex::Real>(
+        nGrowS, sprayStateGhosts(parent->MaxRefRatio(level - 1)));
       defineSpraySource(parent->MaxRefRatio(level - 1));
     } else {
       defineSpraySource(1);
