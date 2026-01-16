@@ -2011,6 +2011,22 @@ PeleC::init_diagnostics()
       m_diagnostics[n]->init(diag_prefix, diags[n]);
       m_diagnostics[n]->addVars(m_diagVars);
     }
+    // Remove duplicates from m_diagVars and check that all the variables exists
+    std::sort(m_diagVars.begin(), m_diagVars.end());
+    auto last = std::unique(m_diagVars.begin(), m_diagVars.end());
+    m_diagVars.erase(last, m_diagVars.end());
+    int index = 0;
+    int scomp = 0;
+    for (auto& v : m_diagVars) {
+      const bool itexists =
+        derive_lst.canDerive(v) || isStateVariable(v, index, scomp);
+      amrex::Print() << v << " is a diagvar and it "
+                     << (itexists ? "exists" : "does not exist") << std::endl;
+      if (!itexists) {
+        amrex::Abort(
+          "PeleC::init_diagnostics(): Field " + v + " is not available");
+      }
+    }
   }
 }
 

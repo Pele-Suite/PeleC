@@ -96,4 +96,4 @@ pelec.zPlane.file = pltzcut
 pelec.zPlane.normal = 2
 pelec.zPlane.center = 0.0
 pelec.zPlane.int = 100
-pelec.zPlane.field_names = vfrac density zmom xmom Temp z_velocity y_velocity x_velocity Y(H2) Y(HO2) pressure MachNumber magvel viscosity conductivity
+pelec.zPlane.field_names = density zmom xmom Temp z_velocity y_velocity x_velocity pressure MachNumber magvel viscosity conductivity
