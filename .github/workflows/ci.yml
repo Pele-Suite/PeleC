@@ -420,6 +420,7 @@ jobs:
           -DCMAKE_VERBOSE_MAKEFILE:BOOL=ON \
           -DPELE_DIM:STRING=${{matrix.dim}} \
           -DPELE_PRECISION:STRING=SINGLE \
+          -DCMAKE_CXX_FLAGS:STRING=-Wno-float-conversion \
           -DPELE_ENABLE_MPI:BOOL=ON \
           -DMPIEXEC_PREFLAGS:STRING=--oversubscribe \
           -DPELE_ENABLE_FCOMPARE_FOR_TESTS:BOOL=OFF \
