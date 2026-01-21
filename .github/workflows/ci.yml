@@ -271,9 +271,9 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ${{matrix.ccache_cache}}
-          key: ccache-${{github.workflow}}-${{github.job}}-${{matrix.os}}-${{matrix.dim}}-${{matrix.build_type}}-git-${{github.sha}}
+          key: ccache-${{github.workflow}}-${{github.job}}-${{matrix.os}}-${{matrix.dim}}-${{matrix.build_type}}-${{matrix.precision}}-git-${{github.sha}}
           restore-keys: |
-               ccache-${{github.workflow}}-${{github.job}}-${{matrix.os}}-${{matrix.dim}}-${{matrix.build_type}}-git-
+               ccache-${{github.workflow}}-${{github.job}}-${{matrix.os}}-${{matrix.dim}}-${{matrix.build_type}}-${{matrix.precision}}-git-
       - name: MASA
         run: |
           # Install MetaPhysicL
@@ -296,8 +296,8 @@ jobs:
           make install
       - name: Configure
         run: |
-          cmake -B${{runner.workspace}}/build-${{matrix.dim}}d-${{matrix.os}}-${{matrix.build_type}} \
-          -DCMAKE_INSTALL_PREFIX:PATH=${{runner.workspace}}/install-${{matrix.dim}}d-${{matrix.os}}-${{matrix.build_type}} \
+          cmake -B${{runner.workspace}}/build-${{matrix.dim}}d-${{matrix.os}}-${{matrix.build_type}}-${{matrix.precision}} \
+          -DCMAKE_INSTALL_PREFIX:PATH=${{runner.workspace}}/install-${{matrix.dim}}d-${{matrix.os}}-${{matrix.build_type}}-${{matrix.precision}} \
           -DCMAKE_BUILD_TYPE:STRING=${{matrix.build_type}} \
           -DCMAKE_VERBOSE_MAKEFILE:BOOL=ON \
           -DPELE_DIM:STRING=${{matrix.dim}} \
@@ -306,7 +306,7 @@ jobs:
           -DPELE_ENABLE_FCOMPARE_FOR_TESTS:BOOL=OFF \
           -DPELE_ENABLE_MASA:BOOL=ON \
           -DPELE_SAVE_GOLDS:BOOL=${{matrix.reference_comparison}} \
-          -DPELE_SAVED_GOLDS_DIRECTORY=${{runner.workspace}}/build-${{matrix.dim}}d-${{matrix.os}}-${{matrix.build_type}} \
+          -DPELE_SAVED_GOLDS_DIRECTORY=${{runner.workspace}}/build-${{matrix.dim}}d-${{matrix.os}}-${{matrix.build_type}}-${{matrix.precision}} \
           -DPELE_EXCLUDE_BUILD_IN_CI:BOOL=ON \
           -DPELE_PRECISION:STRING=${{matrix.precision}} \
           -DMASA_ROOT:PATH=${{runner.workspace}}/deps/install/MASA \
@@ -315,7 +315,7 @@ jobs:
       - name: Build
         run: |
           ccache -z
-            cmake --build ${{runner.workspace}}/build-${{matrix.dim}}d-${{matrix.os}}-${{matrix.build_type}} \
+            cmake --build ${{runner.workspace}}/build-${{matrix.dim}}d-${{matrix.os}}-${{matrix.build_type}}-${{matrix.precision}} \
             --parallel ${{env.NPROCS}} 2>&1 | tee -a ${{runner.workspace}}/build-output.txt; \
           if [ ${PIPESTATUS[0]} -ne 0 ]; then exit 1; fi \
       - name: Ccache Report
@@ -333,7 +333,7 @@ jobs:
           export return=$(tail -n 1 ${{runner.workspace}}/build-output-warnings.txt | awk '{print $2}')
           exit ${return}
       - name: Test
-        working-directory: ${{runner.workspace}}/build-${{matrix.dim}}d-${{matrix.os}}-${{matrix.build_type}}
+        working-directory: ${{runner.workspace}}/build-${{matrix.dim}}d-${{matrix.os}}-${{matrix.build_type}}-${{matrix.precision}}
         run: |
           ctest ${{matrix.ctest_args}} -VV --output-on-failure
       - name: Checkout Reference Version
@@ -346,8 +346,8 @@ jobs:
       - name: Configure Reference Version
         if: env.DO_REF_COMPARE == 'true'
         run : |
-          cmake -B${{runner.workspace}}/build-${{matrix.dim}}d-${{matrix.os}}-${{matrix.build_type}}-reference \
-          -DCMAKE_INSTALL_PREFIX:PATH=${{runner.workspace}}/install-${{matrix.dim}}d-${{matrix.os}}-${{matrix.build_type}}-reference  \
+          cmake -B${{runner.workspace}}/build-${{matrix.dim}}d-${{matrix.os}}-${{matrix.build_type}}-${{matrix.precision}}-reference \
+          -DCMAKE_INSTALL_PREFIX:PATH=${{runner.workspace}}/install-${{matrix.dim}}d-${{matrix.os}}-${{matrix.build_type}}-${{matrix.precision}}-reference  \
           -DCMAKE_BUILD_TYPE:STRING=${{matrix.build_type}} \
           -DCMAKE_VERBOSE_MAKEFILE:BOOL=ON \
           -DPELE_DIM:STRING=${{matrix.dim}} \
@@ -355,9 +355,10 @@ jobs:
           -DMPIEXEC_PREFLAGS:STRING=--oversubscribe \
           -DPELE_ENABLE_FCOMPARE:BOOL=ON \
           -DPELE_ENABLE_FCOMPARE_FOR_TESTS:BOOL=ON \
-          -DPELE_REFERENCE_GOLDS_DIRECTORY:STRING=${{runner.workspace}}/build-${{matrix.dim}}d-${{matrix.os}}-${{matrix.build_type}} \
+          -DPELE_REFERENCE_GOLDS_DIRECTORY:STRING=${{runner.workspace}}/build-${{matrix.dim}}d-${{matrix.os}}-${{matrix.build_type}}-${{matrix.precision}} \
           -DPELE_ENABLE_MASA:BOOL=ON \
           -DPELE_EXCLUDE_BUILD_IN_CI:BOOL=ON \
+          -DPELE_PRECISION:STRING=${{matrix.precision}} \
           -DPELE_SKIP_NON_FCOMPARE_TESTS:BOOL=ON \
           -DMASA_ROOT:PATH=${{runner.workspace}}/deps/install/MASA \
           -DCMAKE_CXX_COMPILER_LAUNCHER:STRING=ccache \
@@ -366,13 +367,13 @@ jobs:
         if: env.DO_REF_COMPARE == 'true'
         run : |
           ccache -z
-            cmake --build ${{runner.workspace}}/build-${{matrix.dim}}d-${{matrix.os}}-${{matrix.build_type}}-reference \
+            cmake --build ${{runner.workspace}}/build-${{matrix.dim}}d-${{matrix.os}}-${{matrix.build_type}}-${{matrix.precision}}-reference \
             --parallel ${{env.NPROCS}}
           ccache -s
           du -hs ${{matrix.ccache_cache}}
       - name: Test Reference and Compare
         if: env.DO_REF_COMPARE == 'true'
-        working-directory: ${{runner.workspace}}/build-${{matrix.dim}}d-${{matrix.os}}-${{matrix.build_type}}-reference
+        working-directory: ${{runner.workspace}}/build-${{matrix.dim}}d-${{matrix.os}}-${{matrix.build_type}}-${{matrix.precision}}-reference
         run : |
           ctest ${{matrix.ctest_args}} -VV --output-on-failure
 
