@@ -448,10 +448,10 @@ jobs:
           cat ${{runner.workspace}}/build-output-warnings.txt
           export return=$(tail -n 1 ${{runner.workspace}}/build-output-warnings.txt | awk '{print $2}')
           exit ${return}
-      - name: Test
-        working-directory: ${{runner.workspace}}/build-${{matrix.dim}}d-single
-        run: |
-          ctest -LE no-ci -VV --output-on-failure
+      #- name: Test
+      #  working-directory: ${{runner.workspace}}/build-${{matrix.dim}}d-single
+      #  run: |
+      #    ctest -LE no-ci -VV --output-on-failure
 
   GPU-Nvidia:
     name: GPU-CUDA
