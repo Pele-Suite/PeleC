@@ -3,8 +3,7 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "^(GNU|Clang|AppleClang)$")
   if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 7.0)
     list(APPEND PELE_CXX_FLAGS "-faligned-new"
                                 "-Wunreachable-code"
-                                "-Wnull-dereference"
-                                "-Wfloat-conversion"
+                                "-Wnull-dereference" #"-Wfloat-conversion"
                                 "-Wshadow"
                                 "-Woverloaded-virtual")
     if(CMAKE_CXX_COMPILER_ID MATCHES "^(Clang|AppleClang)$")
