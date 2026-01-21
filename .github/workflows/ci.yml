@@ -418,7 +418,7 @@ jobs:
           -DCMAKE_INSTALL_PREFIX:PATH=${{runner.workspace}}/install-${{matrix.dim}}d-single \
           -DCMAKE_BUILD_TYPE:STRING=Release \
           -DCMAKE_VERBOSE_MAKEFILE:BOOL=ON \
-          -DCMAKE_CXX_FLAGS:STRING=-Wno-float-conversion \
+          -DCMAKE_CXX_FLAGS:STRING=-Wno-conversion \
           -DPELE_DIM:STRING=${{matrix.dim}} \
           -DPELE_PRECISION:STRING=SINGLE \
           -DPELE_ENABLE_MPI:BOOL=ON \
