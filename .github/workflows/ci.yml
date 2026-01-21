@@ -207,6 +207,7 @@ jobs:
         os: [ubuntu-24.04, macos-latest]
         build_type: [Release, Debug]
         dim: [2, 3]
+        precision: [SINGLE, DOUBLE]
         include:
           - os: macos-latest
             install_deps: brew install open-mpi libtool automake ccache
@@ -229,6 +230,7 @@ jobs:
         exclude:
           - os: macos-latest
             build_type: Debug
+            precision: SINGLE
     env:
       DO_REF_COMPARE: ${{matrix.reference_comparison == 'ON' && github.event_name != 'push'}}
     steps:
@@ -306,6 +308,7 @@ jobs:
           -DPELE_SAVE_GOLDS:BOOL=${{matrix.reference_comparison}} \
           -DPELE_SAVED_GOLDS_DIRECTORY=${{runner.workspace}}/build-${{matrix.dim}}d-${{matrix.os}}-${{matrix.build_type}} \
           -DPELE_EXCLUDE_BUILD_IN_CI:BOOL=ON \
+          -DPELE_PRECISION:STRING=${{matrix.precision}} \
           -DMASA_ROOT:PATH=${{runner.workspace}}/deps/install/MASA \
           -DCMAKE_CXX_COMPILER_LAUNCHER:STRING=ccache \
           ${{github.workspace}}
