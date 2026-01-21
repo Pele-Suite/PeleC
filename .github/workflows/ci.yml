@@ -207,7 +207,6 @@ jobs:
         os: [ubuntu-24.04, macos-latest]
         build_type: [Release, Debug]
         dim: [2, 3]
-        precision: [SINGLE, DOUBLE]
         include:
           - os: macos-latest
             install_deps: brew install open-mpi libtool automake ccache
@@ -230,7 +229,6 @@ jobs:
         exclude:
           - os: macos-latest
             build_type: Debug
-            precision: SINGLE
     env:
       DO_REF_COMPARE: ${{matrix.reference_comparison == 'ON' && github.event_name != 'push'}}
     steps:
@@ -271,9 +269,9 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ${{matrix.ccache_cache}}
-          key: ccache-${{github.workflow}}-${{github.job}}-${{matrix.os}}-${{matrix.dim}}-${{matrix.build_type}}-${{matrix.precision}}-git-${{github.sha}}
+          key: ccache-${{github.workflow}}-${{github.job}}-${{matrix.os}}-${{matrix.dim}}-${{matrix.build_type}}-git-${{github.sha}}
           restore-keys: |
-               ccache-${{github.workflow}}-${{github.job}}-${{matrix.os}}-${{matrix.dim}}-${{matrix.build_type}}-${{matrix.precision}}-git-
+               ccache-${{github.workflow}}-${{github.job}}-${{matrix.os}}-${{matrix.dim}}-${{matrix.build_type}}-git-
       - name: MASA
         run: |
           # Install MetaPhysicL
@@ -296,8 +294,8 @@ jobs:
           make install
       - name: Configure
         run: |
-          cmake -B${{runner.workspace}}/build-${{matrix.dim}}d-${{matrix.os}}-${{matrix.build_type}}-${{matrix.precision}} \
-          -DCMAKE_INSTALL_PREFIX:PATH=${{runner.workspace}}/install-${{matrix.dim}}d-${{matrix.os}}-${{matrix.build_type}}-${{matrix.precision}} \
+          cmake -B${{runner.workspace}}/build-${{matrix.dim}}d-${{matrix.os}}-${{matrix.build_type}} \
+          -DCMAKE_INSTALL_PREFIX:PATH=${{runner.workspace}}/install-${{matrix.dim}}d-${{matrix.os}}-${{matrix.build_type}} \
           -DCMAKE_BUILD_TYPE:STRING=${{matrix.build_type}} \
           -DCMAKE_VERBOSE_MAKEFILE:BOOL=ON \
           -DPELE_DIM:STRING=${{matrix.dim}} \
@@ -306,16 +304,15 @@ jobs:
           -DPELE_ENABLE_FCOMPARE_FOR_TESTS:BOOL=OFF \
           -DPELE_ENABLE_MASA:BOOL=ON \
           -DPELE_SAVE_GOLDS:BOOL=${{matrix.reference_comparison}} \
-          -DPELE_SAVED_GOLDS_DIRECTORY=${{runner.workspace}}/build-${{matrix.dim}}d-${{matrix.os}}-${{matrix.build_type}}-${{matrix.precision}} \
+          -DPELE_SAVED_GOLDS_DIRECTORY=${{runner.workspace}}/build-${{matrix.dim}}d-${{matrix.os}}-${{matrix.build_type}} \
           -DPELE_EXCLUDE_BUILD_IN_CI:BOOL=ON \
-          -DPELE_PRECISION:STRING=${{matrix.precision}} \
           -DMASA_ROOT:PATH=${{runner.workspace}}/deps/install/MASA \
           -DCMAKE_CXX_COMPILER_LAUNCHER:STRING=ccache \
           ${{github.workspace}}
       - name: Build
         run: |
           ccache -z
-            cmake --build ${{runner.workspace}}/build-${{matrix.dim}}d-${{matrix.os}}-${{matrix.build_type}}-${{matrix.precision}} \
+            cmake --build ${{runner.workspace}}/build-${{matrix.dim}}d-${{matrix.os}}-${{matrix.build_type}} \
             --parallel ${{env.NPROCS}} 2>&1 | tee -a ${{runner.workspace}}/build-output.txt; \
           if [ ${PIPESTATUS[0]} -ne 0 ]; then exit 1; fi \
       - name: Ccache Report
@@ -333,7 +330,7 @@ jobs:
           export return=$(tail -n 1 ${{runner.workspace}}/build-output-warnings.txt | awk '{print $2}')
           exit ${return}
       - name: Test
-        working-directory: ${{runner.workspace}}/build-${{matrix.dim}}d-${{matrix.os}}-${{matrix.build_type}}-${{matrix.precision}}
+        working-directory: ${{runner.workspace}}/build-${{matrix.dim}}d-${{matrix.os}}-${{matrix.build_type}}
         run: |
           ctest ${{matrix.ctest_args}} -VV --output-on-failure
       - name: Checkout Reference Version
@@ -346,8 +343,8 @@ jobs:
       - name: Configure Reference Version
         if: env.DO_REF_COMPARE == 'true'
         run : |
-          cmake -B${{runner.workspace}}/build-${{matrix.dim}}d-${{matrix.os}}-${{matrix.build_type}}-${{matrix.precision}}-reference \
-          -DCMAKE_INSTALL_PREFIX:PATH=${{runner.workspace}}/install-${{matrix.dim}}d-${{matrix.os}}-${{matrix.build_type}}-${{matrix.precision}}-reference  \
+          cmake -B${{runner.workspace}}/build-${{matrix.dim}}d-${{matrix.os}}-${{matrix.build_type}}-reference \
+          -DCMAKE_INSTALL_PREFIX:PATH=${{runner.workspace}}/install-${{matrix.dim}}d-${{matrix.os}}-${{matrix.build_type}}-reference  \
           -DCMAKE_BUILD_TYPE:STRING=${{matrix.build_type}} \
           -DCMAKE_VERBOSE_MAKEFILE:BOOL=ON \
           -DPELE_DIM:STRING=${{matrix.dim}} \
@@ -355,10 +352,9 @@ jobs:
           -DMPIEXEC_PREFLAGS:STRING=--oversubscribe \
           -DPELE_ENABLE_FCOMPARE:BOOL=ON \
           -DPELE_ENABLE_FCOMPARE_FOR_TESTS:BOOL=ON \
-          -DPELE_REFERENCE_GOLDS_DIRECTORY:STRING=${{runner.workspace}}/build-${{matrix.dim}}d-${{matrix.os}}-${{matrix.build_type}}-${{matrix.precision}} \
+          -DPELE_REFERENCE_GOLDS_DIRECTORY:STRING=${{runner.workspace}}/build-${{matrix.dim}}d-${{matrix.os}}-${{matrix.build_type}} \
           -DPELE_ENABLE_MASA:BOOL=ON \
           -DPELE_EXCLUDE_BUILD_IN_CI:BOOL=ON \
-          -DPELE_PRECISION:STRING=${{matrix.precision}} \
           -DPELE_SKIP_NON_FCOMPARE_TESTS:BOOL=ON \
           -DMASA_ROOT:PATH=${{runner.workspace}}/deps/install/MASA \
           -DCMAKE_CXX_COMPILER_LAUNCHER:STRING=ccache \
@@ -367,15 +363,89 @@ jobs:
         if: env.DO_REF_COMPARE == 'true'
         run : |
           ccache -z
-            cmake --build ${{runner.workspace}}/build-${{matrix.dim}}d-${{matrix.os}}-${{matrix.build_type}}-${{matrix.precision}}-reference \
+            cmake --build ${{runner.workspace}}/build-${{matrix.dim}}d-${{matrix.os}}-${{matrix.build_type}}-reference \
             --parallel ${{env.NPROCS}}
           ccache -s
           du -hs ${{matrix.ccache_cache}}
       - name: Test Reference and Compare
         if: env.DO_REF_COMPARE == 'true'
-        working-directory: ${{runner.workspace}}/build-${{matrix.dim}}d-${{matrix.os}}-${{matrix.build_type}}-${{matrix.precision}}-reference
+        working-directory: ${{runner.workspace}}/build-${{matrix.dim}}d-${{matrix.os}}-${{matrix.build_type}}-reference
         run : |
           ctest ${{matrix.ctest_args}} -VV --output-on-failure
+
+  CPU-CMake-SINGLE:
+    needs: Formatting
+    runs-on: ubuntu-24.04
+    strategy:
+      matrix:
+        dim: [2, 3]
+    steps:
+      - name: Clone
+        uses: actions/checkout@v4
+        with:
+          submodules: 'recursive'
+      - name: Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Setup
+        run: |
+          echo "NPROCS=$(nproc)" >> $GITHUB_ENV
+          echo "CCACHE_COMPRESS=1" >> $GITHUB_ENV
+          echo "CCACHE_COMPRESSLEVEL=10" >> $GITHUB_ENV
+          echo "CCACHE_LOGFILE=${{github.workspace}}/ccache.log.txt" >> $GITHUB_ENV
+          echo "CCACHE_MAXSIZE=50M" >> $GITHUB_ENV
+      - name: Install Ccache
+        run: |
+          wget https://github.com/ccache/ccache/releases/download/v4.8/ccache-4.8-linux-x86_64.tar.xz
+          tar xvf ccache-4.8-linux-x86_64.tar.xz
+          sudo cp -f ccache-4.8-linux-x86_64/ccache /usr/local/bin/
+      - name: Set Up Ccache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ccache
+          key: ccache-${{github.workflow}}-${{github.job}}-${{matrix.dim}}-single-git-${{github.sha}}
+          restore-keys: |
+               ccache-${{github.workflow}}-${{github.job}}-${{matrix.dim}}-single-git-
+      - name: Configure
+        run: |
+          cmake -B${{runner.workspace}}/build-${{matrix.dim}}d-single \
+          -DCMAKE_INSTALL_PREFIX:PATH=${{runner.workspace}}/install-${{matrix.dim}}d-single \
+          -DCMAKE_BUILD_TYPE:STRING=Release \
+          -DCMAKE_VERBOSE_MAKEFILE:BOOL=ON \
+          -DPELE_DIM:STRING=${{matrix.dim}} \
+          -DPELE_PRECISION:STRING=SINGLE \
+          -DPELE_ENABLE_MPI:BOOL=ON \
+          -DMPIEXEC_PREFLAGS:STRING=--oversubscribe \
+          -DPELE_ENABLE_FCOMPARE_FOR_TESTS:BOOL=OFF \
+          -DPELE_ENABLE_MASA:BOOL=OFF \
+          -DPELE_EXCLUDE_BUILD_IN_CI:BOOL=ON \
+          -DCMAKE_CXX_COMPILER_LAUNCHER:STRING=ccache \
+          ${{github.workspace}}
+      - name: Build
+        run: |
+          ccache -z
+            cmake --build ${{runner.workspace}}/build-${{matrix.dim}}d-single \
+            --parallel ${{env.NPROCS}} 2>&1 | tee -a ${{runner.workspace}}/build-output.txt; \
+          if [ ${PIPESTATUS[0]} -ne 0 ]; then exit 1; fi \
+      - name: Ccache Report
+        run: |
+          ccache -s
+          du -hs ~/.cache/ccache
+      - name: Report
+        run: |
+          echo "::add-matcher::.github/problem-matchers/gcc.json"
+          egrep "Warning:|Error:|warning:|error:" ${{runner.workspace}}/build-output.txt \
+            | egrep -v "Submodules/amrex|Submodules/sundials" \
+            | egrep -v "ld: warning:" | egrep -v "lto-wrapper: warning:" | sort | uniq \
+            | awk 'BEGIN{i=0}{print $0}{i++}END{print "Warnings: "i}' > ${{runner.workspace}}/build-output-warnings.txt
+          cat ${{runner.workspace}}/build-output-warnings.txt
+          export return=$(tail -n 1 ${{runner.workspace}}/build-output-warnings.txt | awk '{print $2}')
+          exit ${return}
+      - name: Test
+        working-directory: ${{runner.workspace}}/build-${{matrix.dim}}d-single
+        run: |
+          ctest -LE no-ci -VV --output-on-failure
 
   GPU-Nvidia:
     name: GPU-CUDA
