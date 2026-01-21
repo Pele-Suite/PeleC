@@ -123,14 +123,14 @@ read_pmf(const std::string& myfile)
     for (int n = 0; n < NUM_SPECIES; n++) {
       const int col = specCol + n;
       amrex::Real Yval = PeleC::prob_parm_host->h_pmf_Y[N * col + i];
-      Yval = amrex::min<amrex::Real>(1.0, amrex::max<amrex::Real>(Yval, 0.0));
+      Yval = amrex::Clamp(Yval, 0.0, 1.0);
       sumY += Yval;
     }
     sumY = 1.0 / sumY;
     for (int n = 0; n < NUM_SPECIES; n++) {
       const int col = specCol + n;
       amrex::Real Yval = PeleC::prob_parm_host->h_pmf_Y[N * col + i];
-      Yval = amrex::min<amrex::Real>(1.0, amrex::max<amrex::Real>(Yval, 0.0));
+      Yval = amrex::Clamp(Yval, 0.0, 1.0);
       PeleC::prob_parm_host->h_pmf_Y[N * col + i] = Yval * sumY;
     }
   }

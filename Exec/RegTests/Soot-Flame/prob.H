@@ -166,8 +166,7 @@ pc_initdata(
   amrex::Real massfrac[NUM_SPECIES] = {0.0};
   amrex::Real norm = 0.0;
   for (int n = 0; n < NUM_SPECIES; ++n) {
-    massfrac[n] = amrex::max<amrex::Real>(
-      0.0, amrex::min<amrex::Real>(1.0, pmf_vals[specCol + n]));
+    massfrac[n] = amrex::Clamp(pmf_vals[specCol + n], 0.0, 1.0);
     norm += massfrac[n];
   }
   for (auto& mf : massfrac) {
