@@ -227,7 +227,7 @@ jobs:
           mv hit_ic_4_128.dat ../../../../Exec/RegTests/EB-ConvergingNozzle
           mv PeleTurb3d.gnu.ex ../../../../Exec/RegTests/EB-ConvergingNozzle
       - name: TurbInflowGenerator report
-        working-directory: ./Exec/RegTests/Spray-Conv
+        working-directory: ./Submodules/PelePhysics/Support/TurbInflowGenerator
         run: |
           egrep "Warning:|Error:|warning:|error:" build-output.txt \
             | egrep -v "Submodules/amrex|Submodules/sundials|GNUmakefile|ThirdParty" \

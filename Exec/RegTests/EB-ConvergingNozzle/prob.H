@@ -115,13 +115,11 @@ bcnormal(
     amrex::Real w_in = 0.0;
     // Use TurbInflow stuff if needed
     if (prob_parm.turb_inflow_type == TurbInflowType::TurbulentFluctuations) {
-      u_in += turb_fluc[0];
-      v_in += turb_fluc[1];
-      w_in += turb_fluc[2];
+      AMREX_D_TERM(
+        u_in += turb_fluc[0];, v_in += turb_fluc[1];, w_in += turb_fluc[2];);
     } else if (prob_parm.turb_inflow_type == TurbInflowType::TotalVelocity) {
-      u_in = turb_fluc[0];
-      v_in = turb_fluc[1];
-      w_in = turb_fluc[2];
+      AMREX_D_TERM(
+        u_in = turb_fluc[0];, v_in = turb_fluc[1];, w_in = turb_fluc[2];);
     }
 
     // Set boundary cells
