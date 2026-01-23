@@ -63,7 +63,7 @@ cd ../../../Submodules/PelePhysics/Support/TurbInflowGenerator
 make -j
 cd -
 cp  ../../../Submodules/PelePhysics/Support/TurbInflowGenerator/PeleTurb3d.gnu.ex ./
-./PeleTurb3d.gnu.ex type=diag_frame_planes ofile=INFLOW ifiles= $(ls -d output_initial/pltxcut*0) periodicity=0 0 0 normal=0
+./PeleTurb3d.gnu.ex type=diag_frame_planes ofile=INFLOW ifiles= $(ls -d output_initial/pltxcut*[0-9]) periodicity=0 0 0 normal=0
 ```
 
 Finally, run the main simulation using the inflow generated from the precursor simulation. Note
