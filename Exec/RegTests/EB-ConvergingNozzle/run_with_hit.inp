@@ -1,0 +1,16 @@
+amr.check_file      = output_whit/chk        # root name of checkpoint file
+amr.plot_file       = output_whit/plt        # root name of plotfile
+
+# Option to set up turbinflow
+turbinflows = xlo
+turbinflow.xlo.turb_file = HIT
+turbinflow.xlo.dir = 0
+turbinflow.xlo.side = low
+turbinflow.xlo.turb_scale_loc = 1.0
+turbinflow.xlo.turb_scale_vel = 100.0
+turbinflow.xlo.turb_center    = 0.0 0.0
+turbinflow.xlo.turb_conv_vel  = 8820 # Should match inflow velocity
+turbinflow.xlo.turb_nplane    = 6
+turbinflow.xlo.time_offset    = 0.0
+turbinflow.xlo.tile_periodic  = 1
+prob.turb_inflow_type = TurbulentFluctuations
