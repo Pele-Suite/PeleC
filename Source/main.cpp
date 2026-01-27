@@ -5,6 +5,7 @@
 #include <AMReX_ParallelDescriptor.H>
 #include <AMReX_AmrLevel.H>
 #include <AMReX_EB2.H>
+#include <AMReX_EB2.H>
 
 // Defined and initialized when in gnumake, but not defined in cmake and
 // initialization done manually
