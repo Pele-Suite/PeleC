@@ -710,6 +710,8 @@ PeleC::variableCleanUp()
 #ifdef PELE_USE_SPRAY
   SprayParticleContainer::SprayCleanUp();
   SprayPC.reset();
+  GhostPC.reset();
+  VirtPC.reset();
 #endif
 #ifdef PELE_USE_SOOT
   soot_model.cleanup();
