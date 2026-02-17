@@ -25,6 +25,7 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "IntelLLVM")
                               "-Wno-unused-variable")
 endif()
 
+list(APPEND PELE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
 separate_arguments(PELE_CXX_FLAGS)
 target_compile_options(${pele_physics_lib_name} PUBLIC $<$<COMPILE_LANGUAGE:CXX>:${PELE_CXX_FLAGS}>)
 

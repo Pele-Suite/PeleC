@@ -689,20 +689,6 @@ PeleC::variableSetUp()
 #endif
 
   read_tagging_params();
-
-  // Remove duplicates from m_diagVars and check that all the variables exists
-  std::sort(m_diagVars.begin(), m_diagVars.end());
-  auto last = std::unique(m_diagVars.begin(), m_diagVars.end());
-  m_diagVars.erase(last, m_diagVars.end());
-  int index = 0;
-  int scomp = 0;
-  for (auto& v : m_diagVars) {
-    const bool itexists =
-      derive_lst.canDerive(v) || isStateVariable(v, index, scomp);
-    if (!itexists) {
-      amrex::Abort("Field " + v + " is not available");
-    }
-  }
 }
 
 void

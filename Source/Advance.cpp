@@ -91,7 +91,7 @@ PeleC::do_mol_advance(
   int nGrow_FP_border = numGrow() + nGrowF;
 #ifdef PELE_USE_SPRAY
   const int spray_state_ghosts = sprayStateGhosts(amr_ncycle);
-  nGrow_FP_border = amrex::max(nGrow_FP_border, spray_state_ghosts);
+  nGrow_FP_border = amrex::max<int>(nGrow_FP_border, spray_state_ghosts);
   AMREX_ASSERT(Sborder.nGrow() >= nGrow_FP_border);
 #endif
 
@@ -266,7 +266,7 @@ PeleC::do_sdc_iteration(
   if (do_spray_particles) {
     const int spray_state_ghosts = sprayStateGhosts(amr_ncycle);
     fill_Sborder = true;
-    nGrow_FP_border = amrex::max(nGrow_FP_border, spray_state_ghosts);
+    nGrow_FP_border = amrex::max<int>(nGrow_FP_border, spray_state_ghosts);
     AMREX_ASSERT(Sborder.nGrow() >= nGrow_FP_border);
   }
 #endif
@@ -323,7 +323,7 @@ PeleC::do_sdc_iteration(
   if (do_diffuse || do_spray_particles) {
     int nGrowDiff = numGrow();
     if (do_spray_particles && level > 0) {
-      nGrowDiff = amrex::max(nGrowDiff, nGrow_FP_border);
+      nGrowDiff = amrex::max<int>(nGrowDiff, nGrow_FP_border);
     }
     FillPatcherFill(Sborder, 0, NVAR, nGrowDiff, time + dt, State_Type, 0);
   }

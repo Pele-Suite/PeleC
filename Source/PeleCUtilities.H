@@ -419,14 +419,14 @@ void read_binary(
   const size_t ny,
   const size_t nz,
   const size_t ncol,
-  amrex::Vector<amrex::Real>& data);
+  amrex::Vector<double>& data); // needs to be double
 
 void read_csv(
   const std::string& iname,
   const size_t nx,
   const size_t ny,
   const size_t nz,
-  amrex::Vector<amrex::Real>& data);
+  amrex::Vector<double>& data); // needs to be double
 
 // Find position of element in vector
 template <typename T>

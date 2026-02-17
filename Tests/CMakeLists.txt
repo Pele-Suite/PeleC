@@ -56,7 +56,7 @@ macro(setup_test)
     file(COPY ${TEST_FILES} DESTINATION "${CURRENT_TEST_BINARY_DIR}/")
 
     # Set some default runtime options for all tests
-    set(RUNTIME_OPTIONS "amr.checkpoint_files_output=0 amrex.the_arena_is_managed=0")
+    set(RUNTIME_OPTIONS "amr.checkpoint_files_output=0 amrex.the_arena_is_managed=0 amrex.the_arena_init_size=0")
     if(PELE_ENABLE_FCOMPARE_FOR_TESTS OR PELE_SAVE_GOLDS)
       set(RUNTIME_OPTIONS "${RUNTIME_OPTIONS} amr.plot_files_output=1 amr.plot_int=10 amr.plot_file=plt amr.file_name_digits=5")
     else()

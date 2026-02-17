@@ -480,8 +480,8 @@ PeleC::PeleC(
 #ifdef PELE_USE_SPRAY
   if (do_spray_particles) {
     if (level > 0) {
-      nGrowS =
-        amrex::max(nGrowS, sprayStateGhosts(parent->MaxRefRatio(level - 1)));
+      nGrowS = amrex::max<int>(
+        nGrowS, sprayStateGhosts(parent->MaxRefRatio(level - 1)));
       defineSpraySource(parent->MaxRefRatio(level - 1));
     } else {
       defineSpraySource(1);
@@ -2011,6 +2011,20 @@ PeleC::init_diagnostics()
       m_diagnostics[n]->init(diag_prefix, diags[n]);
       m_diagnostics[n]->addVars(m_diagVars);
     }
+    // Remove duplicates from m_diagVars and check that all the variables exist
+    std::sort(m_diagVars.begin(), m_diagVars.end());
+    auto last = std::unique(m_diagVars.begin(), m_diagVars.end());
+    m_diagVars.erase(last, m_diagVars.end());
+    int index = 0;
+    int scomp = 0;
+    for (auto& v : m_diagVars) {
+      const bool itexists = derive_lst.canDerive(v) ||
+                            isStateVariable(v, index, scomp) || v == "vfrac";
+      if (!itexists) {
+        amrex::Abort(
+          "PeleC::init_diagnostics(): Field " + v + " is not available");
+      }
+    }
   }
 }
 
@@ -2074,14 +2088,16 @@ PeleC::do_diagnostics()
           1);
         for (int v{0}; v < m_diagVars.size(); ++v) {
           // Already tested: either a derive or a state variable
-          if (derive_lst.canDerive(m_diagVars[v])) {
+          if (derive_lst.canDerive(m_diagVars[v]) || m_diagVars[v] == "vfrac") {
             auto mf = amrlevel.derive(m_diagVars[v], cumtime, 1);
-            const amrex::DeriveRec* rec = derive_lst.get(m_diagVars[v]);
             int varIdx{0};
-            for (int vd{0}; vd < rec->numDerive(); ++vd) {
-              if (m_diagVars[v] == rec->variableName(vd)) {
-                varIdx = vd;
-                break;
+            if (derive_lst.canDerive(m_diagVars[v])) {
+              const amrex::DeriveRec* rec = derive_lst.get(m_diagVars[v]);
+              for (int vd{0}; vd < rec->numDerive(); ++vd) {
+                if (m_diagVars[v] == rec->variableName(vd)) {
+                  varIdx = vd;
+                  break;
+                }
               }
             }
             amrex::MultiFab::Copy(*diagMFVec[lev], *mf, varIdx, v, 1, 1);
