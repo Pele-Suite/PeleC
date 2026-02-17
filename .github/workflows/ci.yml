@@ -41,6 +41,7 @@ jobs:
           echo "CCACHE_LOGFILE=${{github.workspace}}/ccache.log.txt" >> $GITHUB_ENV
           echo "CCACHE_MAXSIZE=500M" >> $GITHUB_ENV
           make COMP=gnu USE_MPI=FALSE DEBUG=TRUE TPL
+          make COMP=gnu USE_MPI=FALSE DEBUG=FALSE TPL
           make COMP=llvm USE_MPI=FALSE DEBUG=TRUE PRECISION=FLOAT TPL
       - name: Install Ccache
         run: |
@@ -54,6 +55,11 @@ jobs:
           key: ccache-${{github.workflow}}-${{github.job}}-git-${{github.sha}}
           restore-keys: |
                ccache-${{github.workflow}}-${{github.job}}-git-
+      - name: Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
       - name: PMF debug make
         working-directory: ./Exec/RegTests/PMF
         run: |
@@ -194,6 +200,70 @@ jobs:
           egrep "Warning:|Error:|warning:|error:" build-output.txt \
             | egrep -v "Submodules/amrex|Submodules/sundials|GNUmakefile|ThirdParty" \
             | sort | uniq \
+            | awk 'BEGIN{i=0}{print $0}{i++}END{print "Warnings: "i}' > warnings.txt
+          cat warnings.txt
+          export return=$(tail -n 1 warnings.txt | awk '{print $2}')
+          exit ${return}
+
+      - name: TurbInflowGenerator build
+        working-directory: ./Submodules/PelePhysics/Support/TurbInflowGenerator
+        run: |
+          echo "::add-matcher::.github/problem-matchers/gcc.json"
+          set -eu -o pipefail
+          ccache -z
+          make -j ${{env.NPROCS}} KEEP_BUILDINFO_CPP=TRUE USE_CCACHE=TRUE COMP=gnu USE_MPI=FALSE 2>&1 | tee -a build-output.txt
+      - name: TurbInflowGenerator ccache report
+        working-directory: ./Submodules/PelePhysics/Support/TurbInflowGenerator
+        run: |
+          ccache -s
+          du -hs ~/.cache/ccache
+      - name: TurbInflowGenerator set up
+        working-directory: ./Submodules/PelePhysics/Support/TurbInflowGenerator
+        run: |
+          python3 -m pip install --user scipy
+          python3 -m pip install --user matplotlib
+          python3 -m pip install --user numpy
+          python gen_hit_ic.py -k0 4 -N 128 -Nk 128
+          mv hit_ic_4_128.dat ../../../../Exec/RegTests/EB-ConvergingNozzle
+          mv PeleTurb3d.gnu.ex ../../../../Exec/RegTests/EB-ConvergingNozzle
+      - name: TurbInflowGenerator report
+        working-directory: ./Submodules/PelePhysics/Support/TurbInflowGenerator
+        run: |
+          egrep "Warning:|Error:|warning:|error:" build-output.txt \
+            | egrep -v "Submodules/amrex|Submodules/sundials|GNUmakefile|ThirdParty" \
+            | sort | uniq \
+            | awk 'BEGIN{i=0}{print $0}{i++}END{print "Warnings: "i}' > warnings.txt
+          cat warnings.txt
+          export return=$(tail -n 1 warnings.txt | awk '{print $2}')
+          exit ${return}
+      - name: EB-ConvergingNozzle TurbInflow build
+        working-directory: ./Exec/RegTests/EB-ConvergingNozzle
+        run : |
+          echo "::add-matcher::.github/problem-matchers/gcc.json"
+          set -eu -o pipefail
+          ccache -z
+          make -j ${{env.NPROCS}} KEEP_BUILDINFO_CPP=TRUE USE_CCACHE=TRUE COMP=gnu USE_MPI=FALSE 2>&1 | tee -a build-output.txt
+      - name: EB-ConvergingNozzle TurbInflow  ccache report
+        working-directory: ./Exec/RegTests/EB-ConvergingNozzle
+        run: |
+          ccache -s
+          du -hs ~/.cache/ccache
+      - name: EB-ConvergingNozzle TurbInflow run
+        working-directory: ./Exec/RegTests/EB-ConvergingNozzle
+        run: |
+          # Create and run with synthetic turbulent fluctuation inflow
+          ./PeleTurb3d.gnu.ex type=turb_box hit_file=hit_ic_4_128.dat input_ncell=128 ofile=HIT
+          ./PeleC3d.gnu.ex turb_inflow_base.inp FILE=run_with_hit.inp
+          # Run precursor simulation, compile planes to inflow, run main simulation with inflow
+          ./PeleC3d.gnu.ex turb_inflow_base.inp FILE=run_initial_dump_planes.inp
+          ./PeleTurb3d.gnu.ex type=diag_frame_planes ofile=INFLOW ifiles= $(ls -d output_initial/pltxcut*[0-9]) periodicity=0 0 0 normal=0
+          ./PeleC3d.gnu.ex turb_inflow_base.inp FILE=run_with_inflow.inp
+      - name: EB-ConvergingNozzle TurbInflow debug report
+        working-directory: ./Exec/RegTests/EB-ConvergingNozzle
+        run: |
+          egrep "Warning:|Error:|warning:|error:" build-output.txt \
+            | egrep -v "Submodules/amrex|Submodules/sundials|GNUmakefile|ThirdParty" \
+            | egrep -v "ld: warning:" | sort | uniq \
             | awk 'BEGIN{i=0}{print $0}{i++}END{print "Warnings: "i}' > warnings.txt
           cat warnings.txt
           export return=$(tail -n 1 warnings.txt | awk '{print $2}')

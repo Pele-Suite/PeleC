@@ -1,0 +1,20 @@
+# Stop early so we don't run out of inflow planes to use
+max_step = 10
+
+amr.check_file      = output_winflow/chk        # root name of checkpoint file
+amr.plot_file       = output_winflow/plt        # root name of plotfile
+
+# Option to set up turbinflow
+turbinflows = xlo
+turbinflow.xlo.turb_file = INFLOW
+turbinflow.xlo.dir = 0
+turbinflow.xlo.side = low
+turbinflow.xlo.turb_scale_loc = 1.0
+turbinflow.xlo.turb_scale_vel = 1.0
+turbinflow.xlo.turb_center    = 0.0 0.0
+turbinflow.xlo.turb_conv_vel  = 1.0
+turbinflow.xlo.turb_nplane    = 6
+turbinflow.xlo.time_offset    = 0.000002
+turbinflow.xlo.interp_type = linear
+turbinflow.xlo.extrap_nonperiodic = 1
+prob.turb_inflow_type = TotalVelocity
