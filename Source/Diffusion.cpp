@@ -549,8 +549,8 @@ PeleC::getMOLSrcTerm(
         const int mg = MOLSrcTerm.nGrow();
         const auto* low = vbox.loVect();
         const auto* high = vbox.hiVect();
-        auto dlo = Dterm.begin;
-        auto dhi = Dterm.end;
+        auto dlo = amrex::lbound(Dterm);
+        auto dhi = amrex::ubound(Dterm);
         const int AMREX_D_DECL(lx = low[0], ly = low[1], lz = low[2]);
         const int AMREX_D_DECL(hx = high[0], hy = high[1], hz = high[2]);
         amrex::ParallelFor(
