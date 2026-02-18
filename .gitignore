@@ -7,6 +7,8 @@ extremalog
 ic.txt
 plt*
 chk*
+*.visit
+Backtrace.*
 tmp_build_dir
 .ccls
 .ccls-cache
