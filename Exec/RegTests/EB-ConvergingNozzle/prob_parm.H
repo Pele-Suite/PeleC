@@ -5,6 +5,8 @@
 #include <AMReX_GpuQualifiers.H>
 #include <AMReX_GpuMemory.H>
 
+AMREX_ENUM(TurbInflowType, None, TurbulentFluctuations, TotalVelocity);
+
 struct ProbParmDevice
 {
   amrex::Real d_inlet = 8;
@@ -20,6 +22,7 @@ struct ProbParmDevice
   int inlet_type = 0;
   int outlet_type = 1;
   bool do_sponge_zones = true;
+  TurbInflowType turb_inflow_type = TurbInflowType::None;
 };
 
 struct ProbParmHost

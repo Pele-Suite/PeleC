@@ -23,6 +23,7 @@ parse_params(ProbParmDevice* prob_parm_device)
   pp.query("inlet_type", prob_parm_device->inlet_type);
   pp.query("outlet_type", prob_parm_device->outlet_type);
   pp.query("do_sponge_zones", prob_parm_device->do_sponge_zones);
+  pp.query("turb_inflow_type", prob_parm_device->turb_inflow_type);
 }
 
 extern "C" {

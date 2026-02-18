@@ -1,0 +1,16 @@
+amr.check_file      = output_initial/chk        # root name of checkpoint file
+amr.plot_file       = output_initial/plt        # root name of plotfile
+
+# Change the Mach number so we see a difference when using this as an inflow
+prob.M_inlet = 0.30
+
+# Dump planes to use as inflow for subsequent simulation
+pelec.diagnostics = xInflowPlane
+pelec.xInflowPlane.type = DiagFramePlane
+pelec.xInflowPlane.file = output_initial/pltxcut
+pelec.xInflowPlane.normal = 0
+pelec.xInflowPlane.center = -1.0
+pelec.xInflowPlane.int = 2
+pelec.xInflowPlane.field_names = vfrac density zmom xmom Temp z_velocity y_velocity x_velocity pressure MachNumber magvel viscosity conductivity
+pelec.xInflowPlane.dump_ghost_if_OOB = 1
+pelec.xInflowPlane.dump_flat_3D_plotfile = 1

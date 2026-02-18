@@ -1,0 +1,91 @@
+# ------------------  INPUTS TO MAIN PROGRAM  -------------------
+max_step = 20
+stop_time =  20e-3
+
+# PROBLEM SIZE & GEOMETRY
+geometry.is_periodic = 0  0  0
+geometry.coord_sys   = 0  # 0 => cart, 1 => RZ  2=>spherical
+
+# full geometry:
+geometry.prob_lo     =  0.0 -6 -6
+geometry.prob_hi     =  18 6 6
+amr.n_cell           =  72 48 48
+
+# >>>>>>>>>>>>>  BC KEYWORDS <<<<<<<<<<<<<<<<<<<<<<
+# Interior, UserBC, Symmetry, SlipWall, NoSlipWall
+# >>>>>>>>>>>>>  BC KEYWORDS <<<<<<<<<<<<<<<<<<<<<<
+pelec.lo_bc       =  "Hard"  "FOExtrap"  "FOExtrap"
+pelec.hi_bc       =  "Hard"  "FOExtrap"  "FOExtrap"
+
+# WHICH PHYSICS
+pelec.do_hydro = 1
+pelec.do_mol = 1
+pelec.diffuse_vel = 1
+pelec.diffuse_temp = 1
+pelec.diffuse_spec = 1
+pelec.do_react = 0
+pelec.chem_integrator = "ReactorNull"
+pelec.diffuse_enth = 0
+pelec.add_ext_src = 0
+
+# TIME STEP CONTROL
+pelec.dt_cutoff      = 5.e-20  # level 0 timestep below which we halt
+pelec.cfl            = 0.2     # cfl number for hyperbolic system
+pelec.init_shrink    = 1.0     # scale back initial timestep
+pelec.change_max     = 1.05    # scale back initial timestep
+
+# DIAGNOSTICS & VERBOSITY
+pelec.sum_interval   = 1       # timesteps between computing mass
+pelec.v              = 1       # verbosity in Castro.cpp
+amr.v                = 1       # verbosity in Amr.cpp
+amr.data_log         = datlog extremalog
+
+# REFINEMENT / REGRIDDING
+amr.max_level       = 0       # maximum level number allowed
+amr.ref_ratio       = 2 2 2 2 # refinement ratio
+amr.regrid_int      = 4 4 4 4 # how often to regrid
+amr.blocking_factor = 8       # block factor in grid generation
+amr.max_grid_size   = 64
+#amr.loadbalance_with_workestimates = 1
+#amr.loadbalance_level0_int = 100
+
+# CHECKPOINT FILES
+amr.checkpoint_files_output = 1
+amr.check_file      = chk        # root name of checkpoint file
+amr.check_int       = 50000        # number of timesteps between checkpoints
+
+# PLOTFILES
+amr.plot_files_output = 1
+amr.plot_file       = plt        # root name of plotfile
+amr.plot_int        = 10       # number of timesteps between plotfiles
+amr.derive_plot_vars = ALL
+pelec.plot_massfrac = 1
+
+# PROBLEM PARAMETERS
+prob.p0 = 1.0e6
+prob.T0 = 300
+prob.d_inlet = 10.0
+prob.l_inlet = 4.5
+prob.M_inlet = 0.22
+prob.T_inlet = 400.0
+prob.p_inlet = 1.14145535e6
+prob.l_nozzle = 9.0
+prob.d_exit = 7.0710678119
+prob.p_exit = 1.0e6
+prob.inlet_type = 0
+prob.outlet_type = 0
+prob.do_sponge_zones = 1
+
+# TAGGING
+#tagging.denerr = 1e20
+#tagging.dengrad = 8e-3
+#tagging.max_denerr_lev = 3
+#tagging.max_dengrad_lev = 3
+tagging.max_vfracerr_lev = 1
+
+eb2.geom_type = "converging-nozzle"
+eb2.small_volfrac=1.e-6
+ebd.boundary_grad_stencil_type = 0
+pelec.eb_boundary_T = 300.
+pelec.eb_isothermal = 0
+pelec.eb_noslip = 0
