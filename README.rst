@@ -163,6 +163,20 @@ application to various reacting flow and other simulations is available on the m
 if you'd like your work to be included on that list, you can request to have it added
 `here <https://github.com/AMReX-Combustion/AMReX-Combustion.github.io/discussions/3>`_.
 
+Versioning
+~~~~~~~~~~
+
+PeleC now uses uses a type of semantic versioning to help users navigate different versions of the code,
+which are labeled with `GitHub tags <https://github.com/AMReX-Combustion/PeleC/releases/>`_. These tagged versions are not exhaustive, but they adhere to
+the following convention. Given a version number MAJOR.MINOR.PATCH:
+1. MAJOR version for changes to key aspects of the solver affecting input/source files for all cases, when a key model is changed to significantly affect results of simulations, when a major new capability is added
+2. MINOR version for when a significant feature is added (in a backward compatible manner), accumulation of smaller features, or changes to input file compatibility for less central aspects of the solver (e.g., post-processing) or aspects not affecting all cases
+3. PATCH version for backward compatible bug fixes and minor features
+
+PeleC previously used YY.MM formatting for versions. These should be interpreted as version 0 subversions,
+e.g. v25.04 is equivalent to v0.25.04.
+
+
 Acknowledgment
 ~~~~~~~~~~~~~~
 
