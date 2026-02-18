@@ -166,7 +166,7 @@ if you'd like your work to be included on that list, you can request to have it 
 Versioning
 ~~~~~~~~~~
 
-PeleC now uses uses a type of semantic versioning to help users navigate different versions of the code,
+PeleC now uses a type of semantic versioning to help users navigate different versions of the code,
 which are labeled with `GitHub tags <https://github.com/AMReX-Combustion/PeleC/releases/>`_. These tagged versions are not exhaustive, but they adhere to
 the following convention. Given a version number MAJOR.MINOR.PATCH:
 1. MAJOR version for changes to key aspects of the solver affecting input/source files for all cases, when a key model is changed to significantly affect results of simulations, when a major new capability is added

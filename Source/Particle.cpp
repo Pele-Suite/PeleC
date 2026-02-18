@@ -81,7 +81,8 @@ PeleC::defineParticles()
   scomps.specSrcIndx = spraySpecSrcIndx;
   scomps.engSrcIndx = sprayEngSrcIndx;
   SprayParticleContainer::AssignSprayComps(scomps);
-  PeleC::num_spray_src += SprayParticleContainer::m_sprayData->N_pc;
+  PeleC::num_spray_src =
+    AMREX_SPACEDIM + 2 + SprayParticleContainer::m_sprayData->N_pc;
 }
 
 int
