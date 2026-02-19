@@ -60,7 +60,7 @@ PeleC::check_state_in_checkpoint(const StateType state_type)
       std::string faHeaderName;
       fais >> faHeaderName;
       if (!fais.eof()) {
-        if (faHeaderName.rfind(state_pfx, 0) == 0) {
+        if (faHeaderName.starts_with(state_pfx)) {
           return true;
         }
       }
