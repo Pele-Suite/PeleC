@@ -2,6 +2,7 @@
 #include <iostream>
 #include <memory>
 #include <string>
+#include <string_view>
 #include <ctime>
 
 #ifdef AMREX_USE_OMP
