@@ -66,7 +66,7 @@ jobs:
           echo "::add-matcher::.github/problem-matchers/gcc.json"
           set -eu -o pipefail
           ccache -z
-          make -j ${{env.NPROCS}} CXXSTD=c++20 KEEP_BUILDINFO_CPP=TRUE USE_CCACHE=TRUE COMP=gnu USE_MPI=FALSE DEBUG=TRUE 2>&1 | tee -a build-output.txt
+          make -j ${{env.NPROCS}} KEEP_BUILDINFO_CPP=TRUE USE_CCACHE=TRUE COMP=gnu USE_MPI=FALSE DEBUG=TRUE 2>&1 | tee -a build-output.txt
       - name: PMF ccache report
         working-directory: ./Exec/RegTests/PMF
         run: |
@@ -91,7 +91,7 @@ jobs:
           echo "::add-matcher::.github/problem-matchers/gcc.json"
           set -eu -o pipefail
           ccache -z
-          make -j ${{env.NPROCS}} CXXSTD=c++20 KEEP_BUILDINFO_CPP=TRUE USE_CCACHE=TRUE COMP=gnu USE_MPI=FALSE DEBUG=TRUE 2>&1 | tee -a build-output.txt
+          make -j ${{env.NPROCS}} KEEP_BUILDINFO_CPP=TRUE USE_CCACHE=TRUE COMP=gnu USE_MPI=FALSE DEBUG=TRUE 2>&1 | tee -a build-output.txt
       - name: EB debug ccache report
         working-directory: ./Exec/RegTests/EB-C10
         run: |
@@ -116,7 +116,7 @@ jobs:
           echo "::add-matcher::.github/problem-matchers/gcc.json"
           set -eu -o pipefail
           ccache -z
-          make -j ${{env.NPROCS}} CXXSTD=c++20 KEEP_BUILDINFO_CPP=TRUE USE_CCACHE=TRUE COMP=gnu USE_MPI=FALSE DEBUG=TRUE USE_OMP=TRUE 2>&1 | tee -a build-output.txt
+          make -j ${{env.NPROCS}} KEEP_BUILDINFO_CPP=TRUE USE_CCACHE=TRUE COMP=gnu USE_MPI=FALSE DEBUG=TRUE USE_OMP=TRUE 2>&1 | tee -a build-output.txt
       - name: EB OMP debug ccache report
         working-directory: ./Exec/RegTests/EB-C10
         run: |
@@ -141,7 +141,7 @@ jobs:
           echo "::add-matcher::.github/problem-matchers/gcc.json"
           set -eu -o pipefail
           ccache -z
-          make -j ${{env.NPROCS}} CXXSTD=c++20 KEEP_BUILDINFO_CPP=TRUE USE_CCACHE=TRUE COMP=llvm USE_MPI=FALSE DEBUG=TRUE PRECISION=FLOAT 2>&1 | tee -a build-output.txt
+          make -j ${{env.NPROCS}} KEEP_BUILDINFO_CPP=TRUE USE_CCACHE=TRUE COMP=llvm USE_MPI=FALSE DEBUG=TRUE PRECISION=FLOAT 2>&1 | tee -a build-output.txt
       - name: TG debug single precision ccache report
         working-directory: ./Exec/RegTests/TG
         run: |
@@ -166,7 +166,7 @@ jobs:
           echo "::add-matcher::.github/problem-matchers/gcc.json"
           set -eu -o pipefail
           ccache -z
-          make -j ${{env.NPROCS}} CXXSTD=c++20 KEEP_BUILDINFO_CPP=TRUE USE_CCACHE=TRUE COMP=gnu USE_MPI=FALSE DEBUG=TRUE 2>&1 | tee -a build-output.txt
+          make -j ${{env.NPROCS}} KEEP_BUILDINFO_CPP=TRUE USE_CCACHE=TRUE COMP=gnu USE_MPI=FALSE DEBUG=TRUE 2>&1 | tee -a build-output.txt
       - name: Soot debug ccache report
         working-directory: ./Exec/RegTests/Soot-Flame
         run: |
@@ -188,7 +188,7 @@ jobs:
           echo "::add-matcher::.github/problem-matchers/gcc.json"
           set -eu -o pipefail
           ccache -z
-          make -j ${{env.NPROCS}} CXXSTD=c++20 KEEP_BUILDINFO_CPP=TRUE USE_CCACHE=TRUE COMP=gnu USE_MPI=FALSE DEBUG=TRUE 2>&1 | tee -a build-output.txt
+          make -j ${{env.NPROCS}} KEEP_BUILDINFO_CPP=TRUE USE_CCACHE=TRUE COMP=gnu USE_MPI=FALSE DEBUG=TRUE 2>&1 | tee -a build-output.txt
       - name: Spray debug ccache report
         working-directory: ./Exec/RegTests/Soot-Flame
         run: |
@@ -211,7 +211,7 @@ jobs:
           echo "::add-matcher::.github/problem-matchers/gcc.json"
           set -eu -o pipefail
           ccache -z
-          make -j ${{env.NPROCS}} CXXSTD=c++20 KEEP_BUILDINFO_CPP=TRUE USE_CCACHE=TRUE COMP=gnu USE_MPI=FALSE 2>&1 | tee -a build-output.txt
+          make -j ${{env.NPROCS}} KEEP_BUILDINFO_CPP=TRUE USE_CCACHE=TRUE COMP=gnu USE_MPI=FALSE 2>&1 | tee -a build-output.txt
       - name: TurbInflowGenerator ccache report
         working-directory: ./Submodules/PelePhysics/Support/TurbInflowGenerator
         run: |
@@ -242,7 +242,7 @@ jobs:
           echo "::add-matcher::.github/problem-matchers/gcc.json"
           set -eu -o pipefail
           ccache -z
-          make -j ${{env.NPROCS}} CXXSTD=c++20 KEEP_BUILDINFO_CPP=TRUE USE_CCACHE=TRUE COMP=gnu USE_MPI=FALSE 2>&1 | tee -a build-output.txt
+          make -j ${{env.NPROCS}} KEEP_BUILDINFO_CPP=TRUE USE_CCACHE=TRUE COMP=gnu USE_MPI=FALSE 2>&1 | tee -a build-output.txt
       - name: EB-ConvergingNozzle TurbInflow  ccache report
         working-directory: ./Exec/RegTests/EB-ConvergingNozzle
         run: |
