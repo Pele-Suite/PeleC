@@ -16,6 +16,7 @@ endif
 
 USE_EB = TRUE
 USE_SUNDIALS = TRUE
+CXXSTD = c++20
 
 include $(AMREX_HOME)/Tools/GNUMake/Make.defs
 
@@ -56,8 +57,6 @@ endif
 ifeq ($(USE_CUDA),TRUE)
    CXXFLAGS+=-Xptxas --disable-optimizer-constants
 endif
-
-CXXSTD = c++20
 
 # PelePhysics
 PP_SRC_HOME = $(PELE_PHYSICS_HOME)/Source
