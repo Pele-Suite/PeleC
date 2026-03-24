@@ -709,6 +709,8 @@ PeleC::variableCleanUp()
   trans_parms.deallocate();
 #ifdef PELE_USE_SPRAY
   SprayParticleContainer::SprayCleanUp();
+  GhostPC.reset();
+  VirtPC.reset();
   SprayPC.reset();
 #endif
 #ifdef PELE_USE_SOOT
