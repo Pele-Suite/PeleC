@@ -42,7 +42,7 @@ PeleC::sum_integrated_quantities()
   }
 
   if (verbose > 0) {
-    const int nfoo = 10;
+    const int nfoo = 9;
     amrex::Real foo[nfoo] = {mass,  mom[0], mom[1],    mom[2], rho_e,
                              rho_K, rho_E,  fuel_prod, temp};
     amrex::ParallelDescriptor::ReduceRealSum(
