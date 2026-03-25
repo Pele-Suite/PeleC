@@ -326,7 +326,7 @@ pc_umdrv(
   const amrex::GpuArray<const amrex::Array4<const amrex::Real>, AMREX_SPACEDIM>&
     a,
   amrex::Array4<amrex::Real> const& vol,
-  amrex::Real /*cflLoc*/)
+  amrex::Real& /*cflLoc*/)
 {
   // Set Up for Hydro Flux Calculations
   auto const& bxg2 = grow(bx, 2);
@@ -663,7 +663,7 @@ pc_umdrv_eb(
   const int eb_srd_max_order,
   const bool eb_clean_massfrac,
   const amrex::Real eb_clean_massfrac_threshold,
-  amrex::Real /*cflLoc*/)
+  amrex::Real& /*cflLoc*/)
 {
   BL_PROFILE("PeleC::pc_umdrv_eb()");
 
