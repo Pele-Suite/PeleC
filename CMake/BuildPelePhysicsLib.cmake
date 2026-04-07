@@ -2,6 +2,8 @@ function(build_pele_physics_lib pele_physics_lib_name)
   if (NOT (TARGET ${pele_physics_lib_name}))
     add_library(${pele_physics_lib_name} OBJECT)
 
+    target_compile_definitions(${pele_physics_lib_name} PUBLIC PELE_USE_CMAKE)
+
     set(PELE_PHYSICS_SRC_DIR "${CMAKE_SOURCE_DIR}/Submodules/PelePhysics")
     set(PELE_PHYSICS_TRANSPORT_DIR "${PELE_PHYSICS_SRC_DIR}/Source/Transport")
     set(PELE_PHYSICS_EOS_DIR "${PELE_PHYSICS_SRC_DIR}/Source/Eos")

@@ -1,0 +1,13 @@
+#ifndef PELE_GIT_HASHES_H
+#define PELE_GIT_HASHES_H
+
+#include <string>
+
+namespace PeleBuildInfo {
+  inline const std::string PeleLMeX_git_hash    = "@PELELMEX_GIT_HASH@";
+  inline const std::string AMReX_git_hash       = "@AMREX_GIT_HASH@";
+  inline const std::string PelePhysics_git_hash = "@PELEPHYSICS_GIT_HASH@";
+  inline const std::string SUNDIALS_git_hash    = "@SUNDIALS_GIT_HASH@";
+}
+
+#endif

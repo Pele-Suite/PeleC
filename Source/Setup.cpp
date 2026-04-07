@@ -1,6 +1,7 @@
 #include <AMReX_ParmParse.H>
 #include <AMReX_buildInfo.H>
 #include <memory>
+#include <string>
 
 #ifdef PELE_USE_MASA
 #include <masa.h>
@@ -20,6 +21,10 @@ using namespace MASA;
 
 #ifdef PELE_USE_SOOT
 #include "SootModel.H"
+#endif
+
+#ifdef PELE_USE_CMAKE
+#include "PeleGitHashes.H"
 #endif
 
 ProbParmDevice* PeleC::d_prob_parm_device = nullptr;
@@ -137,31 +142,34 @@ PeleC::variableSetUp()
   // Output the git commit hashes used to build the executable.
 
   if (amrex::ParallelDescriptor::IOProcessor()) {
-    const char* pelec_hash = amrex::buildInfoGetGitHash(1);
-    const char* amrex_hash = amrex::buildInfoGetGitHash(2);
-    const char* pelephysics_hash = amrex::buildInfoGetGitHash(3);
-    const char* amrexhydro_hash = amrex::buildInfoGetGitHash(4);
-    const char* sundials_hash = amrex::buildInfoGetGitHash(5);
-    const char* buildgithash = amrex::buildInfoGetBuildGitHash();
-    const char* buildgitname = amrex::buildInfoGetBuildGitName();
+#ifdef PELE_USE_CMAKE
+    const std::string pelec_hash = PeleBuildInfo::PeleLMeX_git_hash;
+    const std::string amrex_hash = PeleBuildInfo::AMReX_git_hash;
+    const std::string pelephysics_hash = PeleBuildInfo::PelePhysics_git_hash;
+    const std::string sundials_hash = PeleBuildInfo::SUNDIALS_git_hash;
+#else
+    const std::string pelec_hash = amrex::buildInfoGetGitHash(1);
+    const std::string amrex_hash = amrex::buildInfoGetGitHash(2);
+    const std::string pelephysics_hash = amrex::buildInfoGetGitHash(3);
+    const std::string sundials_hash = amrex::buildInfoGetGitHash(4);
+#endif
+    const std::string buildgithash = amrex::buildInfoGetBuildGitHash();
+    const std::string buildgitname = amrex::buildInfoGetBuildGitName();
 
-    if (strlen(pelec_hash) > 0) {
+    if (!pelec_hash.empty()) {
       amrex::Print() << "\n"
                      << "PeleC git hash: " << pelec_hash << "\n";
     }
-    if (strlen(amrex_hash) > 0) {
+    if (!amrex_hash.empty()) {
       amrex::Print() << "AMReX git hash: " << amrex_hash << "\n";
     }
-    if (strlen(pelephysics_hash) > 0) {
+    if (!pelephysics_hash.empty()) {
       amrex::Print() << "PelePhysics git hash: " << pelephysics_hash << "\n";
     }
-    if (strlen(amrexhydro_hash) > 0) {
-      amrex::Print() << "AMReX-Hydro git hash: " << amrexhydro_hash << "\n";
-    }
-    if (strlen(sundials_hash) > 0) {
+    if (!sundials_hash.empty()) {
       amrex::Print() << "SUNDIALS git hash: " << sundials_hash << "\n";
     }
-    if (strlen(buildgithash) > 0) {
+    if (!buildgithash.empty()) {
       amrex::Print() << buildgitname << " git hash: " << buildgithash << "\n";
     }
 

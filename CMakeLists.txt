@@ -122,6 +122,7 @@ endif()
 init_code_checks()
 
 include(SetRpath)
+include(SetGitHashInfo)
 
 add_subdirectory(Exec)
 add_subdirectory(Tests)
