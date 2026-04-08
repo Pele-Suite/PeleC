@@ -65,7 +65,11 @@ PeleC::check_state_in_checkpoint(const StateType state_type)
       std::string faHeaderName;
       fais >> faHeaderName;
       if (!fais.eof()) {
+#ifdef AMREX_USE_HIP
+        if (faHeaderName.rfind(state_pfx)) {
+#else
         if (faHeaderName.starts_with(state_pfx)) {
+#endif
           return true;
         }
       }
