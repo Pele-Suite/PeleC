@@ -6,7 +6,7 @@ PeleC: An adaptive mesh refinement solver for compressible reacting flows
 Getting Started
 ~~~~~~~~~~~~~~~
 
-To compile and run `PeleC`, one needs a C++ compiler that supports the C++17 standard.  A hierarchical strategy for parallelism is supported, based on MPI, MPI + OpenMP, or MPI + GPU (CUDA/HIP/DPC++).  The code should work with all major MPI and OpenMP implementations.  PeleC should build and run with no modifications to the `make` system if using a Linux system with the GNU compilers, version 7 and above. The preferred build strategy for most users is to use GNU Make to build executables for individual cases as needed, from the directory containing the case files. CMake, although used mostly for testing, is also an option for building the code.
+To compile and run `PeleC`, one needs a C++ compiler that supports the C++20 standard.  A hierarchical strategy for parallelism is supported, based on MPI, MPI + OpenMP, or MPI + GPU (CUDA/HIP/SyCL).  The code should work with all major MPI and OpenMP implementations.  PeleC should build and run with no modifications to the `make` system if using a Linux system with the appropriate compilers. The preferred build strategy for most users is to use GNU Make to build executables for individual cases as needed, from the directory containing the case files. CMake, although used mostly for testing, is also an option for building the code. CMake is required for the `make TPL` step below which builds the SUNDIALS dependency.
 
 The best way to download `PeleC` and its necessary dependencies AMReX, PelePhysics, and SUNDIALS (as git submodules) is through a recursive
 git clone. To reduce the download size, the ``--shallow-submodules`` and ``--single-branch`` flags can be added to the clone command to omit
@@ -22,7 +22,7 @@ To run `PeleC` for a sample 3D flame problem::
     make TPLrealclean && make realclean && make TPL && make -j
     ./Pele3d.xxx.yyy.ex example.inp
 
-1. In the exec line above, xxx.yyy is a tag identifying your compiler and various build options, and will vary across pltaform.  (Note that GNU compilers must be at least version 7, and MPI should be at least of standard version 3).
+1. In the exec line above, xxx.yyy is a tag identifying your compiler and various build options, and will vary across pltaform.
 
    a. To run with MPI support, ensure ``USE_MPI = TRUE`` in the ``GNUmakefile`` or specify it on the command line::
 
@@ -68,7 +68,7 @@ To add a new feature to PeleC, the procedure is:
 
 3. Build and run
 
-   a. Build and run the full test suite using CMake and CTest (See the ``Build/`` directory for an example script). Please do not introduce warnings. PeleC is checked against ``clang-tidy`` and ``cppcheck`` in the CI. To use ``cppcheck`` and ``clang-tidy`` locally use these CMake options: ::
+   a. Build and run the full test suite using CMake and CTest (See the ``Build/`` directory for an example script). Please do not introduce warnings. PeleC is checked against ``clang-tidy`` and possibly ``cppcheck`` in the CI. To use ``clang-tidy`` or ``cppcheck`` locally, use these CMake options: ::
 
         -DPELE_ENABLE_CLANG_TIDY:BOOL=ON
         -DPELE_ENABLE_CPPCHECK:BOOL=ON
