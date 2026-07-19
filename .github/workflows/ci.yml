@@ -285,7 +285,7 @@ jobs:
             ccache_cache: /Users/runner/Library/Caches/ccache
             reference_comparison: ON
           - os: ubuntu-24.04
-            install_deps: sudo apt-get install -y libopenmpi-dev openmpi-bin libtool-bin
+            install_deps: sudo apt-get update && sudo apt-get install -y libopenmpi-dev openmpi-bin libtool-bin
             comp: gnu
             procs: $(nproc)
             ccache_cache: ~/.cache/ccache
@@ -462,7 +462,7 @@ jobs:
       - name: Dependencies
         run: |
           # Install MPI
-          sudo apt-get install -y libopenmpi-dev openmpi-bin libtool-bin
+          sudo apt-get update && sudo apt-get install -y libopenmpi-dev openmpi-bin libtool-bin
       - name: Setup
         run: |
           echo "NPROCS=$(nproc)" >> $GITHUB_ENV
