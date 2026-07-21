@@ -290,5 +290,5 @@ with minor differences due to the compressible formulation in PeleC.
    :width: 400
 
    \(a) solution to Taylor-Couette flow compared to analytic solution and (b) 
-   comparison of velocity magntiude for a 4 blade rotor case with incompressible 
+   comparison of velocity magnitude for a 4 blade rotor case with incompressible 
    SRF solver from OpenFOAM. 
