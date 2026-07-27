@@ -285,7 +285,7 @@ jobs:
             ccache_cache: /Users/runner/Library/Caches/ccache
             reference_comparison: ON
           - os: ubuntu-24.04
-            install_deps: sudo apt-get install -y libopenmpi-dev openmpi-bin libtool-bin
+            install_deps: sudo apt-get update && sudo apt-get install -y libopenmpi-dev openmpi-bin libtool-bin
             comp: gnu
             procs: $(nproc)
             ccache_cache: ~/.cache/ccache
@@ -462,7 +462,7 @@ jobs:
       - name: Dependencies
         run: |
           # Install MPI
-          sudo apt-get install -y libopenmpi-dev openmpi-bin libtool-bin
+          sudo apt-get update && sudo apt-get install -y libopenmpi-dev openmpi-bin libtool-bin
       - name: Setup
         run: |
           echo "NPROCS=$(nproc)" >> $GITHUB_ENV
@@ -683,7 +683,7 @@ jobs:
           sudo apt-key add GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
           echo "deb https://apt.repos.intel.com/oneapi all main" | sudo tee /etc/apt/sources.list.d/oneAPI.list
           sudo apt-get update
-          sudo apt-get install -y intel-oneapi-compiler-dpcpp-cpp=2024.2.1-1079 intel-oneapi-mkl-devel=2024.2.2-15
+          sudo apt-get install -y intel-oneapi-compiler-dpcpp-cpp intel-oneapi-mkl-devel
       - name: Install Ccache
         run: |
           wget https://github.com/ccache/ccache/releases/download/v4.8/ccache-4.8-linux-x86_64.tar.xz
