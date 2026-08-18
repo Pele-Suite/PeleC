@@ -60,7 +60,7 @@ the following energy spectrum:
    E(k) \sim k^4 \exp(-2 (k/k_0)^2), \frac{3 u'}{2} = \int_0^\infty E(k) \mathrm{d}k
 
 and can be generated with the Python script in the PelePhysics
-`TurbFileHIT <https://amrex-combustion.github.io/PelePhysics/Support.html#generating-an-hit-file>`_ support code.
+`TurbFileHIT <https://Pele-Suite.github.io/PelePhysics/Support.html#generating-an-hit-file>`_ support code.
 
 Building and running
 ####################
