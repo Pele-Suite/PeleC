@@ -1,0 +1,370 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Verification of PeleC &mdash; PeleC 0.1 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=03e43079" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=9edc463e" />
+
+  
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=2709fde1"></script>
+      <script src="../_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
+      <script defer="defer" src="https://cdn.jsdelivr.net/npm/mathjax@4/tex-mml-chtml.js"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Verification of EB PeleC" href="../ebverification/ebverification.html" />
+    <link rel="prev" title="Correctness - Verification and Validation" href="../VandV.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            PeleC
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../Introduction.html">Introduction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../Equations.html">Equations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../Algorithms.html">Numerical Treatment and Algorithms</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../GettingStarted.html">Getting Started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../BoundaryConditions.html">Boundary Conditions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../geometry/EB.html">Geometry treatment in PeleC</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../LES.html">LES and Hybrid LES/DNS Support</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="../VandV.html">Correctness - Verification and Validation</a><ul class="current">
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Verification of PeleC</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#building-and-running-mms">Building and running MMS</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#building-masa-from-source">Building MASA from source</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#building-masa-using-spack">Building MASA using Spack</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#linking-masa-to-pelec-and-running">Linking MASA to PeleC and running</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#running-the-full-mms-suite">Running the full MMS suite</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#testing-the-euler-equations">Testing the Euler equations</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#testing-the-compressible-navier-stokes-equations">Testing the compressible Navier-Stokes equations</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#testing-the-adaptive-mesh-refinement-algorithm">Testing the adaptive mesh refinement algorithm</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#testing-the-constant-smagorinsky-large-eddy-simulation-model">Testing the constant Smagorinsky Large Eddy Simulation model</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#conservation-and-isothermal-boundaries">Conservation and Isothermal Boundaries</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../ebverification/ebverification.html">Verification of EB PeleC</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../validation/validation.html">Validation of PeleC</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../PelePhysics.html">PelePhysics</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../BoxlibBits.html">Development Reference</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">PeleC</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../VandV.html">Correctness - Verification and Validation</a></li>
+      <li class="breadcrumb-item active">Verification of PeleC</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/verification/verification.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="verification-of-pelec">
+<h1>Verification of PeleC<a class="headerlink" href="#verification-of-pelec" title="Link to this heading"></a></h1>
+<p>Verification of PeleC uses <a class="reference external" href="https://github.com/manufactured-solutions/MASA">MASA</a> and
+auto-differention tools to implement the Method of Manufactured
+Solutions into PeleC.</p>
+<p>The <span class="math notranslate nohighlight">\(L_2\)</span> error norm for a quantity <span class="math notranslate nohighlight">\(s\)</span> is defined as</p>
+<div class="math notranslate nohighlight">
+\[e_s = \sqrt{ \frac{\sum_{i=1}^{N_e} \int_{V_i} (s^h-s^*)^2 \mathrm{d}V}{\sum_{i=1}^{N_e} \|V_i\|}}\]</div>
+<p>where <span class="math notranslate nohighlight">\(s^h\)</span> is the numerical solution, <span class="math notranslate nohighlight">\(s^*\)</span> is the exact
+solution, and <span class="math notranslate nohighlight">\(N_e\)</span> is the number of elements. <span class="math notranslate nohighlight">\(N\)</span>, used
+below, is the number of element on a side of the cube (<span class="math notranslate nohighlight">\(N_e =
+N^3\)</span>).</p>
+<section id="building-and-running-mms">
+<h2>Building and running MMS<a class="headerlink" href="#building-and-running-mms" title="Link to this heading"></a></h2>
+<p>The user must first build and install <a class="reference external" href="https://github.com/manufactured-solutions/MASA">MASA</a>. This can be done
+from source or using <a class="reference external" href="https://spack.io">Spack</a>.</p>
+<section id="building-masa-from-source">
+<h3>Building MASA from source<a class="headerlink" href="#building-masa-from-source" title="Link to this heading"></a></h3>
+<p>The user must build both <a class="reference external" href="https://github.com/roystgnr/MetaPhysicL">Metaphysicl</a> and MASA. After defining
+<code class="docutils literal notranslate"><span class="pre">METAPHYSICL_ROOT_DIR</span></code> and <code class="docutils literal notranslate"><span class="pre">MASA_ROOT_DIR</span></code>:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>$<span class="w"> </span>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/roystgnr/MetaPhysicL
+$<span class="w"> </span>./bootstrap
+$<span class="w"> </span>./configure<span class="w"> </span>--prefix<span class="o">=</span><span class="nv">$METAPHYSICL_ROOT_DIR</span>
+$<span class="w"> </span>make
+$<span class="w"> </span>make<span class="w"> </span>install
+</pre></div>
+</div>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>$<span class="w"> </span>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/manufactured-solutions/MASA
+$<span class="w"> </span>./bootstrap
+$<span class="w"> </span>./configure<span class="w"> </span><span class="nv">METAPHYSICL_DIR</span><span class="o">=</span><span class="nv">$METAPHYSICL_ROOT_DIR</span><span class="w"> </span>--prefix<span class="o">=</span><span class="nv">$MASA_ROOT_DIR</span><span class="w"> </span>--enable-python-interfaces
+$<span class="w"> </span>make
+$<span class="w"> </span>make<span class="w"> </span>check
+$<span class="w"> </span>make<span class="w"> </span>install
+</pre></div>
+</div>
+</section>
+<section id="building-masa-using-spack">
+<h3>Building MASA using Spack<a class="headerlink" href="#building-masa-using-spack" title="Link to this heading"></a></h3>
+<p>Assuming the user has Spack configured for their system, building and
+installing MASA is as easy as:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>$<span class="w"> </span>spack<span class="w"> </span>install<span class="w"> </span>masa
+</pre></div>
+</div>
+</section>
+<section id="linking-masa-to-pelec-and-running">
+<h3>Linking MASA to PeleC and running<a class="headerlink" href="#linking-masa-to-pelec-and-running" title="Link to this heading"></a></h3>
+<p>For the MMS problem setup, one must specify the install location for
+MASA in the <code class="docutils literal notranslate"><span class="pre">MASA_HOME</span></code> variable. This can be done on the command
+line either as:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>$<span class="w"> </span><span class="nb">export</span><span class="w"> </span><span class="nv">MASA_HOME</span><span class="o">=</span><span class="nv">$MASA_ROOT_DIR</span>
+</pre></div>
+</div>
+<p>or, when compiling PeleC,</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>$<span class="w"> </span>make<span class="w"> </span>-j<span class="w"> </span><span class="m">16</span><span class="w"> </span><span class="nv">DIM</span><span class="o">=</span><span class="m">3</span><span class="w"> </span><span class="nv">USE_MPI</span><span class="o">=</span>TRUE<span class="w"> </span><span class="nv">MASA_HOME</span><span class="o">=</span><span class="nv">$MASA_ROOT_DIR</span>
+</pre></div>
+</div>
+<p>where <code class="docutils literal notranslate"><span class="pre">MASA_ROOT_DIR</span></code> is the MASA install location. If using Spack
+and after loading the MASA module, the <code class="docutils literal notranslate"><span class="pre">MASA_ROOT_DIR</span></code> will be
+automatically populated.</p>
+<p>After building the PeleC MMS executable, one can perform an MMS
+convergence study to demonstrate formal accuracy of the numerical
+implementation. Results of several MMS tests are detailed below.</p>
+</section>
+<section id="running-the-full-mms-suite">
+<h3>Running the full MMS suite<a class="headerlink" href="#running-the-full-mms-suite" title="Link to this heading"></a></h3>
+<p>The full MMS suite can be executed through the <a class="reference external" href="https://github.com/AMReX-Combustion/PeleRegressionTesting">PeleCRegressionTesting</a> test
+suite:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>$<span class="w"> </span>./verify-pelec.sh
+</pre></div>
+</div>
+</section>
+</section>
+<section id="testing-the-euler-equations">
+<h2>Testing the Euler equations<a class="headerlink" href="#testing-the-euler-equations" title="Link to this heading"></a></h2>
+<p>We can turn off diffusion in Pele and set the coefficients for those
+terms to zero in MASA to test the hydrodynamic update. A convergence
+study shows second order for Pele’s treatment of the hydrodynamic
+source. The initial solution was initialized to the exact solution and
+100 pseudo-time steps were taken (fixed to <span class="math notranslate nohighlight">\(10^{-8}\)</span>). Periodic boundaries
+are imposed everywhere.</p>
+<ul class="simple">
+<li><p>Density <span class="math notranslate nohighlight">\(L_2\)</span> error norm:</p></li>
+</ul>
+<a class="reference internal image-reference" href="../_images/rho_error1.png"><img alt="../_images/rho_error1.png" src="../_images/rho_error1.png" style="width: 300pt;" />
+</a>
+<ul class="simple">
+<li><p>Velocity (u, v, w) <span class="math notranslate nohighlight">\(L_2\)</span> error norm:</p></li>
+</ul>
+<a class="reference internal image-reference" href="../_images/u_error1.png"><img alt="../_images/u_error1.png" src="../_images/u_error1.png" style="width: 300pt;" />
+</a>
+<a class="reference internal image-reference" href="../_images/v_error1.png"><img alt="../_images/v_error1.png" src="../_images/v_error1.png" style="width: 300pt;" />
+</a>
+<a class="reference internal image-reference" href="../_images/w_error1.png"><img alt="../_images/w_error1.png" src="../_images/w_error1.png" style="width: 300pt;" />
+</a>
+<ul class="simple">
+<li><p>Pressure <span class="math notranslate nohighlight">\(L_2\)</span> error norm:</p></li>
+</ul>
+<a class="reference internal image-reference" href="../_images/p_error1.png"><img alt="../_images/p_error1.png" src="../_images/p_error1.png" style="width: 300pt;" />
+</a>
+</section>
+<section id="testing-the-compressible-navier-stokes-equations">
+<h2>Testing the compressible Navier-Stokes equations<a class="headerlink" href="#testing-the-compressible-navier-stokes-equations" title="Link to this heading"></a></h2>
+<p>For these cases, the Reynolds, Mach, and Prandtl numbers were set to 1
+to ensure that the different physics were equally important
+(viscosity, conductivity, and bulk viscosity are non-zero and
+determined by the appropriate non-dimensional number). The CFL
+condition was fixed to 0.1 to ensure that the predictor-corrector time
+stepping method found a solution to the system of equations. The
+initial solution was initialized to the exact solution. Periodic
+boundaries are imposed everywhere. A convergence study shows second
+order for Pele’s treatment of the compressible Navier-Stokes
+equations.</p>
+<p>Initial difficulties in getting the solution to reach steady state for
+the Euler equations (no diffusion) were overcome by incorporating
+diffusion effects and reducing the CFL number. Setting the Reynolds,
+Mach, and Prandtl to 1, and taking small time steps ensures that the
+pseudo-time integration (predictor/corrector) does not oscillate
+wildly and fail to find the steady-state solution. The iterative error
+was monitored and the final time (identical for all simulations) was
+chosen so that the iterative error was small,
+<span class="math notranslate nohighlight">\(\mathcal{O}(10^{6})\)</span> smaller than the discretization error. The
+iterative error never reaches machine zero. This is most likely due to
+the way in which the predictor/correct pseudo-time integration uses
+time steps based on the wave speeds and viscosity and not adjusting
+the time step based on the Jacobian of the system. An actual
+steady-state solver (rather than a pseudo-time integration to steady
+state) would be more efficient and more robust at finding the steady
+state solution of the MMS system of equations. While this would test
+the spatial discretization scheme, an MMS simulation with a steady
+state solver would fail to test the temporal discretization scheme.</p>
+<ul class="simple">
+<li><p>Density <span class="math notranslate nohighlight">\(L_2\)</span> error norm:</p></li>
+</ul>
+<a class="reference internal image-reference" href="../_images/rho_error2.png"><img alt="../_images/rho_error2.png" src="../_images/rho_error2.png" style="width: 300pt;" />
+</a>
+<ul class="simple">
+<li><p>Velocity (u, v, w) <span class="math notranslate nohighlight">\(L_2\)</span> error norm:</p></li>
+</ul>
+<a class="reference internal image-reference" href="../_images/u_error2.png"><img alt="../_images/u_error2.png" src="../_images/u_error2.png" style="width: 300pt;" />
+</a>
+<a class="reference internal image-reference" href="../_images/v_error2.png"><img alt="../_images/v_error2.png" src="../_images/v_error2.png" style="width: 300pt;" />
+</a>
+<a class="reference internal image-reference" href="../_images/w_error2.png"><img alt="../_images/w_error2.png" src="../_images/w_error2.png" style="width: 300pt;" />
+</a>
+<ul class="simple">
+<li><p>Pressure <span class="math notranslate nohighlight">\(L_2\)</span> error norm:</p></li>
+</ul>
+<a class="reference internal image-reference" href="../_images/p_error2.png"><img alt="../_images/p_error2.png" src="../_images/p_error2.png" style="width: 300pt;" />
+</a>
+</section>
+<section id="testing-the-adaptive-mesh-refinement-algorithm">
+<h2>Testing the adaptive mesh refinement algorithm<a class="headerlink" href="#testing-the-adaptive-mesh-refinement-algorithm" title="Link to this heading"></a></h2>
+<p>This setup is similar to the previous one except for the fact that
+this test uses the AMR framework. There are two grid refinement
+levels: a coarse grid covering the entire domain and a fine grid on
+top of this one covering 50% of the domain. The grids are fixed in
+time, i.e. they do not adapt based on the solution value. This test
+ensures that the algorithms dealing with the grid interfaces, time
+integration of the different levels, and level synchronization
+preserve the second order accuracy of the code.</p>
+<ul class="simple">
+<li><p>Magnitude of velocity and mesh:</p></li>
+</ul>
+<a class="reference internal image-reference" href="../_images/umag_amr.png"><img alt="../_images/umag_amr.png" src="../_images/umag_amr.png" style="width: 200pt;" />
+</a>
+<ul class="simple">
+<li><p>Velocity <span class="math notranslate nohighlight">\(L_2\)</span> error norm:</p></li>
+</ul>
+<a class="reference internal image-reference" href="../_images/u_error_amr.png"><img alt="../_images/u_error_amr.png" src="../_images/u_error_amr.png" style="width: 300pt;" />
+</a>
+</section>
+<section id="testing-the-constant-smagorinsky-large-eddy-simulation-model">
+<h2>Testing the constant Smagorinsky Large Eddy Simulation model<a class="headerlink" href="#testing-the-constant-smagorinsky-large-eddy-simulation-model" title="Link to this heading"></a></h2>
+<p>This setup is identical to the MMS study for the compressible
+Navier-Stokes equations. The Large Eddy Simulation (LES) constants,
+<span class="math notranslate nohighlight">\(C_s\)</span> and <span class="math notranslate nohighlight">\(C_I\)</span>, were chosen such that the turbulent eddy
+viscosity was comparable to the viscosity,
+i.e. <span class="math notranslate nohighlight">\(\frac{\mu_t}{\mu} = \mathcal{O}(1)\)</span>. Since the model
+scales with the mesh spacing, <span class="math notranslate nohighlight">\(C_s\)</span> and <span class="math notranslate nohighlight">\(C_I\)</span> were scaled
+inversely with the mesh spacing for the mesh refinement studies. For
+example, <span class="math notranslate nohighlight">\(C_s\)</span> is set to 2 for the <span class="math notranslate nohighlight">\(8^3\)</span> mesh and set to 4
+for the <span class="math notranslate nohighlight">\(16^3\)</span> mesh (for <span class="math notranslate nohighlight">\(C_I\)</span>, it is 1 and 4,
+respectively). A convergence study shows second order for Pele’s
+treatment of the compressible Navier-Stokes equations with the
+constant Smagorinsky Large Eddy Simulation model.</p>
+<ul class="simple">
+<li><p>Density <span class="math notranslate nohighlight">\(L_2\)</span> error norm:</p></li>
+</ul>
+<a class="reference internal image-reference" href="../_images/rho_error3.png"><img alt="../_images/rho_error3.png" src="../_images/rho_error3.png" style="width: 300pt;" />
+</a>
+<ul class="simple">
+<li><p>Velocity (u, v, w) <span class="math notranslate nohighlight">\(L_2\)</span> error norm:</p></li>
+</ul>
+<a class="reference internal image-reference" href="../_images/u_error3.png"><img alt="../_images/u_error3.png" src="../_images/u_error3.png" style="width: 300pt;" />
+</a>
+<a class="reference internal image-reference" href="../_images/v_error3.png"><img alt="../_images/v_error3.png" src="../_images/v_error3.png" style="width: 300pt;" />
+</a>
+<a class="reference internal image-reference" href="../_images/w_error3.png"><img alt="../_images/w_error3.png" src="../_images/w_error3.png" style="width: 300pt;" />
+</a>
+<ul class="simple">
+<li><p>Pressure <span class="math notranslate nohighlight">\(L_2\)</span> error norm:</p></li>
+</ul>
+<a class="reference internal image-reference" href="../_images/p_error3.png"><img alt="../_images/p_error3.png" src="../_images/p_error3.png" style="width: 300pt;" />
+</a>
+</section>
+<section id="conservation-and-isothermal-boundaries">
+<h2>Conservation and Isothermal Boundaries<a class="headerlink" href="#conservation-and-isothermal-boundaries" title="Link to this heading"></a></h2>
+<p>A simple test cass labeled <code class="docutils literal notranslate"><span class="pre">MassCons</span></code> is used to verify mass and energy conservation for all major numerical schemes used in PeleC (MOL without slopes, MOL with slopes, Godunov PLM, Godunov PPM). A python script is also run for all applicable test cases without inflows, outflows, or forcing, to ensure conservation during regression testing to ensure the conservation is maintained. The results shown below demonstrate the machine-precision level conservation of mass and energy for all numerical schemes. The case is arbitrary flow in a box with different types of boundaries (<code class="docutils literal notranslate"><span class="pre">SlipWall</span></code>, <code class="docutils literal notranslate"><span class="pre">NoSlipWall</span></code>, <code class="docutils literal notranslate"><span class="pre">UserBC</span></code>, including isothermal options). Note energy is conserved for the isothermal case without hydro turned on because of symmetry in the boundary conditions, but is not conserved for the case with hydro because inclusion of hydrodynamic effects breaks the symmetry.</p>
+<ul class="simple">
+<li><p>Mass Conservation:</p></li>
+</ul>
+<img alt="../_images/figure_conservation_mass.png" src="../_images/figure_conservation_mass.png" />
+<ul class="simple">
+<li><p>Energy Conservation:</p></li>
+</ul>
+<img alt="../_images/figure_conservation_energy.png" src="../_images/figure_conservation_energy.png" />
+<p>This case does not include EB, but the conservation script is run for some of the EB test cases (EB-C9, EB-C11, EB-C12). However, it should be noted that the testing suite does not cover cases where EBs intersect the domain boundary at a sharp angle.</p>
+<p>The case with isothermal walls and no hydro allows the convergence of the treatment of diffusion and isothermal boundaries to be verified without using MMS. This case has an initial temperature of 700 K in the 2D domain and temperatures of 600 K, 800 K, 650 K, and 750 K for the low x, high x, low y, and high y boundaries, respectively. Verification is performed at an early time such that thermal diffusion from the various boundaries have not imacted each other yet. Therefore, the solutions are compared against the analytical result for diffusion into a semi-infinite medium:</p>
+<div class="math notranslate nohighlight">
+\[\frac{T - T_{wall}}{T_{0} - T_{wall}} = \rm{erf}(x/\sqrt{4Dt})\]</div>
+<p>where <cite>x</cite> is the distance from the wall.</p>
+<ul class="simple">
+<li><p>x temperature profile:</p></li>
+</ul>
+<img alt="../_images/figure_dir0.png" src="../_images/figure_dir0.png" />
+<ul class="simple">
+<li><p>y temperature profile:</p></li>
+</ul>
+<img alt="../_images/figure_dir1.png" src="../_images/figure_dir1.png" />
+<ul class="simple">
+<li><p>Convergence:</p></li>
+</ul>
+<img alt="../_images/figure_convergence.png" src="../_images/figure_convergence.png" />
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="../VandV.html" class="btn btn-neutral float-left" title="Correctness - Verification and Validation" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="../ebverification/ebverification.html" class="btn btn-neutral float-right" title="Verification of EB PeleC" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright AMReX Copyright (c) 2021, The Regents of the University of California, through Lawrence Berkeley National Laboratory, the Alliance for Sustainable Energy, LLC., through National Renewable Energy Laboratory, National Technology and Engineering Solutions of Sandia, LLC, and UT-Battelle, LLC (subject to receipt of any required approvals from the U.S. Dept. of Energy).  All rights reserved..</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

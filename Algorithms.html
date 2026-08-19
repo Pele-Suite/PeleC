@@ -1,0 +1,480 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Numerical Treatment and Algorithms &mdash; PeleC 0.1 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=03e43079" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=9edc463e" />
+
+  
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=2709fde1"></script>
+      <script src="_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
+      <script defer="defer" src="https://cdn.jsdelivr.net/npm/mathjax@4/tex-mml-chtml.js"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Getting Started" href="GettingStarted.html" />
+    <link rel="prev" title="Equations" href="Equations.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            PeleC
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="Introduction.html">Introduction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="Equations.html">Equations</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Numerical Treatment and Algorithms</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#pelec-time-stepping">PeleC Time-stepping</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#standard-time-advance">Standard Time Advance</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#hyperbolics">Hyperbolics</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#piecewise-parabolic-method-ppm">Piecewise Parabolic Method (PPM)</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#system-of-primitive-variables">System of primitive variables</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#edge-state-prediction">Edge state prediction</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#method-of-lines-with-characteristic-extrapolation">Method of Lines with Characteristic Extrapolation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#comparison-of-ppm-and-mol-for-the-decay-of-homogeneous-isotropic-turbulence">Comparison of PPM and MOL for the decay of homogeneous isotropic turbulence</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#advection-schemes-and-eb">Advection schemes and EB</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#diffusion">Diffusion</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#ideal-gas-diffusion">Ideal Gas Diffusion</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#reaction">Reaction</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#equation-of-state">Equation of State</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="GettingStarted.html">Getting Started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="BoundaryConditions.html">Boundary Conditions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="geometry/EB.html">Geometry treatment in PeleC</a></li>
+<li class="toctree-l1"><a class="reference internal" href="LES.html">LES and Hybrid LES/DNS Support</a></li>
+<li class="toctree-l1"><a class="reference internal" href="VandV.html">Correctness - Verification and Validation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="PelePhysics.html">PelePhysics</a></li>
+<li class="toctree-l1"><a class="reference internal" href="BoxlibBits.html">Development Reference</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">PeleC</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Numerical Treatment and Algorithms</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/Algorithms.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="numerical-treatment-and-algorithms">
+<span id="algorithms"></span><h1>Numerical Treatment and Algorithms<a class="headerlink" href="#numerical-treatment-and-algorithms" title="Link to this heading"></a></h1>
+<section id="pelec-time-stepping">
+<h2>PeleC Time-stepping<a class="headerlink" href="#pelec-time-stepping" title="Link to this heading"></a></h2>
+<p>PeleC supports two options for time-stepping: a second-order explicit method-of-lines approach (MOL), and an iterative scheme base on a spectral deferred correction approach (SDC). Both time-steppers share a considerable amount of code.</p>
+<section id="standard-time-advance">
+<h3>Standard Time Advance<a class="headerlink" href="#standard-time-advance" title="Link to this heading"></a></h3>
+<p>The MOL time stepper is a standard second order predictor-corrector approach with (optional) fixed point iteration to tightly couple the reaction and transport. The advection <span class="math notranslate nohighlight">\((A)\)</span> and diffusion <span class="math notranslate nohighlight">\((D)\)</span> terms are computed using a time-explicit finite-volume formulation; reaction terms are either computed explicitly or integrated (using DVODE or CVODE via SUNDIALS), with a forcing term that incorporates the (pointwise) influence of advection and diffusion (<span class="math notranslate nohighlight">\(F_{AD}\)</span>).  The update is as follows:</p>
+<div class="math notranslate nohighlight">
+\[ \begin{align}\begin{aligned}S^n &amp;= AD(u^n) \hspace{2em} {\small \text{(stencils require grow-cell data at }t^{n}\text{)}}\\u^* &amp;= u^n + \Delta t(S^n +I_R)\\S^{n+1} &amp;= AD(u^*) \hspace{2em} {\small \text{(stencils require grow-cell data at }t^{n+1}\text{)}}\\u^{**} &amp;= \frac{1}{2}(u^n+u^*) + \frac{1}{2}\left(S^{n+1}+I_R\right){\Delta t}\\F_{AD} &amp;= \frac{1}{\Delta t} (u^{**} -u^n) - I_R\\I_R &amp;= I_R(u^n, F_{AD})\\u^{n+1} &amp;= u^n + \Delta t(F_{AD} +I_R)\text{.}\end{aligned}\end{align} \]</div>
+<p>On initialization, the reaction term <span class="math notranslate nohighlight">\((I_R)\)</span> is evaluated with <span class="math notranslate nohighlight">\((F_{AD} = 0)\)</span>; for subsequent time steps, the initial value of <span class="math notranslate nohighlight">\((I_R)\)</span> is taken from the previous time step.  The advection and diffusion terms (evaluated above at <span class="math notranslate nohighlight">\(t^n\)</span> and <span class="math notranslate nohighlight">\(t^{n+1}\)</span>) require grow cells to be filled at the appropriate solution time.  The filling operation is orchestrated by the AMReX software framework via the <cite>FillPatch</cite> operation.  Grow cells from neighboring mesh patches (and through periodic/re-entrant boundaries) are copied on intersection in index space.  User-specified functions provide data at the physical boundaries as a function of space and time.  Cells along the coarse-fine boundary are interpolated in space and time from available coarse data (note that this requires that the fine data be “properly nested” in the coarser levels).  Also, because <span class="math notranslate nohighlight">\((A)\)</span> and <span class="math notranslate nohighlight">\((D)\)</span> are both time-explicit, they are computed together using grow cells filled by the same <cite>FillPatch</cite> operation.</p>
+<p>With time-implicit reactions, the final update is iterated:</p>
+<div class="math notranslate nohighlight">
+\[ \begin{align}\begin{aligned}S^{n+1,k} &amp;= AD(u^{n+1,k})\\F_{AD}^{k} &amp;= \frac{1}{2}(S^n+S^{n+1,k})\\I_R^{k} &amp;= I_R(u^n, F_{AD}^{k})\\u^{n+1,k+1} &amp;= u^n + \Delta t(F_{AD}^{k} +I_R^{k})\text{.}\end{aligned}\end{align} \]</div>
+</section>
+</section>
+<section id="hyperbolics">
+<h2>Hyperbolics<a class="headerlink" href="#hyperbolics" title="Link to this heading"></a></h2>
+<p>Two hyperbolic treatments are available: Piecewise Parabolic Method and the Method of Lines.</p>
+<section id="piecewise-parabolic-method-ppm">
+<h3>Piecewise Parabolic Method (PPM)<a class="headerlink" href="#piecewise-parabolic-method-ppm" title="Link to this heading"></a></h3>
+<p>The unsplit piecewise parabolic method is used for regular
+geometries. Currently in PeleC, there are 2 variants that can be
+chosen through the <code class="docutils literal notranslate"><span class="pre">ppm_type</span></code> flag:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">ppm_type</span> <span class="pre">=</span> <span class="pre">0</span></code> (default) uses a piecewise linear interpolation to reconstruct values at face. This is denoted PLM in the source code.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">ppm_type</span> <span class="pre">=</span> <span class="pre">1</span></code> is the original PPM method presented in Colella and Woodward [JCP 1984].</p></li>
+</ul>
+<p>For <code class="docutils literal notranslate"><span class="pre">ppm_type</span> <span class="pre">=</span> <span class="pre">0</span></code>, one can control the order of the construction of the slopes with the <code class="docutils literal notranslate"><span class="pre">plm_iorder</span></code> flag:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">plm_iorder</span> <span class="pre">=</span> <span class="pre">1</span></code> sets the slopes to zero;</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">plm_iorder</span> <span class="pre">=</span> <span class="pre">2</span></code> uses the <span class="math notranslate nohighlight">\(i-1\)</span>, <span class="math notranslate nohighlight">\(i\)</span>, and <span class="math notranslate nohighlight">\(i+1\)</span> cells to form a slope;</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">plm_iorder</span> <span class="pre">=</span> <span class="pre">4</span></code> (default) uses the <span class="math notranslate nohighlight">\(i-2\)</span>, <span class="math notranslate nohighlight">\(i-1\)</span>, <span class="math notranslate nohighlight">\(i\)</span>, <span class="math notranslate nohighlight">\(i+1\)</span>, and <span class="math notranslate nohighlight">\(i+2\)</span> cells to form a slope.</p></li>
+</ul>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>The following description of PPM implementations are only available
+in the (deprecated) Fortran source code. Efforts are ongoing to
+port all the PPM variants into the C++ source code.</p>
+</div>
+<p>Currently in PeleC Fortran source, there are 4 variants that can be
+chosen through the <code class="docutils literal notranslate"><span class="pre">ppm_type</span></code> flag:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">ppm_type</span> <span class="pre">=</span> <span class="pre">0</span></code> uses a piecewise linear interpolation to reconstruct values at face.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">ppm_type</span> <span class="pre">=</span> <span class="pre">1</span></code> is the original PPM method presented in Colella and Woodward [JCP 1984].</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">ppm_type</span> <span class="pre">=</span> <span class="pre">2</span></code> is the “extrema preserving” variant of the PPM method.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">ppm_type</span> <span class="pre">=</span> <span class="pre">3</span></code> is a new hybrid PPM/WENO method developed by Motheau and Wakefield [CAMCOS 2020], that replace the interpolation and slope limiting procedures by a WENO reconstruction.</p></li>
+</ul>
+<p>In the remainder of this section, the extrema preserving PPM method, i.e <code class="docutils literal notranslate"><span class="pre">ppm_type</span> <span class="pre">=</span> <span class="pre">2</span></code>, is presented. Note that the implementation
+in PeleC is a recollection of different extension of the PPM method published in Miller and Colella [JCP 2002] and Colella and Sekora [JCP 2008].
+The actual implementation in PeleC is described in the paper <cite>Motheau and Wakefield, Investigation of finite-volume methods to capture shocks and turbulence spectra in compressible flows  [CAMCOS 2020]</cite>,
+and the following description is taken from that paper. Note that the algorithm is presented here in 1D
+for simplicity, but can be trivially extended to 2D and 3D.</p>
+<p>Note also that the hybrid PPM/WENO method is described in the
+aforementioned paper. This hybrid strategy presents far better results
+in terms of capture of turbulent spectra rather than the other PPM
+methods. When <code class="docutils literal notranslate"><span class="pre">ppm_type</span> <span class="pre">=</span> <span class="pre">1</span></code> and <cite>use_hybrid_weno = true</cite> is used, the
+WENO reconstruction method can be selected with <code class="docutils literal notranslate"><span class="pre">weno_scheme</span></code>:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">weno_scheme</span> <span class="pre">=</span> <span class="pre">0</span></code> is the classical 5th order WENO-JS of Jiang and Shu [JCP 1996].</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">weno_scheme</span> <span class="pre">=</span> <span class="pre">1</span></code> is the 5th order WENO-Z method of Borges et al. [JCP 2008].</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">weno_scheme</span> <span class="pre">=</span> <span class="pre">2</span></code> is the 7th order WENO-Z.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">weno_scheme</span> <span class="pre">=</span> <span class="pre">3</span></code> is the 3rd order WENO-Z.</p></li>
+</ul>
+<p>By default, <code class="docutils literal notranslate"><span class="pre">weno_scheme</span> <span class="pre">=</span> <span class="pre">1</span></code> is selected and <cite>use_hybrid_weno = false</cite>.</p>
+<section id="system-of-primitive-variables">
+<h4>System of primitive variables<a class="headerlink" href="#system-of-primitive-variables" title="Link to this heading"></a></h4>
+<p>First, the system of primitive variables is recast in the following generic form:</p>
+<div class="math notranslate nohighlight">
+\[\frac{\partial \mathbf{Q}}{\partial t} + \mathbf{A} \frac{\partial \mathbf{Q}}{\partial x} = \mathbf{S}_{\mathbf{Q}}. \label{eqn:prim_var_eq}\]</div>
+<p>Here <span class="math notranslate nohighlight">\(\mathbf{Q}\)</span> is the primitive state vector, <span class="math notranslate nohighlight">\(\mathbf{A}=\partial \mathbf{F}/\partial \mathbf{Q}\)</span> and <span class="math notranslate nohighlight">\(\mathbf{S}_{\mathbf{Q}}\)</span>
+are the viscous source terms reformulated in terms of the primitive variables.</p>
+<p>In one dimension, this comes:</p>
+<div class="math notranslate nohighlight">
+\[\begin{split}\left(\begin{array}{c}
+\rho \\
+u \\
+p \\
+\rho e
+\end{array}\right)_t
++
+\left(\begin{array}{cccc}
+u &amp; \rho &amp;  0 &amp; 0  \\
+0 &amp; u &amp;  \frac{1}{\rho} &amp; 0  \\
+0 &amp; \rho c^2 &amp; u &amp; 0 \\
+0 &amp; \rho e + p &amp; 0 &amp; u
+\end{array}\right)
+\left(\begin{array}{c}
+\rho \\
+u \\
+p \\
+\rho e
+\end{array}\right)_x
+=
+\mathbf{S}_{\mathbf{Q}}\end{split}\]</div>
+<p>Note that here, the system of primitive variables has been extended to include an additional equation for the internal energy,
+denoted <span class="math notranslate nohighlight">\(e\)</span>. This avoids several calls to the equation of state, especially in the Riemann solver step.</p>
+<p>The eigenvalues of the matrix <span class="math notranslate nohighlight">\(\mathbf{A}_x\)</span> are given by:</p>
+<div class="math notranslate nohighlight">
+\[\mathbf{\Lambda}\left(\mathbf{A}_x\right) = \{u-c,u,u,u+c\}.\]</div>
+<p>The right column eigenvectors are:</p>
+<div class="math notranslate nohighlight" id="equation-matrix-lx">
+<span class="eqno">(1)<a class="headerlink" href="#equation-matrix-lx" title="Link to this equation"></a></span>\[\begin{split}\mathbf{r}_x =
+\left(\begin{array}{ccccc}
+1 &amp; 1 &amp;  0  &amp; 1 \\
+-\frac{c}{\rho} &amp;  0 &amp; 0 &amp; \frac{c}{\rho} \\
+c^2 &amp; 0  &amp; 0 &amp; c^2 \\
+h &amp; 0 &amp;  1  &amp; h
+\end{array}\right).\end{split}\]</div>
+<p>The left row eigenvectors, normalized so that <span class="math notranslate nohighlight">\(\mathbf{l}_x\cdot\mathbf{r}_x = \mathbf{I}\)</span> are:</p>
+<div class="math notranslate nohighlight" id="equation-matrix-rx">
+<span class="eqno">(2)<a class="headerlink" href="#equation-matrix-rx" title="Link to this equation"></a></span>\[\begin{split}\mathbf{l}_x =
+\left(\begin{array}{ccccc}
+0 &amp; -\frac{\rho}{2c} &amp;  \frac{1}{2c^2}  &amp; 0 \\
+1 &amp; 0  &amp; -\frac{1}{c^2}  &amp; 0 \\
+0 &amp; 0 &amp;  -\frac{h}{c^2}  &amp; 0 \\
+0 &amp; \frac{\rho}{2c} &amp; \frac{1}{2c^2}  &amp; 0
+\end{array}\right).\end{split}\]</div>
+<p>Note that here, <span class="math notranslate nohighlight">\(c\)</span> and <span class="math notranslate nohighlight">\(h\)</span> are the sound speed and the enthalpy, respectively.</p>
+</section>
+<section id="edge-state-prediction">
+<h4>Edge state prediction<a class="headerlink" href="#edge-state-prediction" title="Link to this heading"></a></h4>
+<p>The fluxes are reconstructed from time-centered edge state values. Thus, the primitive variables are first interpolated in space with the PPM method,
+then a characteristic tracing operation is performed to extrapolate in time their values at <span class="math notranslate nohighlight">\(n+1/2\)</span>.</p>
+<ul class="simple">
+<li><p>Interpolation and slope limiting</p></li>
+</ul>
+<p>Basically the goal of the algorithm is to compute a left and a right state of the primitive variables at each edge in order to provide inputs for the Riemann problem to solve.</p>
+<p>First, the average cross-cell difference is computed for each primitive variable with a quadratic interpolation as follows:</p>
+<div class="math notranslate nohighlight">
+\[\delta q_i = \frac{1}{2} \left(q_{i+1} - q_{i-1}\right).\]</div>
+<p>In order to enforce monotonicity, <span class="math notranslate nohighlight">\(\delta q_i\)</span> is limited with the van Leer [1979] method:</p>
+<div class="math notranslate nohighlight">
+\[\delta q_i^* = \min \left(|\delta q_i|,2|q_{i+1}-q_i|,2|q_i - q_{i-1}|\right)\text{sgn}\left(\delta q_i\right),\]</div>
+<p>and the interpolation of the primitive values to the cell face <span class="math notranslate nohighlight">\(q_{i+\frac{1}{2}}\)</span> is estimated with:</p>
+<div class="math notranslate nohighlight">
+\[q_{i+\frac{1}{2}} = q_i + \frac{1}{2}\left(q_{i+1}-q_i \right)-\frac{1}{6}\left(\delta q_{i+1}^* - \delta q_i^* \right).\]</div>
+<p>In order to enforce that <span class="math notranslate nohighlight">\(q_{i+\frac{1}{2}}\)</span> lies between the adjacent cell averages, the following constraint is imposed:</p>
+<div class="math notranslate nohighlight">
+\[\min\left(q_i,q_{i+1} \right) \leqslant q_{i+\frac{1}{2}} \leqslant \max\left(q_i,q_{i+1} \right).\]</div>
+<p>The next step is to set the values of <span class="math notranslate nohighlight">\(q_{R,i-\frac{1}{2}}\)</span> and <span class="math notranslate nohighlight">\(q_{L,i+\frac{1}{2}}\)</span>, which are the right and left state at the edges bounding a computational cell.
+Here, a quartic limiter is employed in order to enforce that the interpolated parabolic profile is monotone.
+The procedure proposed by Miller [2002] is adopted, which slightly differs from the original one proposed in Colella [1984]. In Miller [2002], this specific procedure is followed
+by the imposition of another limiter based on a flattening parameter to prevent artificial extrema in the reconstructed values. Here in PeleC, the order of imposition
+of the different limiting procedures is reversed.</p>
+<p>First, the edge state values are defined as:</p>
+<div class="math notranslate nohighlight">
+\[ \begin{align}\begin{aligned}q_{L,i+\frac{1}{2}} = q_{i+\frac{1}{2}},\\q_{R,i-\frac{1}{2}} = q_{i-\frac{1}{2}}.\end{aligned}\end{align} \]</div>
+<p>Then the flattening limiter is imposed as follows:</p>
+<div class="math notranslate nohighlight">
+\[ \begin{align}\begin{aligned}q_{L,i+\frac{1}{2}} \leftarrow \chi_i q_{L,i+\frac{1}{2}} + \left(1+\chi_i\right) q_i,\\q_{R,i-\frac{1}{2}} \leftarrow \chi_i q_{R,i-\frac{1}{2}} + \left(1+\chi_i\right) q_i,\end{aligned}\end{align} \]</div>
+<p>where <span class="math notranslate nohighlight">\(\chi_i\)</span> is a flattening coefficient computed from the local pressure, and its evaluation is presented below.</p>
+<p>A non-dimensional shock resolution parameter <span class="math notranslate nohighlight">\(\beta_{x,ijk}\)</span> is constructed in cell <span class="math notranslate nohighlight">\(ijk\)</span> according to the equation given below.</p>
+<div class="math notranslate nohighlight">
+\[\beta_{x,ijk} = \frac{|P_{i+1,j,k} - P_{i-1,j,k}|}{|P_{i+2,j,k}-P_{i-2,j,k}|}\]</div>
+<p>If <span class="math notranslate nohighlight">\(\beta_{x,ijk}\)</span> is small, then any discontinuity is assumed to be well resolved. If <span class="math notranslate nohighlight">\(\beta_{x,ijk}\)</span> is 0.5 then the pressure <span class="math notranslate nohighlight">\(P\)</span> is linear across four consecutive cells in the i-th direction.
+A minimum value of <span class="math notranslate nohighlight">\(\tilde \chi_{x,i,j,k}\)</span> is now calculated using two additional parameters <span class="math notranslate nohighlight">\(a_0\)</span> and <span class="math notranslate nohighlight">\(a_1\)</span> as,</p>
+<div class="math notranslate nohighlight">
+\[\tilde \chi_{x,i,j,k}^{min} = max(0,min(1,\frac{a_1-\beta}{a_1-a_0}))\]</div>
+<p>The values of <span class="math notranslate nohighlight">\(a_0\)</span> and <span class="math notranslate nohighlight">\(a_1\)</span> are fixed as <span class="math notranslate nohighlight">\(0.75\)</span> and <span class="math notranslate nohighlight">\(0.85\)</span> respectively.</p>
+<p>The flattening parameter <span class="math notranslate nohighlight">\(\tilde \chi_{x,ijk}\)</span> is now defined as,</p>
+<div class="math notranslate nohighlight">
+\[\begin{split}\tilde \chi_{x,ijk} =\begin{cases}
+  max(\tilde \chi_{x,i,j,k}^{min},min(1,\frac{Z_1-Z_{x,ijk}}{Z_1-Z_0}), &amp; \text{if $q_{x,i+1,j,k}&lt;q_{x,i-1,j,k}$}.\\
+  1, &amp; \text{otherwise}.
+\end{cases}\end{split}\]</div>
+<p>with the non-dimensional shock strength parameter <span class="math notranslate nohighlight">\(Z_{x,ijk}\)</span> defined as,</p>
+<div class="math notranslate nohighlight">
+\[Z_{x,ijk} = \frac{|P_{i+1,j,k} - P_{i-1,j,k}|}{\rho c^2}\]</div>
+<p>For the case of three-dimensional flows, the limiter <span class="math notranslate nohighlight">\(\chi_{ijk}\)</span> is then computed using the equation given below,</p>
+<div class="math notranslate nohighlight">
+\[\begin{split}\chi_{ijk} = min(\tilde \chi_{x,i-1,j,k},\tilde \chi_{x,i,j,k},\tilde \chi_{x,i+1,j,k},\\
+ \tilde \chi_{y,i,j-1,k},\tilde \chi_{y,i,j,k},\tilde \chi_{y,i,j+1,k},\tilde \chi_{z,i,j,k-1},\tilde \chi_{z,i,j,k}, \tilde \chi_{z,i,j,k+1}),\end{split}\]</div>
+<p>Finally, the monotonization is performed with the following procedure:</p>
+<div class="math notranslate nohighlight">
+\[\begin{split}q_{L,i+\frac{1}{2}} = q_{R,i-\frac{1}{2}} = q_i \hspace{0.8cm} &amp;\text{if}  \hspace{0.2cm}   \left(q_{L,i+\frac{1}{2}} - q_i \right)\left(q_i - q_{R,i-\frac{1}{2}}\right) &gt; 0, \\
+q_{L,i+\frac{1}{2}} = 3 q_i - 2 q_{R,i-\frac{1}{2}} \hspace{0.8cm} &amp;\text{if}  \hspace{0.2cm} |q_{L,i+\frac{1}{2}}-q_i| \geqslant 2|q_{R,i-\frac{1}{2}}-q_i|, \\
+q_{R,i-\frac{1}{2}} = 3 q_i - 2 q_{L,i+\frac{1}{2}} \hspace{0.8cm} &amp;\text{if}  \hspace{0.2cm} |q_{R,i-\frac{1}{2}}-q_i| \geqslant 2|q_{L,i+\frac{1}{2}}-q_i|.\end{split}\]</div>
+<ul class="simple">
+<li><p>Piecewise Parabolic Reconstruction</p></li>
+</ul>
+<p>Once the limited values <span class="math notranslate nohighlight">\(q_{R,i-\frac{1}{2}}\)</span> and <span class="math notranslate nohighlight">\(q_{L,i+\frac{1}{2}}\)</span> are known, the limited piecewise parabolic reconstruction
+in each cell is done by computing the average value swept out by parabola profile across a face, assuming that it moves at the speed of a
+characteristic wave <span class="math notranslate nohighlight">\(\lambda_k\)</span>. The average is defined by the following integrals:</p>
+<div class="math notranslate nohighlight" id="equation-int-parab-2">
+<span class="eqno">(3)<a class="headerlink" href="#equation-int-parab-2" title="Link to this equation"></a></span>\[ \begin{align}\begin{aligned}  \mathcal{I}^{(k)}_{+} \left(q_i \right) &amp;= \frac{1}{\sigma_k \Delta x}\int^{(i+1/2)\Delta x}_{((i+1/2)-\sigma_k)\Delta x} q_i^I\left(x\right){\rm d}x,\\  \mathcal{I}^{(k)}_{-} \left(q_i \right) &amp;= \frac{1}{\sigma_k \Delta x}\int^{((i-1/2)+\sigma_k)\Delta x}_{(i-1/2)\Delta x} q_i^I\left(x\right){\rm d}x,\end{aligned}\end{align} \]</div>
+<p>with <span class="math notranslate nohighlight">\(\sigma_k = |\lambda_k|\Delta t / \Delta x\)</span>, where <span class="math notranslate nohighlight">\(\lambda_k=\{u-c,u,u,u+c\}\)</span>, while <span class="math notranslate nohighlight">\(\Delta t\)</span> and <span class="math notranslate nohighlight">\(\Delta x\)</span> are the discretization
+step in time and space, respectively, with the assumption that <span class="math notranslate nohighlight">\(\Delta x\)</span> is constant in the computational domain.</p>
+<p>The parabolic profile is defined by</p>
+<div class="math notranslate nohighlight">
+\[q_i^I \left(x\right) = q_{R,i-\frac{1}{2}} + \xi\left(x\right)\left[q_{L,i+\frac{1}{2}} - q_{R,i-\frac{1}{2}} + q_{i,6}\left(1-\xi\left(x\right)\right)\right]\]</div>
+<p>with</p>
+<div class="math notranslate nohighlight" id="equation-parabolic-profile">
+<span class="eqno">(4)<a class="headerlink" href="#equation-parabolic-profile" title="Link to this equation"></a></span>\[q_{i,6} = 6 q_i - 3\left(q_{R,i-\frac{1}{2}} + q_{L,i+\frac{1}{2}} \right).\]</div>
+<p>and</p>
+<div class="math notranslate nohighlight">
+\[\xi \left(x\right) = \frac{x-x_{i-\frac{1}{2}}}{\Delta x}, \hspace{0.8cm} x_{i-\frac{1}{2}} \leqslant x \leqslant x_{i+\frac{1}{2}}\]</div>
+<p>Substituting <a class="reference internal" href="#equation-parabolic-profile">(4)</a> in <a class="reference internal" href="#equation-int-parab-2">(3)</a> leads to the following explicit formulations:</p>
+<div class="math notranslate nohighlight">
+\[ \begin{align}\begin{aligned}\mathcal{I}^{(k)}_{+} \left(q_i \right) &amp;= q_{L,i+\frac{1}{2}} - \frac{\sigma_k}{2}\left[q_{L,i+\frac{1}{2}} - q_{L,i+\frac{1}{2}} - \left(1-\frac{2}{3}\sigma_k \right) q_{i,6} \right],\\\mathcal{I}^{(k)}_{-} \left(q_i \right) &amp;= q_{R,i-\frac{1}{2}} + \frac{\sigma_k}{2}\left[q_{L,i+\frac{1}{2}} - q_{L,i+\frac{1}{2}} + \left(1-\frac{2}{3}\sigma_k \right) q_{i,6} \right].\end{aligned}\end{align} \]</div>
+<ul class="simple">
+<li><p>Characteristic tracing and flux reconstruction</p></li>
+</ul>
+<p>The next step is to extrapolate in time the integrals <span class="math notranslate nohighlight">\(\mathcal{I}^{(k)}_{\pm}\)</span> to get the left and right edge states at time <span class="math notranslate nohighlight">\(n+1/2\)</span>.
+This procedure is complex, especially in multi-dimensions where transverse terms are taken into account; the complete detailed procedure can be found in Miller[2002].
+In 1D, the left and right edge states are computed as follows:</p>
+<div class="math notranslate nohighlight">
+\[ \begin{align}\begin{aligned}q_{L,i+\frac{1}{2}}^{n+\frac{1}{2}} &amp;= \mathcal{I}^{(k=u+c)}_{+} - \sum_{k:\lambda_k \geqslant 0} \beta_k \mathbf{l}_k \cdot \left[\mathcal{I}^{(k=u+c)}_{+}-\mathcal{I}^{(k)}_{+}  \right] \mathbf{r}_k + \frac{\Delta t}{2} S_i^n,\\q_{R,i-\frac{1}{2}}^{n+\frac{1}{2}} &amp;= \mathcal{I}^{(k=u-c)}_{-} - \sum_{k:\lambda_k \leqslant 0} \beta_k \mathbf{l}_k \cdot \left[\mathcal{I}^{(k=u-c)}_{-}-\mathcal{I}^{(k)}_{-}  \right] \mathbf{r}_k + \frac{\Delta t}{2} S_i^n.\end{aligned}\end{align} \]</div>
+<p>where</p>
+<div class="math notranslate nohighlight">
+\[\begin{split}\beta_k = \begin{cases}
+     \frac{1}{2}, &amp; \text{if}\;\lambda_k = 0,  \\
+     1, &amp; \text{otherwise},
+ \end{cases}\end{split}\]</div>
+<p>and <span class="math notranslate nohighlight">\(\mathbf{l}_k\)</span> and <span class="math notranslate nohighlight">\(\mathbf{r}_k\)</span> are the left row and right column of the matrices defined at <a class="reference internal" href="#equation-matrix-lx">(1)</a> and <a class="reference internal" href="#equation-matrix-rx">(2)</a> for each eigenvalue <span class="math notranslate nohighlight">\(k\)</span>.
+Note that here, <span class="math notranslate nohighlight">\(S_i^n\)</span> represents any source terms at time <span class="math notranslate nohighlight">\(n\)</span> to include in the characteristic tracing operation.</p>
+<p>Finally, the time-centered fluxes are computed using an approximate Riemann problem solver. At the end of this procedure the primitive variables are centered in time at <span class="math notranslate nohighlight">\(n+1/2\)</span>,
+and in space at the edges of a cell. This is the so-called <cite>Godunov state</cite> and the convective fluxes can be computed to create the advective source term.</p>
+</section>
+</section>
+<section id="method-of-lines-with-characteristic-extrapolation">
+<h3>Method of Lines with Characteristic Extrapolation<a class="headerlink" href="#method-of-lines-with-characteristic-extrapolation" title="Link to this heading"></a></h3>
+<p id="mol">An alternative formulation well suited to Embedded Boundary geometry treatment and also available for regular grids is available and based on a method of lines approach. For each direction, characteristic extrapolation is used to compute left and right states at the cell faces:</p>
+<div class="math notranslate nohighlight">
+\[ \begin{align}\begin{aligned}{u^l_\perp} = u^- + \frac{1}{2\rho^-}\left( \alpha^-_2 - \alpha^-_1\right)\\{p^l} = p^- + \frac{c}{2}\left( \alpha^-_2 +\alpha^-_1\right)\\u^l_{\parallel, 1} = v^- + \frac{1}{2} \alpha^-_3\\u^l_{\parallel, 2} = w^- + \frac{1}{2} \alpha^-_4\\\rho^l Y_k^l = Y_k^-\rho^- + \frac{1}{2c}\left[\alpha^-_{4+k} + Y_k^-\left(\alpha^-_1 + \alpha^-_2\right)\right]\\\rho^l = \sum{\rho^lY_k^l}\\Y_k^l = \frac{\rho^l Y_k^l}{\rho^l}\end{aligned}\end{align} \]</div>
+<p>The right states are computed as:</p>
+<div class="math notranslate nohighlight">
+\[ \begin{align}\begin{aligned}{u^r_\perp} = u^+ - \frac{1}{2\rho^+}\left( \alpha^+_2 - \alpha^+_1\right)\\{p^r} = p^+ - \frac{c}{2}\left( \alpha^+_2 +\alpha^+_1\right)\\u^r_{\parallel, 1} = v^- - \frac{1}{2} \alpha^-_3\\u^r_{\parallel, 2} = w^- - \frac{1}{2} \alpha^-_4\\\rho^r Y_k^r = Y_k^+\rho^+ - \frac{1}{2c}\left[\alpha^+_{4+k} + Y_k^+\left(\alpha^+_1 + \alpha^+_2\right)\right]\\\rho^r = \sum{\rho^rY_k^r}\\Y_k^r = \frac{\rho^r Y_k^r}{\rho^r}\end{aligned}\end{align} \]</div>
+<p>The computations in the y- and z- direction are analogous; the flux on an EB face to apply a no-slip boundary condition at a wall is somewhat different. In that case, the left and right states are taken as the state at the cell center, except for the velocity is reflected across the EB face. That is:</p>
+<div class="math notranslate nohighlight">
+\[ \begin{align}\begin{aligned}u^l_\perp = - u \cdot \vec{n}\\u^l_{\parallel, 1} = u^l_{\parallel_2} = 0.0\\p^l = p\\Y_k^l = Y_k\\\rho^l = \rho\end{aligned}\end{align} \]</div>
+<p>and, as noted the right state is identical except for:</p>
+<div class="math notranslate nohighlight">
+\[u^r_\perp = - u^l_\perp\]</div>
+<p>Once the left and right states are computed, a Riemann solver (in this case one preserving the physical constraints on the intermediate state) is used to compute fluxes that are assembled into a conservative and non-conservative update for the regular and cut cells.</p>
+<p>The characteristic extrapolation requires (slope limited) fluxes, which computes the slope routines compute (limited) slopes as:</p>
+<div class="math notranslate nohighlight">
+\[ \begin{align}\begin{aligned}\Delta_1^- = 0.5\frac{1}{c}\left(p-p^-\right) - 0.5 \rho \left( u - u^-\right)\\\Delta_2^- = 0.5\frac{1}{c}\left(p-p^-\right) + 0.5 \rho \left( u - u^-\right)\\\Delta_3^- = v - v^-\\\Delta_4^- = w - w^-\\\Delta^-_{k=5..nspecies} = \rho Y_k - \rho^- Y_k^- - \frac{1}{c^2}Y_k \left(p-p^-\right)\end{aligned}\end{align} \]</div>
+<p>If cell is irregular, or neighbor to left is irregular, <span class="math notranslate nohighlight">\(\Delta^- = 0.0\)</span>.</p>
+<div class="math notranslate nohighlight">
+\[ \begin{align}\begin{aligned}\Delta_1^+ = 0.5\frac{1}{c}\left(p^+ - p\right) - 0.5\rho\left(u^+ - u\right)\\\Delta_2^+ = 0.5\frac{1}{c}\left(p^+ - p\right) + 0.5\rho\left(u^+ - u\right)\\\Delta_3^+ = v^+ - v\\\Delta_4^+ = w^+ - w\\\Delta_{5...nspc}^+ = \rho^+ Y_k^+ - \rho Y_k - \frac{Y_k}{c^2}\left(p^+ - p \right)\end{aligned}\end{align} \]</div>
+<p>Again, if cell is irregular, or neighbor to right is irregular, <span class="math notranslate nohighlight">\(\Delta^+ = 0.0\)</span>. Finally, the slopes are limited according to:</p>
+<div class="math notranslate nohighlight">
+\[ \begin{align}\begin{aligned}\Delta_i = \frac{1}{2}\left(\Delta_i^- + \Delta_i^+\right)\\\alpha_i^{\mathrm{lim}} = \mathrm{sign}\left\{\Delta_i \right\} \cdot \min\left\{ \Delta^{lim}_i, \left|\Delta_i \right|\right\}\end{aligned}\end{align} \]</div>
+<p>where:</p>
+<div class="math notranslate nohighlight">
+\[\begin{split}\Delta^{lim} = \left\{ \begin{aligned} {} 2 \min\left\{ |\Delta^-|,|\Delta^+|\right\} \quad&amp; \mathrm{if} \Delta^- \cdot \Delta^+ \ge 0 \\ 0 &amp; \quad \mathrm{otherwise}\end{aligned}\right.\end{split}\]</div>
+<p>The formulation of the y- and z-directions is analogous to the x-direction. One can control the order of the construction of the slopes with the <code class="docutils literal notranslate"><span class="pre">mol_iorder</span></code> flag:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">mol_iorder</span> <span class="pre">=</span> <span class="pre">1</span></code> sets the slopes to zero;</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">mol_iorder</span> <span class="pre">=</span> <span class="pre">2</span></code> uses the procedure described above.</p></li>
+</ul>
+</section>
+<section id="comparison-of-ppm-and-mol-for-the-decay-of-homogeneous-isotropic-turbulence">
+<h3>Comparison of PPM and MOL for the decay of homogeneous isotropic turbulence<a class="headerlink" href="#comparison-of-ppm-and-mol-for-the-decay-of-homogeneous-isotropic-turbulence" title="Link to this heading"></a></h3>
+<p>Comparison of PPM and MOL were performed using the decay of
+homogeneous isotropic turbulence. Initial conditions for the velocity
+fields were provided by an incompressible spectral simulation. The
+comparisons were performed at <span class="math notranslate nohighlight">\(N=128^3\)</span> and <span class="math notranslate nohighlight">\(512^3\)</span>. While
+generally exhibiting similar results, the MOL is more dissipative that
+the PPM, as shown in the figure below. For the MOL at <span class="math notranslate nohighlight">\(N =
+512^3\)</span>, the maximum relative error in kinetic energy is <span class="math notranslate nohighlight">\(0.9\%\)</span>
+and <span class="math notranslate nohighlight">\(k_{90}= 3 k_{\lambda_0}\)</span> at <span class="math notranslate nohighlight">\(t=5\tau\)</span>, for the PPM,
+these numbers are <span class="math notranslate nohighlight">\(0.5\%\)</span> and <span class="math notranslate nohighlight">\(4 k_{\lambda_0}\)</span>. The
+dissipation rate is under-predicted for the MOL. The energy spectra at
+high wave-numbers for the MOL are lower than those for the
+PPM. Finally, the MOL has a more restrictive CFL condition (CFL=0.3),
+and, therefore, MOL simulations were approximately three times slower
+than PPM simulations.</p>
+<figure class="align-center" id="id1" style="width: 40%">
+<img alt="_images/KE_mol_ppm.png" src="_images/KE_mol_ppm.png" />
+<figcaption>
+<p><span class="caption-number">1 </span><span class="caption-text">Kinetic energy as a function of time. Solid red: PPM at <span class="math notranslate nohighlight">\(N=128^3\)</span>; dashed green: MOL at <span class="math notranslate nohighlight">\(N=128^3\)</span>; dot-dashed  blue: PPM at <span class="math notranslate nohighlight">\(N=512^3\)</span>; dotted orange: MOL at <span class="math notranslate nohighlight">\(N=512^3\)</span>; dashed black: spectral code.</span><a class="headerlink" href="#id1" title="Link to this image"></a></p>
+</figcaption>
+</figure>
+<figure class="align-center" id="id2" style="width: 40%">
+<img alt="_images/dissipation_mol_ppm.png" src="_images/dissipation_mol_ppm.png" />
+<figcaption>
+<p><span class="caption-number">2 </span><span class="caption-text">Dissipation as a function of time. Solid red: PPM at <span class="math notranslate nohighlight">\(N=128^3\)</span>; dashed green: MOL at <span class="math notranslate nohighlight">\(N=128^3\)</span>; dot-dashed  blue: PPM at <span class="math notranslate nohighlight">\(N=512^3\)</span>; dotted orange: MOL at <span class="math notranslate nohighlight">\(N=512^3\)</span>; dashed black: spectral code.</span><a class="headerlink" href="#id2" title="Link to this image"></a></p>
+</figcaption>
+</figure>
+<figure class="align-center" id="id3" style="width: 40%">
+<img alt="_images/E3D_mol_ppm.png" src="_images/E3D_mol_ppm.png" />
+<figcaption>
+<p><span class="caption-number">3 </span><span class="caption-text">Three dimensional energy spectrum at <span class="math notranslate nohighlight">\(t = 5\tau\)</span>. Solid red: PPM at <span class="math notranslate nohighlight">\(N=128^3\)</span>; dashed green: MOL at <span class="math notranslate nohighlight">\(N=128^3\)</span>; dot-dashed  blue: PPM at <span class="math notranslate nohighlight">\(N=512^3\)</span>; dotted orange: MOL at <span class="math notranslate nohighlight">\(N=512^3\)</span>; dashed black: spectral code.</span><a class="headerlink" href="#id3" title="Link to this image"></a></p>
+</figcaption>
+</figure>
+</section>
+<section id="advection-schemes-and-eb">
+<h3>Advection schemes and EB<a class="headerlink" href="#advection-schemes-and-eb" title="Link to this heading"></a></h3>
+<p>The two main advection schemes (PLM and MOL) described above support the use of complex geometry in the domain (as implemented using the <a class="reference internal" href="geometry/EB.html#eb"><span class="std std-ref">Embedded Boundary (EB) formulation</span></a>). While the PLM advection scheme is preferred numerically (less dissipative scheme), the PLM implementation with EB is a recent addition and has not had the same extensive testing as the MOL scheme with EB. Both PLM and MOL may also have issues when the EB intersects the boundary at an angle (this remains to be solved).</p>
+</section>
+</section>
+<section id="diffusion">
+<h2>Diffusion<a class="headerlink" href="#diffusion" title="Link to this heading"></a></h2>
+<p>One of two diffusion models is selected during the compilation of PeleC, based on the choice of the equation-of-state: a simple model for ideal gases, and a more involved model when real gases are employed.  In both cases, the associated derivatives are discretized in space with a straightforward centered finite-volume approach.  Transport coefficients (discussed below) are computed at cell centers from the evolving state data, and are arithmetically averaged to cell faces where they are needed to evaluate the transport fluxes.  The time discretization for the transport terms is fully explicit and second-order.  Although formally this approach leads to a maximum <span class="math notranslate nohighlight">\(\Delta t\)</span> restriction for time evolution that scales as <span class="math notranslate nohighlight">\(\Delta x^2\)</span>, it is well known that for resolved flows the CFL constraint will provide the most restrictive time step limitation (ignoring chemical times). Note that when subgrid models are employed for advection, or stiff reactions are incorporated with an explicit treatment of chemistry, the maximum achievable <span class="math notranslate nohighlight">\(\Delta t\)</span> may be considerably smaller than the CFL limit, and other integration approaches might perform significantly better.</p>
+<section id="ideal-gas-diffusion">
+<h3>Ideal Gas Diffusion<a class="headerlink" href="#ideal-gas-diffusion" title="Link to this heading"></a></h3>
+<p>To close the system for a mixture of ideal gases, we adopt the definition for internal energy used in the CHEMKIN standard,</p>
+<div class="math notranslate nohighlight">
+\[e=\sum_m Y_m e_m(T)\]</div>
+<p>where <span class="math notranslate nohighlight">\(e_m\)</span> is the species <span class="math notranslate nohighlight">\(m\)</span> internal energy, as specified in the thermodynamics database for the mixture. For ideal gases, the transport fluxes can be written as:</p>
+<div class="math notranslate nohighlight">
+\[ \begin{align}\begin{aligned}&amp;&amp;\boldsymbol{\mathcal{F}}_{m} = \rho Y_m \boldsymbol{V_m} = - \rho D_{m,mix} \nabla X_m\\&amp;&amp;\Pi_{i,j} = \frac{2}{3} \mu \delta_{i,j} \frac{\partial {u_k}}{\partial x_k} - \mu \Big(
+\frac{\partial  u_i}{\partial x_j} + \frac{\partial  u_j}{\partial x_i}\Big)\\&amp;&amp;\boldsymbol{\mathcal{Q}} =  \sum_m h_m \boldsymbol{\mathcal{F}}_{m}  - \lambda \nabla T\end{aligned}\end{align} \]</div>
+<p>The mixture-averaged transport coefficients discussed above (<span class="math notranslate nohighlight">\(\mu\)</span>, <span class="math notranslate nohighlight">\(\lambda\)</span> and <span class="math notranslate nohighlight">\(D_{m,mix}\)</span>) can be evaluated from transport properties of the pure species. We follow the treatment used in the EGLib library, based on the theory/approximations developed by Ern and Givangigli (however, <cite>PeleC</cite> uses a recoded version of these routines that are thread safe and vectorize well on suitable processors).</p>
+<p>The following choices are currently implemented in <cite>PeleC</cite></p>
+<ul class="simple">
+<li><p>The viscosity, <span class="math notranslate nohighlight">\(\mu\)</span>, is estimated based on an empirical mixture formula (with <span class="math notranslate nohighlight">\(\alpha = 6\)</span>):</p></li>
+</ul>
+<div class="math notranslate nohighlight">
+\[\mu = \Big( \sum_m X_m (\mu_m)^{\alpha} \Big)^{1/\alpha}\]</div>
+<ul class="simple">
+<li><p>The conductivity, <span class="math notranslate nohighlight">\(\lambda\)</span>, is also calculated using a similar formula as that <span class="math notranslate nohighlight">\(\mu\)</span> but with <span class="math notranslate nohighlight">\(\alpha = 1/4\)</span>:</p></li>
+</ul>
+<div class="math notranslate nohighlight">
+\[\lambda = \Big( \sum_m X_m (\lambda_m)^{\alpha} \Big)^{1/\alpha}\]</div>
+<ul class="simple">
+<li><p>The diffusion flux is approximated using the diagonal matrix <span class="math notranslate nohighlight">\(diag(\widetilde{ \Upsilon})\)</span>, where:</p></li>
+</ul>
+<div class="math notranslate nohighlight">
+\[\widetilde{ \Upsilon}_m =  D_{m,mix}, \;\;\;\mbox{where} \;\;\;
+D_{m,mix} = \frac{1-Y_m}{ \sum_{j \neq m} X_j / \mathcal{D}_{m,j}}\]</div>
+<p>This leads to a mixture-averaged approximation that is similar to that of Hirschfelder-Curtiss:</p>
+<div class="math notranslate nohighlight">
+\[\rho Y_m \boldsymbol{V_m} = - \rho D_{m,mix} \nabla X_m\]</div>
+<p>Note that with these definitions, there is no guarantee that <span class="math notranslate nohighlight">\(\sum \boldsymbol{\mathcal{F}}_{m} = 0\)</span>, as required for mass conservation. An arbitrary <em>correction flux,</em> consistent with the mixture-averaged diffusion approximation, is added in PeleC to enforce conservation.</p>
+<p>The pure species and mixture transport properties are evaluated with (thread-safe, vectorized) EGLib functions, which require as input polynomial fits of the logarithm of each quantity versus the logarithm of the temperature.</p>
+<div class="math notranslate nohighlight">
+\[ln(q_m) = \sum_{n=1}^4 a_{q,m,n} ln(T)^{(n-1)}\]</div>
+<p><span class="math notranslate nohighlight">\(q_m\)</span> represents <span class="math notranslate nohighlight">\(\eta_m\)</span>, <span class="math notranslate nohighlight">\(\lambda_m\)</span> or <span class="math notranslate nohighlight">\(D_{m,j}\)</span>. These fits are generated as part of a preprocessing step managed by the tool <cite>FUEGO</cite> based on the formula (and input data) discussed above. The role of <cite>FUEGO</cite> to preprocess the model parameters for transport as well as chemical kinetics and thermodynamics, is discussed in some detail in &lt;Section FuegoDescr&gt;.</p>
+</section>
+</section>
+<section id="reaction">
+<h2>Reaction<a class="headerlink" href="#reaction" title="Link to this heading"></a></h2>
+<p>A chemical reaction network is evaluated to determine the reaction source term.  The reaction network is selected at build time by setting the <cite>CHEMISTRY_MODEL</cite> flag in the makefile, where the value refers to one of the models available in <cite>PelePhysics</cite>. New models can be generated using <cite>Fuego</cite>, currently not part of <cite>PelePhysics</cite> but slated for inclusion in the near future.</p>
+</section>
+<section id="equation-of-state">
+<h2>Equation of State<a class="headerlink" href="#equation-of-state" title="Link to this heading"></a></h2>
+<p>Several equation of state models are available based on ideal gas, gamma law gas or non-ideal equation of state.  These are implemented through the <cite>PelePhysics</cite> module.</p>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="Equations.html" class="btn btn-neutral float-left" title="Equations" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="GettingStarted.html" class="btn btn-neutral float-right" title="Getting Started" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright AMReX Copyright (c) 2021, The Regents of the University of California, through Lawrence Berkeley National Laboratory, the Alliance for Sustainable Energy, LLC., through National Renewable Energy Laboratory, National Technology and Engineering Solutions of Sandia, LLC, and UT-Battelle, LLC (subject to receipt of any required approvals from the U.S. Dept. of Energy).  All rights reserved..</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

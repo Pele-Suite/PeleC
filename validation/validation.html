@@ -1,0 +1,430 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Validation of PeleC &mdash; PeleC 0.1 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=03e43079" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=9edc463e" />
+
+  
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=2709fde1"></script>
+      <script src="../_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
+      <script defer="defer" src="https://cdn.jsdelivr.net/npm/mathjax@4/tex-mml-chtml.js"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="PelePhysics" href="../PelePhysics.html" />
+    <link rel="prev" title="Flow Past a Cylinder" href="../ebverification/FlowPastCylinder/README.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            PeleC
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../Introduction.html">Introduction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../Equations.html">Equations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../Algorithms.html">Numerical Treatment and Algorithms</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../GettingStarted.html">Getting Started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../BoundaryConditions.html">Boundary Conditions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../geometry/EB.html">Geometry treatment in PeleC</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../LES.html">LES and Hybrid LES/DNS Support</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="../VandV.html">Correctness - Verification and Validation</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="../verification/verification.html">Verification of PeleC</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../ebverification/ebverification.html">Verification of EB PeleC</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Validation of PeleC</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#decay-of-homogeneous-isotropic-turbulence">Decay of homogeneous isotropic turbulence</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#generating-the-initial-conditions">Generating the initial conditions</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#building-and-running">Building and running</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#results">Results</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#taylor-green-vortex-breakdown">Taylor-Green vortex breakdown</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#id1">Building and running</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#id2">Results</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#reacting-taylor-green-vortex-breakdown">Reacting Taylor-Green vortex breakdown</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#counter-flow-diffusion-flame">Counter flow diffusion flame</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#counter-flow-premixed-flame">Counter flow premixed flame</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#flame-vortex-interaction">Flame-Vortex interaction</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#sandia-flame-d">Sandia Flame D</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#premixed-ignition-kernel-in-isotropic-turbulence">Premixed ignition kernel in isotropic turbulence</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../PelePhysics.html">PelePhysics</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../BoxlibBits.html">Development Reference</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">PeleC</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../VandV.html">Correctness - Verification and Validation</a></li>
+      <li class="breadcrumb-item active">Validation of PeleC</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/validation/validation.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="validation-of-pelec">
+<h1>Validation of PeleC<a class="headerlink" href="#validation-of-pelec" title="Link to this heading"></a></h1>
+<p>The PeleC validation plan is aimed at exercising and validating the PeleC reacting flow capabilities. The following cases, described further on, are used for validation.</p>
+<ul class="simple">
+<li><p>Decay of homogeneous isotropic turbulence</p></li>
+<li><p>Non reacting Taylor-Green vortex breakdown</p></li>
+<li><p>Reacting Taylor-Green vortex breakdown</p></li>
+<li><p>Counter flow diffusion flame</p></li>
+<li><p>Counter flow premixed flame</p></li>
+<li><p>Flame-Vortex interaction</p></li>
+<li><p>Sandia Flame D</p></li>
+<li><p>Premixed ignition kernel in isotropic turbulence</p></li>
+</ul>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>This section is a work in progress. Several of these cases have yet
+to be performed and are noted as such.</p>
+</div>
+<section id="decay-of-homogeneous-isotropic-turbulence">
+<h2>Decay of homogeneous isotropic turbulence<a class="headerlink" href="#decay-of-homogeneous-isotropic-turbulence" title="Link to this heading"></a></h2>
+<p id="hit">Simulations were performed for turbulent Mach number = 0.1, Taylor
+scale based Reynolds number = 100, Prandtl number = 0.71, and k0 = 4
+at several different resolutions (uniform discretization, no AMR)
+using a prescribed energy spectrum.</p>
+<p>The definitions for the different quantities and reference data (in
+black) can be found in <a class="reference external" href="http://dx.doi.org/10.1016/j.jcp.2009.10.028">Johnsen et al. (2009) JCP</a> and <a class="reference external" href="http://dx.doi.org/10.1017/jfm.2015.200">Movahed and
+Johnsen (2015) JFM</a>. VisIt
+was used to post-process some quantities using <cite>visit_pp_aux_vars.py</cite>
+(located in the Exec/HIT folder) with the command</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>$<span class="w"> </span>visit<span class="w"> </span>-nowin<span class="w"> </span>-cli<span class="w"> </span>-s<span class="w"> </span>Exec/RegTests/visit_pp_aux_vars.py
+</pre></div>
+</div>
+<section id="generating-the-initial-conditions">
+<h3>Generating the initial conditions<a class="headerlink" href="#generating-the-initial-conditions" title="Link to this heading"></a></h3>
+<p>The initial conditions for this validation problem are derived from
+the following energy spectrum:</p>
+<div class="math notranslate nohighlight">
+\[E(k) \sim k^4 \exp(-2 (k/k_0)^2), \frac{3 u'}{2} = \int_0^\infty E(k) \mathrm{d}k\]</div>
+<p>and can be generated with the Python script in the PelePhysics
+<a class="reference external" href="https://Pele-Suite.github.io/PelePhysics/Support.html#generating-an-hit-file">TurbFileHIT</a> support code.</p>
+</section>
+<section id="building-and-running">
+<h3>Building and running<a class="headerlink" href="#building-and-running" title="Link to this heading"></a></h3>
+<p>The decay of homogeneous isotropic turbulence case can be found in <code class="docutils literal notranslate"><span class="pre">Exec/RegTests/HIT</span></code>:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>$<span class="w"> </span>make<span class="w"> </span>-j<span class="w"> </span><span class="m">16</span><span class="w"> </span><span class="nv">DIM</span><span class="o">=</span><span class="m">3</span><span class="w"> </span><span class="nv">USE_MPI</span><span class="o">=</span>TRUE
+$<span class="w"> </span>mpiexec<span class="w"> </span>-n<span class="w"> </span><span class="m">36</span><span class="w"> </span><span class="nv">$EXECUTABLE</span><span class="w"> </span>inputs_3d
+</pre></div>
+</div>
+<p>The user can run a convergence study by generating initial conditions
+for higher resolutions and varying <code class="docutils literal notranslate"><span class="pre">amr.ncell</span></code>.</p>
+</section>
+<section id="results">
+<h3>Results<a class="headerlink" href="#results" title="Link to this heading"></a></h3>
+<p>As the resolution increases, there is good agreement between the Pele
+data and reference data.</p>
+<figure class="align-center" id="id3" style="width: 40%">
+<img alt="../_images/reynolds.png" src="../_images/reynolds.png" />
+<figcaption>
+<p><span class="caption-number">11 </span><span class="caption-text">Reynolds number as a function of time. Solid red: <span class="math notranslate nohighlight">\(32^3\)</span>, dashed green <span class="math notranslate nohighlight">\(64^3\)</span>, dash-dotted blue: <span class="math notranslate nohighlight">\(128^3\)</span>, dotted orange: <span class="math notranslate nohighlight">\(256^3\)</span>, black squares: Johnsen et al. (2009) JCP.</span><a class="headerlink" href="#id3" title="Link to this image"></a></p>
+</figcaption>
+</figure>
+<figure class="align-center" id="id4" style="width: 40%">
+<img alt="../_images/mach.png" src="../_images/mach.png" />
+<figcaption>
+<p><span class="caption-number">12 </span><span class="caption-text">Mach number as a function of time. Solid red: <span class="math notranslate nohighlight">\(32^3\)</span>, dashed green <span class="math notranslate nohighlight">\(64^3\)</span>, dash-dotted blue: <span class="math notranslate nohighlight">\(128^3\)</span>, dotted orange: <span class="math notranslate nohighlight">\(256^3\)</span>, black squares: Johnsen et al. (2009) JCP.</span><a class="headerlink" href="#id4" title="Link to this image"></a></p>
+</figcaption>
+</figure>
+<figure class="align-center" id="id5" style="width: 40%">
+<img alt="../_images/enstrophy.png" src="../_images/enstrophy.png" />
+<figcaption>
+<p><span class="caption-number">13 </span><span class="caption-text">Enstrophy as a function of time. Solid red: <span class="math notranslate nohighlight">\(32^3\)</span>, dashed green <span class="math notranslate nohighlight">\(64^3\)</span>, dash-dotted blue: <span class="math notranslate nohighlight">\(128^3\)</span>, dotted orange: <span class="math notranslate nohighlight">\(256^3\)</span>, black squares: Johnsen et al. (2009) JCP.</span><a class="headerlink" href="#id5" title="Link to this image"></a></p>
+</figcaption>
+</figure>
+<figure class="align-center" id="id6" style="width: 40%">
+<img alt="../_images/KE.png" src="../_images/KE.png" />
+<figcaption>
+<p><span class="caption-number">14 </span><span class="caption-text">Kinetic energy as a function of time. Solid red: <span class="math notranslate nohighlight">\(32^3\)</span>, dashed green <span class="math notranslate nohighlight">\(64^3\)</span>, dash-dotted blue: <span class="math notranslate nohighlight">\(128^3\)</span>, dotted orange: <span class="math notranslate nohighlight">\(256^3\)</span>.</span><a class="headerlink" href="#id6" title="Link to this image"></a></p>
+</figcaption>
+</figure>
+</section>
+</section>
+<section id="taylor-green-vortex-breakdown">
+<h2>Taylor-Green vortex breakdown<a class="headerlink" href="#taylor-green-vortex-breakdown" title="Link to this heading"></a></h2>
+<p>This setup is one of the test problems outlined by <a class="reference external" href="https://www.grc.nasa.gov/hiocfd">the High-Order CFD
+workshop</a>. A complete description
+of the problem can be found <a class="reference external" href="https://www.grc.nasa.gov/hiocfd/wp-content/uploads/sites/22/case_c3.3.pdf">at NASA HOCFDW website</a>
+and the reference data is found <a class="reference external" href="https://www.grc.nasa.gov/wp-content/uploads/sites/22/C3.3_datafiles.zip">here</a>. More
+details of the problem and methods used to obtain the reference data
+can be found in <cite>Bull and Jameson (2014) 7th AIAA Theoretical Fluid
+Mechanics Conference (doi: 10.2514/6.2014-3210)</cite> and <cite>DeBonis (2013)
+51st AIAA Aerospace Sciences Meeting (doi:10.2514/6.2013-382)</cite>.</p>
+<section id="id1">
+<h3>Building and running<a class="headerlink" href="#id1" title="Link to this heading"></a></h3>
+<p>The Taylor-Green vortex breakdown case can be found in <code class="docutils literal notranslate"><span class="pre">Exec/RegTests/TG</span></code>:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>$<span class="w"> </span>make<span class="w"> </span>-j<span class="w"> </span><span class="m">16</span><span class="w"> </span><span class="nv">DIM</span><span class="o">=</span><span class="m">3</span><span class="w"> </span><span class="nv">USE_MPI</span><span class="o">=</span>TRUE
+$<span class="w"> </span>mpiexec<span class="w"> </span>-n<span class="w"> </span><span class="m">36</span><span class="w"> </span><span class="nv">$EXECUTABLE</span><span class="w"> </span>inputs_3d<span class="w"> </span>amr.ncell<span class="o">=</span><span class="m">64</span><span class="w"> </span><span class="m">64</span><span class="w"> </span><span class="m">64</span>
+</pre></div>
+</div>
+<p>The user can run a convergence study by varying <code class="docutils literal notranslate"><span class="pre">amr.ncell</span></code>.</p>
+</section>
+<section id="id2">
+<h3>Results<a class="headerlink" href="#id2" title="Link to this heading"></a></h3>
+<p>As the resolution increases, there is good agreement between the Pele
+data and reference data.</p>
+<figure class="align-center" id="id7" style="width: 40%">
+<img alt="../_images/dissipation.png" src="../_images/dissipation.png" />
+<figcaption>
+<p><span class="caption-number">15 </span><span class="caption-text">Dissipation as a function of time. Solid red: <span class="math notranslate nohighlight">\(32^3\)</span>, dashed green <span class="math notranslate nohighlight">\(64^3\)</span>, dash-dotted blue: <span class="math notranslate nohighlight">\(128^3\)</span>, dotted orange: <span class="math notranslate nohighlight">\(256^3\)</span>, black squares: HOCFDW.</span><a class="headerlink" href="#id7" title="Link to this image"></a></p>
+</figcaption>
+</figure>
+<figure class="align-center" id="id8" style="width: 40%">
+<img alt="../_images/enstrophy1.png" src="../_images/enstrophy1.png" />
+<figcaption>
+<p><span class="caption-number">16 </span><span class="caption-text">Enstrophy as a function of time. Solid red: <span class="math notranslate nohighlight">\(32^3\)</span>, dashed green <span class="math notranslate nohighlight">\(64^3\)</span>, dash-dotted blue: <span class="math notranslate nohighlight">\(128^3\)</span>, dotted orange: <span class="math notranslate nohighlight">\(256^3\)</span>, black squares: HOCFDW.</span><a class="headerlink" href="#id8" title="Link to this image"></a></p>
+</figcaption>
+</figure>
+<figure class="align-center" id="id9" style="width: 40%">
+<img alt="../_images/KE1.png" src="../_images/KE1.png" />
+<figcaption>
+<p><span class="caption-number">17 </span><span class="caption-text">Kinetic energy as a function of time. Solid red: <span class="math notranslate nohighlight">\(32^3\)</span>, dashed green <span class="math notranslate nohighlight">\(64^3\)</span>, dash-dotted blue: <span class="math notranslate nohighlight">\(128^3\)</span>, dotted orange: <span class="math notranslate nohighlight">\(256^3\)</span>, black: HOCFDW.</span><a class="headerlink" href="#id9" title="Link to this image"></a></p>
+</figcaption>
+</figure>
+<figure class="align-center" id="id10" style="width: 40%">
+<img alt="../_images/spectrum.png" src="../_images/spectrum.png" />
+<figcaption>
+<p><span class="caption-number">18 </span><span class="caption-text">Spectrum at <span class="math notranslate nohighlight">\(t=9 t_c\)</span>. Solid red: <span class="math notranslate nohighlight">\(32^3\)</span>, dashed green <span class="math notranslate nohighlight">\(64^3\)</span>, dash-dotted blue: <span class="math notranslate nohighlight">\(128^3\)</span>, dotted orange: <span class="math notranslate nohighlight">\(256^3\)</span>, black: HOCFDW.</span><a class="headerlink" href="#id10" title="Link to this image"></a></p>
+</figcaption>
+</figure>
+</section>
+</section>
+<section id="reacting-taylor-green-vortex-breakdown">
+<h2>Reacting Taylor-Green vortex breakdown<a class="headerlink" href="#reacting-taylor-green-vortex-breakdown" title="Link to this heading"></a></h2>
+<p>This test case is based on work by <cite>Abdelsamie et al. (Mini-Symposium
+on Verification and Validation of Combustion DNS, 17th Int. Conference
+on Numerical Combustion, Aachen, Germany May 7, 2019</cite> where a
+Taylor-Green vortex setup used in non-reacting CFD is adapted to a
+reacting flow configuration. Comparison of results from several
+well-established codes such as Nek5000, DINO and YALES are provided in
+the workshop documentation. We have performed the entire suite of
+cases described in the workshop documentation and only present the
+final 3D reacting case.</p>
+<p>Good comparisons with the reference simulations were obtained in most
+of the quantities of interest.</p>
+<figure class="align-center" id="id11" style="width: 40%">
+<img alt="../_images/ux.png" src="../_images/ux.png" />
+<figcaption>
+<p><span class="caption-number">19 </span><span class="caption-text"><span class="math notranslate nohighlight">\(x\)</span>-velocity at <span class="math notranslate nohighlight">\(t=5e-4 \tau\)</span>. Solid red: <span class="math notranslate nohighlight">\(32^3\)</span>, dashed green <span class="math notranslate nohighlight">\(64^3\)</span>, dash-dotted blue: <span class="math notranslate nohighlight">\(128^3\)</span>, black: reference solution (DINO).</span><a class="headerlink" href="#id11" title="Link to this image"></a></p>
+</figcaption>
+</figure>
+<figure class="align-center" id="id12" style="width: 40%">
+<img alt="../_images/yh2.png" src="../_images/yh2.png" />
+<figcaption>
+<p><span class="caption-number">20 </span><span class="caption-text"><span class="math notranslate nohighlight">\(Y_{H_2}\)</span> at <span class="math notranslate nohighlight">\(t=5e-4 \tau\)</span>. Solid red: <span class="math notranslate nohighlight">\(32^3\)</span>, dashed green <span class="math notranslate nohighlight">\(64^3\)</span>, dash-dotted blue: <span class="math notranslate nohighlight">\(128^3\)</span>, black: reference solution (DINO).</span><a class="headerlink" href="#id12" title="Link to this image"></a></p>
+</figcaption>
+</figure>
+<figure class="align-center" id="id13" style="width: 40%">
+<img alt="../_images/hr.png" src="../_images/hr.png" />
+<figcaption>
+<p><span class="caption-number">21 </span><span class="caption-text">Heat release at <span class="math notranslate nohighlight">\(t=5e-4 \tau\)</span>. Solid red: <span class="math notranslate nohighlight">\(32^3\)</span>, dashed green <span class="math notranslate nohighlight">\(64^3\)</span>, dash-dotted blue: <span class="math notranslate nohighlight">\(128^3\)</span>, black: reference solution (DINO).</span><a class="headerlink" href="#id13" title="Link to this image"></a></p>
+</figcaption>
+</figure>
+<figure class="align-center" id="id14" style="width: 40%">
+<img alt="../_images/tmax.png" src="../_images/tmax.png" />
+<figcaption>
+<p><span class="caption-number">22 </span><span class="caption-text">Maximum temperature in the domain as a function of time. Solid red: <span class="math notranslate nohighlight">\(32^3\)</span>, dashed green <span class="math notranslate nohighlight">\(64^3\)</span>, dash-dotted blue: <span class="math notranslate nohighlight">\(128^3\)</span>, black: reference solution (DINO).</span><a class="headerlink" href="#id14" title="Link to this image"></a></p>
+</figcaption>
+</figure>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>We are not using the constant Lewis approximation that is
+prescribed in the workshop documentation. Instead we rely on
+transport coefficients resulting from PelePhysics. This may lead to
+discrepancies with the reference results.</p>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Because of computational constraints, we have not been able to
+perform higher resolution simulations that may show better
+convergence.</p>
+</div>
+</section>
+<section id="counter-flow-diffusion-flame">
+<h2>Counter flow diffusion flame<a class="headerlink" href="#counter-flow-diffusion-flame" title="Link to this heading"></a></h2>
+<p>This test case simulated the well-known counter flow diffusion flame
+where fuel and oxidizer are injected head-on from opposite sides
+forming a stagnation region. The fuel-oxidizer diffusion in the
+stagnation region determines the flame location. The results from a
+PeleC simulation are shown in the figure below. The fuel (CH4) is injected
+from the left and air from the right.  The temperature distribution
+indicates the flame location towards the oxidizer side. In a counter
+flow diffusion flame the key quantity to vary is the strain rate which
+is a function of mass flow rate of oxidizer and fuel streams. In this
+validation exercise, a series of strain rates will be
+simulated. Species and temperature profiles will be compared against
+the benchmark experimental data and well-established chemical kinetics
+solvers such as Cantera. The main motivation behind simulating a
+number of strain rates is to check the capability of PeleC to
+accurately reproduce the critical strain rate, known as the extinction
+limit.</p>
+<figure class="align-center" id="id15" style="width: 40%">
+<img alt="../_images/results.png" src="../_images/results.png" />
+<figcaption>
+<p><span class="caption-number">23 </span><span class="caption-text">Fuel mass density is shown in left figure in g/cm3 (0(red)-1e-4(yellow)), oxygen mass density
+is shown in the middle figure (0 (red)-1e-5 (yellow)) and temperature is shown in right figure (1800K (red) - 2300 (yellow)) along with
+velocity vectors.</span><a class="headerlink" href="#id15" title="Link to this image"></a></p>
+</figcaption>
+</figure>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>A quantitative comparison with Cantera for varying strain-rates is work in progress</p>
+</div>
+</section>
+<section id="counter-flow-premixed-flame">
+<h2>Counter flow premixed flame<a class="headerlink" href="#counter-flow-premixed-flame" title="Link to this heading"></a></h2>
+<p>Similar to the counter-flow diffusion flame, a common test case
+typically used to validate combustion codes is the opposed flow
+premixed flame. In contrast to the diffusion flame, in this case the
+opposing streams are composed of the same premixed
+fuel-air mixture. This case is typically referred to as the twin
+opposed flame because two flames are typically observed on the either
+side of the stagnation point. This case is particularly attractive
+since it allows for extinction at higher strain rates and simplified
+boundary conditions, unburnt mixture and temperature. The metric of
+comparison for the sake of validation would be species and temperature
+profiles. Well known solution profiles from experiments and highly
+resolved mesh converged 1-D Cantera simulations will be used to
+establish the accuracy of PeleC. In addition to profiles, a comparison
+of extinction strain rate will be also be made against the values
+obtained from 1-D Cantera simulation. Finally, we will also validate
+that PeleC simulations predict the correct premixed flame speed in the
+low strain rate limit.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Not yet done.</p>
+</div>
+</section>
+<section id="flame-vortex-interaction">
+<h2>Flame-Vortex interaction<a class="headerlink" href="#flame-vortex-interaction" title="Link to this heading"></a></h2>
+<p>The flame-vortex interaction test case provides a fundamental
+benchmark simulation to study interactions between the fluid flow and
+a flame in a controlled environment. In this simulation setup, a 2D
+flame front is initialized using profiles (velocity, species and
+temperature) from a 1-D premixed flame. Additionally, velocity field
+corresponding to a vortex field is superimposed using the Oseen vortex
+expression. This simulation is performed in an unsteady fashion with
+time evolution of flame area and stretch for varying ratios of vortex
+strength and laminar flame speed as the key metric for
+validation. Experimental data (<cite>Thiesset et. al, Proc. Combust. Inst. Volume 36,
+Issue 2, 2017, Pages 1843-1851</cite>) and data from a number of previously
+established simulation data will be used to validate PeleC.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Not yet done.</p>
+</div>
+</section>
+<section id="sandia-flame-d">
+<h2>Sandia Flame D<a class="headerlink" href="#sandia-flame-d" title="Link to this heading"></a></h2>
+<p>Flame D from the Sandia series of piloted methane/air turbulent jet
+flames (<cite>R. S. Barlow and J. H. Frank, Proc. Combust. Inst. Volume 27, 1998, Pages
+1087-1095</cite>) is a canonical case for assessment of nonpremixed
+combustion models for LES in the literature and at the International
+Workshop on Measurement and Computation of Turbulent Flames
+(TNF). Extensive measurements of product species and temperature were
+taken at several locations in the flame, providing a wealth of data
+against which simulations can be validated. For validation of LES
+models for nonpremixed combustion in PeleC, conditional means and
+variances of temperature and species at several axial locations will
+be compared.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Not yet done.</p>
+</div>
+</section>
+<section id="premixed-ignition-kernel-in-isotropic-turbulence">
+<h2>Premixed ignition kernel in isotropic turbulence<a class="headerlink" href="#premixed-ignition-kernel-in-isotropic-turbulence" title="Link to this heading"></a></h2>
+<p>This test case is based on a set of DNS of spherical premixed Jet-A
+fuel/air kernels in decaying isotropic turbulence performed at Sandia
+National Laboratories (<cite>A. Krisman, T. Lu, and J. H. Chen, National
+Combustion Meeting, 2017, Paper #2E04</cite>). This test case will be used for
+validation of LES premixed combustion models in PeleC. This case
+allows for a priori model evaluation of local predictions of filtered
+reaction rates as well as a posteriori comparisons of global
+quantities of interest (kernel radius over time, successful or failed
+ignition).</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Not yet done.</p>
+</div>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="../ebverification/FlowPastCylinder/README.html" class="btn btn-neutral float-left" title="Flow Past a Cylinder" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="../PelePhysics.html" class="btn btn-neutral float-right" title="PelePhysics" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright AMReX Copyright (c) 2021, The Regents of the University of California, through Lawrence Berkeley National Laboratory, the Alliance for Sustainable Energy, LLC., through National Renewable Energy Laboratory, National Technology and Engineering Solutions of Sandia, LLC, and UT-Battelle, LLC (subject to receipt of any required approvals from the U.S. Dept. of Energy).  All rights reserved..</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

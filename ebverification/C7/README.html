@@ -1,0 +1,187 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>C7. Sod shock tube in rotated channel with AMR &mdash; PeleC 0.1 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=03e43079" />
+      <link rel="stylesheet" type="text/css" href="../../_static/css/theme.css?v=9edc463e" />
+
+  
+      <script src="../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../_static/documentation_options.js?v=2709fde1"></script>
+      <script src="../../_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+      <script defer="defer" src="https://cdn.jsdelivr.net/npm/mathjax@4/tex-mml-chtml.js"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+    <link rel="next" title="C8. Multi-species shock tube in a rotated channel with AMR" href="../C8/README.html" />
+    <link rel="prev" title="C3. Zero dimensional ignition with embedded boundaries" href="../C3/README.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../index.html" class="icon icon-home">
+            PeleC
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../../Introduction.html">Introduction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../Equations.html">Equations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../Algorithms.html">Numerical Treatment and Algorithms</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../GettingStarted.html">Getting Started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../BoundaryConditions.html">Boundary Conditions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../geometry/EB.html">Geometry treatment in PeleC</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../LES.html">LES and Hybrid LES/DNS Support</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="../../VandV.html">Correctness - Verification and Validation</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="../../verification/verification.html">Verification of PeleC</a></li>
+<li class="toctree-l2 current"><a class="reference internal" href="../ebverification.html">Verification of EB PeleC</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="../C1/README.html">C1. Method of manufactured solutions for EB</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../C3/README.html">C3. Zero dimensional ignition with embedded boundaries</a></li>
+<li class="toctree-l3 current"><a class="current reference internal" href="#">C7. Sod shock tube in rotated channel with AMR</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#case-description">Case description</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#density-at-t-0-1s">Density at t=0.1s</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#field-profiles-in-the-centerline-at-t-0-1s">Field profiles in the centerline at t=0.1s</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#running-study">Running study</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../C8/README.html">C8. Multi-species shock tube in a rotated channel with AMR</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../C9/README.html">C9. Acoustic wave in cylindrical channel</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../C10/README.html">C10. Hagen–Poiseuille flow</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../C12/README.html">C12. Smooth periodic problem</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../C13/README.html">C13. Supersonic vortex study</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../C14/README.html">C14. Shock interacting with a ramp</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../ConvergingNozzle/README.html">Converging Nozzle Case</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../FlowPastCylinder/README.html">Flow Past a Cylinder</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../validation/validation.html">Validation of PeleC</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../PelePhysics.html">PelePhysics</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../BoxlibBits.html">Development Reference</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">PeleC</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../VandV.html">Correctness - Verification and Validation</a></li>
+          <li class="breadcrumb-item"><a href="../ebverification.html">Verification of EB PeleC</a></li>
+      <li class="breadcrumb-item active">C7. Sod shock tube in rotated channel with AMR</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../../_sources/ebverification/C7/README.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="c7-sod-shock-tube-in-rotated-channel-with-amr">
+<span id="eb-c7"></span><h1>C7. Sod shock tube in rotated channel with AMR<a class="headerlink" href="#c7-sod-shock-tube-in-rotated-channel-with-amr" title="Link to this heading"></a></h1>
+<section id="case-description">
+<h2>Case description<a class="headerlink" href="#case-description" title="Link to this heading"></a></h2>
+<p>This is the standard Sod shock tube problem. The geometry is a
+rectangular channel at <span class="math notranslate nohighlight">\(30^\circ\)</span> to the mesh. This case is run
+with multiple levels of AMR. The profiles shown below are through the
+channel centerline.</p>
+</section>
+<section id="density-at-t-0-1s">
+<h2>Density at t=0.1s<a class="headerlink" href="#density-at-t-0-1s" title="Link to this heading"></a></h2>
+<a class="reference internal image-reference" href="../../_images/stube.png"><img alt="../../_images/stube.png" src="../../_images/stube.png" style="height: 300pt;" />
+</a>
+</section>
+<section id="field-profiles-in-the-centerline-at-t-0-1s">
+<h2>Field profiles in the centerline at t=0.1s<a class="headerlink" href="#field-profiles-in-the-centerline-at-t-0-1s" title="Link to this heading"></a></h2>
+<a class="reference internal image-reference" href="../../_images/rho2.png"><img alt="../../_images/rho2.png" src="../../_images/rho2.png" style="height: 300pt;" />
+</a>
+<a class="reference internal image-reference" href="../../_images/p2.png"><img alt="../../_images/p2.png" src="../../_images/p2.png" style="height: 300pt;" />
+</a>
+<a class="reference internal image-reference" href="../../_images/u2.png"><img alt="../../_images/u2.png" src="../../_images/u2.png" style="height: 300pt;" />
+</a>
+<a class="reference internal image-reference" href="../../_images/temp.png"><img alt="../../_images/temp.png" src="../../_images/temp.png" style="height: 300pt;" />
+</a>
+</section>
+<section id="running-study">
+<h2>Running study<a class="headerlink" href="#running-study" title="Link to this heading"></a></h2>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nv">paren</span><span class="o">=</span><span class="sb">`</span><span class="nb">pwd</span><span class="sb">`</span>
+<span class="nv">pelec</span><span class="o">=</span><span class="s2">"</span><span class="si">${</span><span class="nv">paren</span><span class="si">}</span><span class="s2">/PeleC3d.gnu.MPI.ex"</span>
+<span class="nv">mpi_ranks</span><span class="o">=</span><span class="m">36</span>
+
+<span class="nv">lev</span><span class="o">=(</span><span class="w"> </span><span class="m">0</span><span class="w"> </span><span class="m">1</span><span class="w"> </span><span class="m">2</span><span class="w"> </span><span class="o">)</span>
+<span class="k">for</span><span class="w"> </span>i<span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="s2">"</span><span class="si">${</span><span class="nv">lev</span><span class="p">[@]</span><span class="si">}</span><span class="s2">"</span>
+<span class="k">do</span>
+<span class="w">    </span>rm<span class="w"> </span>-rf<span class="w"> </span><span class="s2">"</span><span class="si">${</span><span class="nv">i</span><span class="si">}</span><span class="s2">"</span>
+<span class="w">    </span>mkdir<span class="w"> </span><span class="s2">"</span><span class="si">${</span><span class="nv">i</span><span class="si">}</span><span class="s2">"</span>
+<span class="w">    </span><span class="nb">cd</span><span class="w"> </span><span class="s2">"</span><span class="si">${</span><span class="nv">i</span><span class="si">}</span><span class="s2">"</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="nb">exit</span>
+<span class="w">    </span>cp<span class="w"> </span><span class="s2">"</span><span class="si">${</span><span class="nv">paren</span><span class="si">}</span><span class="s2">/inputs_3d"</span><span class="w"> </span>.
+<span class="w">    </span>srun<span class="w"> </span>-n<span class="w"> </span><span class="si">${</span><span class="nv">mpi_ranks</span><span class="si">}</span><span class="w"> </span><span class="s2">"</span><span class="si">${</span><span class="nv">pelec</span><span class="si">}</span><span class="s2">"</span><span class="w"> </span>inputs_3d<span class="w"> </span><span class="sb">`</span>python3<span class="w"> </span><span class="si">${</span><span class="nv">paren</span><span class="si">}</span>/gen_tube_input.py<span class="w"> </span>-a<span class="w"> </span><span class="m">30</span>.0<span class="w"> </span>-n<span class="w"> </span><span class="m">8</span><span class="sb">`</span><span class="w"> </span>amr.max_level<span class="o">=</span><span class="s2">"</span><span class="si">${</span><span class="nv">i</span><span class="si">}</span><span class="s2">"</span><span class="w"> </span>&gt;<span class="w"> </span>out
+<span class="w">    </span>ls<span class="w"> </span>-1v<span class="w"> </span>*plt*/Header<span class="w"> </span><span class="p">|</span><span class="w"> </span>tee<span class="w"> </span>movie.visit
+<span class="w">    </span><span class="nb">cd</span><span class="w"> </span><span class="s2">"</span><span class="si">${</span><span class="nv">paren</span><span class="si">}</span><span class="s2">"</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="nb">exit</span>
+<span class="k">done</span>
+</pre></div>
+</div>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="../C3/README.html" class="btn btn-neutral float-left" title="C3. Zero dimensional ignition with embedded boundaries" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="../C8/README.html" class="btn btn-neutral float-right" title="C8. Multi-species shock tube in a rotated channel with AMR" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright AMReX Copyright (c) 2021, The Regents of the University of California, through Lawrence Berkeley National Laboratory, the Alliance for Sustainable Energy, LLC., through National Renewable Energy Laboratory, National Technology and Engineering Solutions of Sandia, LLC, and UT-Battelle, LLC (subject to receipt of any required approvals from the U.S. Dept. of Energy).  All rights reserved..</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

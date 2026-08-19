@@ -1,0 +1,223 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Equations &mdash; PeleC 0.1 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=03e43079" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=9edc463e" />
+
+  
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=2709fde1"></script>
+      <script src="_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
+      <script defer="defer" src="https://cdn.jsdelivr.net/npm/mathjax@4/tex-mml-chtml.js"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Numerical Treatment and Algorithms" href="Algorithms.html" />
+    <link rel="prev" title="Introduction" href="Introduction.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            PeleC
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="Introduction.html">Introduction</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Equations</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#conservative-system">Conservative system</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#primitive-forms">Primitive Forms</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#source-terms">Source Terms</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="Algorithms.html">Numerical Treatment and Algorithms</a></li>
+<li class="toctree-l1"><a class="reference internal" href="GettingStarted.html">Getting Started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="BoundaryConditions.html">Boundary Conditions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="geometry/EB.html">Geometry treatment in PeleC</a></li>
+<li class="toctree-l1"><a class="reference internal" href="LES.html">LES and Hybrid LES/DNS Support</a></li>
+<li class="toctree-l1"><a class="reference internal" href="VandV.html">Correctness - Verification and Validation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="PelePhysics.html">PelePhysics</a></li>
+<li class="toctree-l1"><a class="reference internal" href="BoxlibBits.html">Development Reference</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">PeleC</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Equations</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/Equations.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="equations">
+<span id="id1"></span><h1>Equations<a class="headerlink" href="#equations" title="Link to this heading"></a></h1>
+<section id="conservative-system">
+<h2>Conservative system<a class="headerlink" href="#conservative-system" title="Link to this heading"></a></h2>
+<p>PeleC advances the following set of fully compressible equations for the conserved state vector: <span class="math notranslate nohighlight">\(\mathbf{U} = (\rho, \rho \mathbf{u}, \rho E, \rho Y_k, \rho A_k, B_k):\)</span></p>
+<div class="math notranslate nohighlight">
+\[ \begin{align}\begin{aligned}\frac{\partial \rho}{\partial t} &amp;=&amp; - \nabla \cdot (\rho \mathbf{u}) + S_{{\rm ext},\rho},\\\frac{\partial (\rho \mathbf{u})}{\partial t} &amp;=&amp; - \nabla \cdot (\rho \mathbf{u} \otimes \mathbf{u} + \mathbf{\Pi}) - \nabla p +\rho \mathbf{g} + \mathbf{S}_{{\rm ext},\rho\mathbf{u}},\\\frac{\partial (\rho E)}{\partial t} &amp;=&amp; - \nabla \cdot (\rho \mathbf{u} E + p \mathbf{u}) - \nabla \cdot (\mathbf{\Pi} \cdot \mathbf{u}) + \rho \mathbf{u} \cdot \mathbf{g} + \nabla\cdot \boldsymbol{\mathcal{Q}}+ S_{{\rm ext},\rho E},\\\frac{\partial (\rho Y_k)}{\partial t} &amp;=&amp; - \nabla \cdot (\rho \mathbf{u} Y_k)
+- \nabla \cdot \boldsymbol{\mathcal{F}}_{k} + \rho \dot\omega_k + S_{{\rm ext},\rho Y_k},\\\frac{\partial (\rho A_k)}{\partial t} &amp;=&amp; - \nabla \cdot (\rho \mathbf{u} A_k) + S_{{\rm ext},\rho A_k},\\\frac{\partial B_k}{\partial t} &amp;=&amp;  S_{{\rm ext}, B_k}.\end{aligned}\end{align} \]</div>
+<p>Here <span class="math notranslate nohighlight">\(\rho, \mathbf{u}, T\)</span>, and <span class="math notranslate nohighlight">\(p\)</span> are the density, velocity,
+temperature and pressure, respectively. <span class="math notranslate nohighlight">\(E
+= e + \mathbf{u} \cdot \mathbf{u} / 2\)</span> is the total energy with <span class="math notranslate nohighlight">\(e\)</span> representing the internal energy, which is defined as in the CHEMKIN standard to include both sensible
+and chemical energy (species heats of formation) and is conserved across chemical reactions.
+<span class="math notranslate nohighlight">\(Y_k\)</span> is the mass fraction of the <span class="math notranslate nohighlight">\(k^{\rm th}\)</span> species,
+with associated production rate, <span class="math notranslate nohighlight">\(\dot\omega_k\)</span>.  Here <span class="math notranslate nohighlight">\(\mathbf{g}\)</span> is the gravitational vector, and
+<span class="math notranslate nohighlight">\(S_{{\rm ext},\rho}, \mathbf{S}_{{\rm ext},\rho\mathbf{u}}\)</span>, etc., are user-specified
+source terms.  <span class="math notranslate nohighlight">\(A_k\)</span> is an advected quantity, i.e., a tracer. <span class="math notranslate nohighlight">\(B_k\)</span> is spatially stationary quantity.  Also
+<span class="math notranslate nohighlight">\(\boldsymbol{\mathcal{F}}_{m}, \mathbf{\Pi}\)</span>, and <span class="math notranslate nohighlight">\(\boldsymbol{\mathcal{Q}}\)</span> are
+the diffusive transport fluxes for species, momentum and heat.  Note that the internal
+energy for species <span class="math notranslate nohighlight">\(k\)</span> includes its heat of formation (and can therefore take on negative and
+positive values). The auxiliary fields, <span class="math notranslate nohighlight">\(B_k\)</span>, have a user-defined
+evolution equation, but by default are treated as advected quantities.</p>
+<p>In the code we carry around <span class="math notranslate nohighlight">\(T\)</span> and <span class="math notranslate nohighlight">\(\rho e\)</span> in the
+state vector even though they are redundant with the state since they may be derived from the other conserved
+quantities.  The ordering of the elements within <span class="math notranslate nohighlight">\(\mathbf{U}\)</span> is defined
+by integer variables in the header file <code class="docutils literal notranslate"><span class="pre">Source/IndexDefines.H</span></code>.</p>
+<p>Some notes:</p>
+<ul class="simple">
+<li><p>Regardless of the dimensionality of the problem, we always carry
+all 3 components of the velocity. You should always initialize all velocity components to zero, and
+always construct the kinetic energy with all three velocity components.</p></li>
+<li><p>There are <code class="docutils literal notranslate"><span class="pre">NUM_ADV</span></code> advected quantities, whose indices in the state vector range from <span class="math notranslate nohighlight">\({\tt
+UFA: UFA+nadv-1}\)</span>.  Here, <code class="docutils literal notranslate"><span class="pre">UFA(=7)</span></code> refers to the number of conserverd variables not including the transported species. The advected quantities have no effect at all on
+the rest of the solution but can be useful as tracer quantities.</p></li>
+<li><p>There are <code class="docutils literal notranslate"><span class="pre">NUM_SPECIES</span></code> species defined in the chemistry model, whose indices in the state vector range from <span class="math notranslate nohighlight">\({\tt UFS: UFS+nspecies-1}\)</span> where <code class="docutils literal notranslate"><span class="pre">UFS=UFA+nadv</span></code>.</p></li>
+<li><p>There are <code class="docutils literal notranslate"><span class="pre">NUM_AUX</span></code> auxiliary variables, from <span class="math notranslate nohighlight">\({\tt UFX:UFX+naux-1}\)</span>. Here, <code class="docutils literal notranslate"><span class="pre">UFX=UFS+NUM_SPECIES</span></code>. The auxiliary variables are passed into the equation of state routines along with the species.</p></li>
+<li><p>There are <code class="docutils literal notranslate"><span class="pre">NUM_LIN</span></code> linear passive variables, from <span class="math notranslate nohighlight">\({\tt ULIN:ULIN+NUM\_LIN-1}\)</span>. The linear passive variables are scalar variables where <span class="math notranslate nohighlight">\(\mathbf{U}=\mathbf{Q}\)</span> instead of <span class="math notranslate nohighlight">\(\mathbf{U}=\rho\mathbf{Q}\)</span></p></li>
+</ul>
+</section>
+<section id="primitive-forms">
+<h2>Primitive Forms<a class="headerlink" href="#primitive-forms" title="Link to this heading"></a></h2>
+<p>PeleC uses the primitive form of the inviscid fluid equations, defined in terms of
+the state <span class="math notranslate nohighlight">\(\mathbf{Q} = (\rho, \mathbf{u}, p, \rho e, Y_k, A_k, B_k)\)</span>, to construct the
+interface states that are input to the Riemann problem. All of the primitive variables are derived from the conservative state
+vector. This task is performed in the function <code class="docutils literal notranslate"><span class="pre">pc_ctoprim</span></code> located in <code class="docutils literal notranslate"><span class="pre">Source/PeleCUtilities.H</span></code>.</p>
+<p>The inviscid equations for primitive variables namely density, velocity, and pressure are:</p>
+<div class="math notranslate nohighlight">
+\[ \begin{align}\begin{aligned}\frac{\partial\rho}{\partial t} &amp;=&amp; -\mathbf{u}\cdot\nabla\rho - \rho\nabla\cdot\mathbf{u} + S_{{\rm ext},\rho}\\\frac{\partial\mathbf{u}}{\partial t} &amp;=&amp; -\mathbf{u}\cdot\nabla\mathbf{u} - \frac{1}{\rho}\nabla p + \mathbf{g} +
+\frac{1}{\rho} (\mathbf{S}_{{\rm ext},\rho\mathbf{u}} - \mathbf{u} \; S_{{\rm ext},\rho})\\\frac{\partial p}{\partial t} &amp;=&amp; -\mathbf{u}\cdot\nabla p - \rho c^2\nabla\cdot\mathbf{u} +
+\left(\frac{\partial p}{\partial \rho}\right)_{e,Y}S_{{\rm ext},\rho}\nonumber\\&amp;&amp;+\  \frac{1}{\rho}\sum_k\left(\frac{\partial p}{\partial Y_k}\right)_{\rho,e,Y_j,j\neq k}\left(\rho\dot\omega_k + S_{{\rm ext},\rho Y_k} - Y_kS_{{\rm ext},\rho}\right)\nonumber\\&amp;&amp; +\  \frac{1}{\rho}\left(\frac{\partial p}{\partial e}\right)_{\rho,Y}\left[-eS_{{\rm ext},\rho} - \sum_k\rho q_k\dot\omega_k + \nabla\cdot k_{\rm th}\nabla T \right.\nonumber\\&amp;&amp; \quad\qquad\qquad\qquad+\ S_{{\rm ext},\rho E} - \mathbf{u}\cdot\left(\mathbf{S}_{{\rm ext},\rho\mathbf{u}} - \frac{\mathbf{u}}{2}S_{{\rm ext},\rho}\right)\Biggr]\end{aligned}\end{align} \]</div>
+<p>The advected and auxiliary quantities appear as:</p>
+<div class="math notranslate nohighlight">
+\[ \begin{align}\begin{aligned}\frac{\partial Y_k}{\partial t} &amp;=&amp; -\mathbf{u}\cdot\nabla Y_k + \dot\omega_k + \frac{1}{\rho}
+                                   ( S_{{\rm ext},\rho Y_k}  - Y_k S_{{\rm ext},\rho} ),\\\frac{\partial A_k}{\partial t} &amp;=&amp; -\mathbf{u}\cdot\nabla A_k + \frac{1}{\rho}
+                                   ( S_{{\rm ext},\rho A_k} - A_k S_{{\rm ext},\rho} ),\\\frac{\partial B_k}{\partial t} &amp;=&amp;   S_{{\rm ext}, B_k}.\end{aligned}\end{align} \]</div>
+<p>When accessing the primitive variable state vector, the integer variable
+keys for the different quantities are listed in the header file <code class="docutils literal notranslate"><span class="pre">Source/IndexDefines.H</span></code>.</p>
+</section>
+<section id="source-terms">
+<h2>Source Terms<a class="headerlink" href="#source-terms" title="Link to this heading"></a></h2>
+<p>We now compute explicit source terms for each variable in <span class="math notranslate nohighlight">\(\mathbf{Q}\)</span> and
+<span class="math notranslate nohighlight">\(\mathbf{U}\)</span>.  The primitive variable source terms will be used to construct
+time-centered fluxes.  The conserved variable source will be used to
+advance the solution. This task is performed in the function <code class="docutils literal notranslate"><span class="pre">pc_srctoprim</span></code> located in <code class="docutils literal notranslate"><span class="pre">Source/Hydro.H</span></code>. We neglect reaction source terms since they are
+accounted for in the characteristic integration in the PPM algorithm.  The source terms are:</p>
+<div class="math notranslate nohighlight">
+\[\begin{split}\mathbf{S}_{\mathbf{Q}}^n =
+\left(\begin{array}{c}
+S_\rho \\
+S_{\mathbf{u}} \\
+S_p \\
+S_{\rho e} \\
+S_{Y_k} \\
+S_{A_k} \\
+S_{B_k}
+\end{array}\right)^n  =  \left(\begin{array}{c}  S_{{\rm ext},\rho} \\
+\mathbf{g} + \frac{1}{\rho}\mathbf{S}_{{\rm ext},\rho\mathbf{u}} \\
+\frac{1}{\rho}\frac{\partial p}{\partial e}S_{{\rm ext},\rho E} + \frac{\partial p}{\partial\rho}S_{{\rm ext}\rho} \\
+\nabla\cdot k_{\rm th} \nabla T + S_{{\rm ext},\rho E} \\
+\frac{1}{\rho}S_{{\rm ext},\rho Y_k} \\
+\frac{1}{\rho}S_{{\rm ext},\rho A_k} \\
+S_{{\rm ext},B_k}
+\end{array}\right)^n,\end{split}\]</div>
+<div class="math notranslate nohighlight">
+\[\begin{split}\mathbf{S}_{\mathbf{U}}^n =
+\left(\begin{array}{c}
+\mathbf{S}_{\rho}\\
+\mathbf{S}_{\rho\mathbf{u}}\\
+S_{\rho E} \\
+S_{\rho Y_k} \\
+S_{\rho A_k} \\
+S_{ B_k}
+\end{array}\right)^n
+=
+\left(\begin{array}{c}
+\mathbf{S}_{{\rm ext},\rho} \\
+\rho \mathbf{g} + \mathbf{S}_{{\rm ext},\rho\mathbf{u}} \\
+\rho \mathbf{u} \cdot \mathbf{g} + \nabla\cdot k_{\rm th} \nabla T + S_{{\rm ext},\rho E} \\
+S_{{\rm ext},\rho Y_k} \\
+S_{{\rm ext},\rho A_k} \\
+S_{{\rm ext}, B_k}
+\end{array}\right)^n.\end{split}\]</div>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="Introduction.html" class="btn btn-neutral float-left" title="Introduction" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="Algorithms.html" class="btn btn-neutral float-right" title="Numerical Treatment and Algorithms" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright AMReX Copyright (c) 2021, The Regents of the University of California, through Lawrence Berkeley National Laboratory, the Alliance for Sustainable Energy, LLC., through National Renewable Energy Laboratory, National Technology and Engineering Solutions of Sandia, LLC, and UT-Battelle, LLC (subject to receipt of any required approvals from the U.S. Dept. of Energy).  All rights reserved..</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

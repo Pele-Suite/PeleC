@@ -1,0 +1,161 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Correctness - Verification and Validation &mdash; PeleC 0.1 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=03e43079" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=9edc463e" />
+
+  
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=2709fde1"></script>
+      <script src="_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Verification of PeleC" href="verification/verification.html" />
+    <link rel="prev" title="LES and Hybrid LES/DNS Support" href="LES.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            PeleC
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="Introduction.html">Introduction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="Equations.html">Equations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="Algorithms.html">Numerical Treatment and Algorithms</a></li>
+<li class="toctree-l1"><a class="reference internal" href="GettingStarted.html">Getting Started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="BoundaryConditions.html">Boundary Conditions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="geometry/EB.html">Geometry treatment in PeleC</a></li>
+<li class="toctree-l1"><a class="reference internal" href="LES.html">LES and Hybrid LES/DNS Support</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Correctness - Verification and Validation</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="verification/verification.html">Verification of PeleC</a></li>
+<li class="toctree-l2"><a class="reference internal" href="ebverification/ebverification.html">Verification of EB PeleC</a></li>
+<li class="toctree-l2"><a class="reference internal" href="validation/validation.html">Validation of PeleC</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="PelePhysics.html">PelePhysics</a></li>
+<li class="toctree-l1"><a class="reference internal" href="BoxlibBits.html">Development Reference</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">PeleC</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Correctness - Verification and Validation</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/VandV.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="correctness-verification-and-validation">
+<span id="vandv"></span><h1>Correctness - Verification and Validation<a class="headerlink" href="#correctness-verification-and-validation" title="Link to this heading"></a></h1>
+<p>PeleC undergoes significant testing to ensure correct operation. Synthetic tests are used to verify expected numerical performance Verification. Correctness of the results is established through a collection of physically meaningful tests that are used as the basis for a regression test suite Validation.</p>
+<div class="toctree-wrapper compound">
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="verification/verification.html">Verification of PeleC</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="verification/verification.html#building-and-running-mms">Building and running MMS</a></li>
+<li class="toctree-l2"><a class="reference internal" href="verification/verification.html#testing-the-euler-equations">Testing the Euler equations</a></li>
+<li class="toctree-l2"><a class="reference internal" href="verification/verification.html#testing-the-compressible-navier-stokes-equations">Testing the compressible Navier-Stokes equations</a></li>
+<li class="toctree-l2"><a class="reference internal" href="verification/verification.html#testing-the-adaptive-mesh-refinement-algorithm">Testing the adaptive mesh refinement algorithm</a></li>
+<li class="toctree-l2"><a class="reference internal" href="verification/verification.html#testing-the-constant-smagorinsky-large-eddy-simulation-model">Testing the constant Smagorinsky Large Eddy Simulation model</a></li>
+<li class="toctree-l2"><a class="reference internal" href="verification/verification.html#conservation-and-isothermal-boundaries">Conservation and Isothermal Boundaries</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="ebverification/ebverification.html">Verification of EB PeleC</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="ebverification/C1/README.html">C1. Method of manufactured solutions for EB</a></li>
+<li class="toctree-l2"><a class="reference internal" href="ebverification/C3/README.html">C3. Zero dimensional ignition with embedded boundaries</a></li>
+<li class="toctree-l2"><a class="reference internal" href="ebverification/C7/README.html">C7. Sod shock tube in rotated channel with AMR</a></li>
+<li class="toctree-l2"><a class="reference internal" href="ebverification/C8/README.html">C8. Multi-species shock tube in a rotated channel with AMR</a></li>
+<li class="toctree-l2"><a class="reference internal" href="ebverification/C9/README.html">C9. Acoustic wave in cylindrical channel</a></li>
+<li class="toctree-l2"><a class="reference internal" href="ebverification/C10/README.html">C10. Hagen–Poiseuille flow</a></li>
+<li class="toctree-l2"><a class="reference internal" href="ebverification/C12/README.html">C12. Smooth periodic problem</a></li>
+<li class="toctree-l2"><a class="reference internal" href="ebverification/C13/README.html">C13. Supersonic vortex study</a></li>
+<li class="toctree-l2"><a class="reference internal" href="ebverification/C14/README.html">C14. Shock interacting with a ramp</a></li>
+<li class="toctree-l2"><a class="reference internal" href="ebverification/ConvergingNozzle/README.html">Converging Nozzle Case</a></li>
+<li class="toctree-l2"><a class="reference internal" href="ebverification/FlowPastCylinder/README.html">Flow Past a Cylinder</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="validation/validation.html">Validation of PeleC</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="validation/validation.html#decay-of-homogeneous-isotropic-turbulence">Decay of homogeneous isotropic turbulence</a></li>
+<li class="toctree-l2"><a class="reference internal" href="validation/validation.html#taylor-green-vortex-breakdown">Taylor-Green vortex breakdown</a></li>
+<li class="toctree-l2"><a class="reference internal" href="validation/validation.html#reacting-taylor-green-vortex-breakdown">Reacting Taylor-Green vortex breakdown</a></li>
+<li class="toctree-l2"><a class="reference internal" href="validation/validation.html#counter-flow-diffusion-flame">Counter flow diffusion flame</a></li>
+<li class="toctree-l2"><a class="reference internal" href="validation/validation.html#counter-flow-premixed-flame">Counter flow premixed flame</a></li>
+<li class="toctree-l2"><a class="reference internal" href="validation/validation.html#flame-vortex-interaction">Flame-Vortex interaction</a></li>
+<li class="toctree-l2"><a class="reference internal" href="validation/validation.html#sandia-flame-d">Sandia Flame D</a></li>
+<li class="toctree-l2"><a class="reference internal" href="validation/validation.html#premixed-ignition-kernel-in-isotropic-turbulence">Premixed ignition kernel in isotropic turbulence</a></li>
+</ul>
+</li>
+</ul>
+</div>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="LES.html" class="btn btn-neutral float-left" title="LES and Hybrid LES/DNS Support" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="verification/verification.html" class="btn btn-neutral float-right" title="Verification of PeleC" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright AMReX Copyright (c) 2021, The Regents of the University of California, through Lawrence Berkeley National Laboratory, the Alliance for Sustainable Energy, LLC., through National Renewable Energy Laboratory, National Technology and Engineering Solutions of Sandia, LLC, and UT-Battelle, LLC (subject to receipt of any required approvals from the U.S. Dept. of Energy).  All rights reserved..</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

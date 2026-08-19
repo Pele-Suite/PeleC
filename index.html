@@ -1,0 +1,371 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PeleC &mdash; PeleC 0.1 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=03e43079" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=9edc463e" />
+
+  
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=2709fde1"></script>
+      <script src="_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Introduction" href="Introduction.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="#" class="icon icon-home">
+            PeleC
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="Introduction.html">Introduction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="Equations.html">Equations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="Algorithms.html">Numerical Treatment and Algorithms</a></li>
+<li class="toctree-l1"><a class="reference internal" href="GettingStarted.html">Getting Started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="BoundaryConditions.html">Boundary Conditions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="geometry/EB.html">Geometry treatment in PeleC</a></li>
+<li class="toctree-l1"><a class="reference internal" href="LES.html">LES and Hybrid LES/DNS Support</a></li>
+<li class="toctree-l1"><a class="reference internal" href="VandV.html">Correctness - Verification and Validation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="PelePhysics.html">PelePhysics</a></li>
+<li class="toctree-l1"><a class="reference internal" href="BoxlibBits.html">Development Reference</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="#">PeleC</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="#" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">PeleC</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/index.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="pelec">
+<h1>PeleC<a class="headerlink" href="#pelec" title="Link to this heading"></a></h1>
+<div class="toctree-wrapper compound">
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="Introduction.html">Introduction</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="Introduction.html#the-pele-project">The Pele Project</a></li>
+<li class="toctree-l2"><a class="reference internal" href="Introduction.html#dependencies">Dependencies</a></li>
+<li class="toctree-l2"><a class="reference internal" href="Introduction.html#development">Development</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="Equations.html">Equations</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="Equations.html#conservative-system">Conservative system</a></li>
+<li class="toctree-l2"><a class="reference internal" href="Equations.html#primitive-forms">Primitive Forms</a></li>
+<li class="toctree-l2"><a class="reference internal" href="Equations.html#source-terms">Source Terms</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="Algorithms.html">Numerical Treatment and Algorithms</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="Algorithms.html#pelec-time-stepping">PeleC Time-stepping</a></li>
+<li class="toctree-l2"><a class="reference internal" href="Algorithms.html#hyperbolics">Hyperbolics</a></li>
+<li class="toctree-l2"><a class="reference internal" href="Algorithms.html#diffusion">Diffusion</a></li>
+<li class="toctree-l2"><a class="reference internal" href="Algorithms.html#reaction">Reaction</a></li>
+<li class="toctree-l2"><a class="reference internal" href="Algorithms.html#equation-of-state">Equation of State</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="GettingStarted.html">Getting Started</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="GettingStarted.html#navigation">Navigation</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="BoundaryConditions.html">Boundary Conditions</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="BoundaryConditions.html#isothermal-walls">Isothermal Walls</a></li>
+<li class="toctree-l2"><a class="reference internal" href="BoundaryConditions.html#navier-stokes-characteristic-boundary-conditions">Navier-Stokes Characteristic Boundary Conditions</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="geometry/EB.html">Geometry treatment in PeleC</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="geometry/EB.html#embedded-boundary-representation">Embedded Boundary Representation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="geometry/EB.html#redistribution">Redistribution</a></li>
+<li class="toctree-l2"><a class="reference internal" href="geometry/EB.html#mass-fractions-at-the-eb">Mass fractions at the EB</a></li>
+<li class="toctree-l2"><a class="reference internal" href="geometry/EB.html#re-redistribution">Re-redistribution</a></li>
+<li class="toctree-l2"><a class="reference internal" href="geometry/EB.html#data-structures-and-utility-functions">Data Structures and utility functions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="geometry/EB.html#geometry-initialization">Geometry initialization</a></li>
+<li class="toctree-l2"><a class="reference internal" href="geometry/EB.html#saving-and-reloading-an-eb-geometry">Saving and reloading an EB geometry</a></li>
+<li class="toctree-l2"><a class="reference internal" href="geometry/EB.html#setting-the-covered-state">Setting the Covered State</a></li>
+<li class="toctree-l2"><a class="reference internal" href="geometry/EB.html#problem-specific-inflow-conditions-on-an-eb">Problem specific inflow conditions on an EB</a></li>
+<li class="toctree-l2"><a class="reference internal" href="geometry/EB.html#rotational-frames">Rotational frames</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="LES.html">LES and Hybrid LES/DNS Support</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="LES.html#models-for-large-eddy-simulations">Models for large eddy simulations</a></li>
+<li class="toctree-l2"><a class="reference internal" href="LES.html#explicit-filtering-of-the-hydrodynamic-source-terms">Explicit filtering of the hydrodynamic source terms</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="VandV.html">Correctness - Verification and Validation</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="verification/verification.html">Verification of PeleC</a></li>
+<li class="toctree-l2"><a class="reference internal" href="ebverification/ebverification.html">Verification of EB PeleC</a></li>
+<li class="toctree-l2"><a class="reference internal" href="validation/validation.html">Validation of PeleC</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="PelePhysics.html">PelePhysics</a></li>
+<li class="toctree-l1"><a class="reference internal" href="BoxlibBits.html">Development Reference</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="BoxlibBits.html#amrex-functions-useful-for-pele-development">AMReX functions useful for Pele development</a></li>
+<li class="toctree-l2"><a class="reference internal" href="BoxlibBits.html#contributing-to-pelec">Contributing to PeleC</a></li>
+</ul>
+</li>
+</ul>
+</div>
+<section id="readme">
+<h2>README<a class="headerlink" href="#readme" title="Link to this heading"></a></h2>
+<section id="pelec-an-adaptive-mesh-refinement-solver-for-compressible-reacting-flows">
+<span id="id1"></span><h3>PeleC: An adaptive mesh refinement solver for compressible reacting flows<a class="headerlink" href="#pelec-an-adaptive-mesh-refinement-solver-for-compressible-reacting-flows" title="Link to this heading"></a></h3>
+<p><a class="reference external" href="https://Pele-Suite.github.io/PeleC/">Documentation</a> | <a class="reference external" href="https://my.cdash.org/index.php?project=Pele">Nightly Test Results</a> | <a class="reference external" href="https://doi.org/10.1177/10943420221121151">PeleC Citation</a> | <a class="reference external" href="https://doi.org/10.1137/1.9781611977967.2">Pele Citation</a></p>
+<section id="getting-started">
+<h4>Getting Started<a class="headerlink" href="#getting-started" title="Link to this heading"></a></h4>
+<p>To compile and run <cite>PeleC</cite>, one needs a C++ compiler that supports the C++20 standard.  A hierarchical strategy for parallelism is supported, based on MPI, MPI + OpenMP, or MPI + GPU (CUDA/HIP/SyCL).  The code should work with all major MPI and OpenMP implementations.  PeleC should build and run with no modifications to the <cite>make</cite> system if using a Linux system with the appropriate compilers. The preferred build strategy for most users is to use GNU Make to build executables for individual cases as needed, from the directory containing the case files. CMake, although used mostly for testing, is also an option for building the code. CMake is required for the <cite>make TPL</cite> step below which builds the SUNDIALS dependency.</p>
+<p>The best way to download <cite>PeleC</cite> and its necessary dependencies AMReX, PelePhysics, and SUNDIALS (as git submodules) is through a recursive
+git clone. To reduce the download size, the <code class="docutils literal notranslate"><span class="pre">--shallow-submodules</span></code> and <code class="docutils literal notranslate"><span class="pre">--single-branch</span></code> flags can be added to the clone command to omit
+extraneous parts of the git history. By default, you will download the latest version of PeleC. If you’d like to use a specific
+<a class="reference external" href="https://github.com/Pele-Suite/PeleC/releases/">released version</a>
+of PeleC, you can add the option <code class="docutils literal notranslate"><span class="pre">--branch=&lt;version&gt;</span></code>, e.g. <code class="docutils literal notranslate"><span class="pre">--branch=v25.04</span></code>, to your clone command.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">git</span> <span class="n">clone</span> <span class="o">--</span><span class="n">recursive</span> <span class="n">https</span><span class="p">:</span><span class="o">//</span><span class="n">github</span><span class="o">.</span><span class="n">com</span><span class="o">/</span><span class="n">Pele</span><span class="o">-</span><span class="n">Suite</span><span class="o">/</span><span class="n">PeleC</span><span class="o">.</span><span class="n">git</span>
+</pre></div>
+</div>
+<p>To run <cite>PeleC</cite> for a sample 3D flame problem:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">cd</span> <span class="n">PeleC</span><span class="o">/</span><span class="n">Exec</span><span class="o">/</span><span class="n">RegTests</span><span class="o">/</span><span class="n">PMF</span>
+<span class="n">make</span> <span class="n">TPLrealclean</span> <span class="o">&amp;&amp;</span> <span class="n">make</span> <span class="n">realclean</span> <span class="o">&amp;&amp;</span> <span class="n">make</span> <span class="n">TPL</span> <span class="o">&amp;&amp;</span> <span class="n">make</span> <span class="o">-</span><span class="n">j</span>
+<span class="o">./</span><span class="n">Pele3d</span><span class="o">.</span><span class="n">xxx</span><span class="o">.</span><span class="n">yyy</span><span class="o">.</span><span class="n">ex</span> <span class="n">example</span><span class="o">.</span><span class="n">inp</span>
+</pre></div>
+</div>
+<ol class="arabic">
+<li><p>In the exec line above, xxx.yyy is a tag identifying your compiler and various build options, and will vary across pltaform.</p>
+<ol class="loweralpha">
+<li><p>To run with MPI support, ensure <code class="docutils literal notranslate"><span class="pre">USE_MPI</span> <span class="pre">=</span> <span class="pre">TRUE</span></code> in the <code class="docutils literal notranslate"><span class="pre">GNUmakefile</span></code> or specify it on the command line:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">make</span> <span class="n">TPLrealclean</span> <span class="o">&amp;&amp;</span> <span class="n">make</span> <span class="n">realclean</span> <span class="o">&amp;&amp;</span> <span class="n">make</span> <span class="n">TPL</span> <span class="n">USE_MPI</span><span class="o">=</span><span class="n">TRUE</span> <span class="o">&amp;&amp;</span> <span class="n">make</span> <span class="o">-</span><span class="n">j</span> <span class="n">USE_MPI</span><span class="o">=</span><span class="n">TRUE</span>
+<span class="n">mpiexec</span> <span class="o">-</span><span class="n">n</span> <span class="mi">4</span> <span class="o">./</span><span class="n">PeleC3d</span><span class="o">.</span><span class="n">xxx</span><span class="o">.</span><span class="n">MPI</span><span class="o">.</span><span class="n">ex</span> <span class="n">example</span><span class="o">.</span><span class="n">inp</span>
+</pre></div>
+</div>
+</li>
+<li><p>If the string <code class="docutils literal notranslate"><span class="pre">.MPI.</span></code> does not appear in your executable name, you have not successfully built PeleC with MPI support, and if you execute in parallel you will be running multiple instances of the solver in serial.</p></li>
+<li><p>See the <code class="docutils literal notranslate"><span class="pre">GNUmakefile</span></code> for other build options, including the compiler used (<code class="docutils literal notranslate"><span class="pre">COMP</span></code>), and certain model settings that must determined at compile time, such as the solver dimensionality (<code class="docutils literal notranslate"><span class="pre">DIM</span></code>) and the chemical mechanism used (<code class="docutils literal notranslate"><span class="pre">Chemistry_Model</span></code>).</p></li>
+</ol>
+</li>
+<li><p>The example is a 3D premixed flame, flowing vertically upward through the domain with no gravity. The lateral boundaries are periodic.  A detailed hydrogen model is used.  The solution is initialized with a wrinkled/perturbed 1D steady flame solution computed using Cantera (historically these used the PREMIX code).  Two levels of solution-adaptive refinement are automatically triggered by the presence of the flame intermediate, HO2.</p></li>
+<li><p>In addition to informative output to the terminal, periodic plotfiles are written in the run folder.  These may be viewed with AMReX’s <a class="reference external" href="https://amrex-codes.github.io/amrex/docs_html/Visualization.html">Amrvis</a>, <a class="reference external" href="https://visit-dav.github.io/visit-website/">VisIt</a>, or <a class="reference external" href="https://www.paraview.org">ParaView</a>:</p>
+<ol class="loweralpha simple">
+<li><p>In VisIt, direct the File-&gt;Open dialogue to select the file named “Header” that is inside each plotfile folder.</p></li>
+<li><p>In ParaView, navigate to the case directory, open the plotfile folder.</p></li>
+<li><p>With Amrvis, <code class="docutils literal notranslate"><span class="pre">$</span> <span class="pre">amrvis3d</span> <span class="pre">plt00030</span></code>, for example.</p></li>
+</ol>
+</li>
+</ol>
+</section>
+<section id="dependencies">
+<h4>Dependencies<a class="headerlink" href="#dependencies" title="Link to this heading"></a></h4>
+<p><cite>PeleC</cite> is built on the <cite>AMReX</cite> and <cite>PelePhysics</cite> libraries. PeleC also requires the <a class="reference external" href="https://github.com/LLNL/sundials">SUNDIALS</a> ODE solver library.</p>
+</section>
+<section id="development-model">
+<h4>Development model<a class="headerlink" href="#development-model" title="Link to this heading"></a></h4>
+<p>To add a new feature to PeleC, the procedure is:</p>
+<ol class="arabic">
+<li><p>Create a branch for the new feature (locally):</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">git</span> <span class="n">checkout</span> <span class="o">-</span><span class="n">b</span> <span class="n">AmazingNewFeature</span>
+</pre></div>
+</div>
+</li>
+<li><p>Develop the feature, merging changes often from the development branch into your AmazingNewFeature branch:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">git</span> <span class="n">commit</span> <span class="o">-</span><span class="n">m</span> <span class="s2">"Developed AmazingNewFeature"</span>
+<span class="n">git</span> <span class="n">checkout</span> <span class="n">development</span>
+<span class="n">git</span> <span class="n">pull</span>                      <span class="c1"># fix any identified conflicts between local and remote branches of "development"</span>
+<span class="n">git</span> <span class="n">checkout</span> <span class="n">AmazingNewFeature</span>
+<span class="n">git</span> <span class="n">rebase</span> <span class="n">development</span>        <span class="c1"># fix any identified conflicts between "development" and "AmazingNewFeature"</span>
+</pre></div>
+</div>
+</li>
+<li><p>Build and run</p>
+<ol class="loweralpha">
+<li><p>Build and run the full test suite using CMake and CTest (See the <code class="docutils literal notranslate"><span class="pre">Build/</span></code> directory for an example script). Please do not introduce warnings. PeleC is checked against <code class="docutils literal notranslate"><span class="pre">clang-tidy</span></code> and possibly <code class="docutils literal notranslate"><span class="pre">cppcheck</span></code> in the CI. To use <code class="docutils literal notranslate"><span class="pre">clang-tidy</span></code> or <code class="docutils literal notranslate"><span class="pre">cppcheck</span></code> locally, use these CMake options:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="o">-</span><span class="n">DPELE_ENABLE_CLANG_TIDY</span><span class="p">:</span><span class="n">BOOL</span><span class="o">=</span><span class="n">ON</span>
+<span class="o">-</span><span class="n">DPELE_ENABLE_CPPCHECK</span><span class="p">:</span><span class="n">BOOL</span><span class="o">=</span><span class="n">ON</span>
+</pre></div>
+</div>
+</li>
+<li><p>Run <code class="docutils literal notranslate"><span class="pre">clang-tidy</span></code> by using an LLVM compiler and making sure <code class="docutils literal notranslate"><span class="pre">clang-tidy</span></code> is found during configure. Then <code class="docutils literal notranslate"><span class="pre">make</span></code> will run <code class="docutils literal notranslate"><span class="pre">clang-tidy</span></code> along with compilation. Once verifying <code class="docutils literal notranslate"><span class="pre">cppcheck</span></code> was found during configure, using the <code class="docutils literal notranslate"><span class="pre">make</span> <span class="pre">cppcheck</span></code> target should run its checks on the <code class="docutils literal notranslate"><span class="pre">compile_commands.json</span></code> database generated by CMake. More information on these checks can be seen in the CI files used for GitHub Actions in the <code class="docutils literal notranslate"><span class="pre">.github/workflows/</span></code> directory.</p></li>
+<li><p>To easily format all source files before commit, use the following command:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">find</span> <span class="o">./</span><span class="n">Source</span> <span class="o">./</span><span class="n">Exec</span> \<span class="p">(</span> <span class="o">-</span><span class="n">name</span> <span class="s2">"*.cpp"</span> <span class="o">-</span><span class="n">o</span> <span class="o">-</span><span class="n">name</span> <span class="s2">"*.H"</span> <span class="o">-</span><span class="n">o</span> <span class="o">-</span><span class="n">name</span> <span class="s2">"*.h"</span> <span class="o">-</span><span class="n">o</span> <span class="o">-</span><span class="n">name</span> <span class="s2">"*.C"</span> \<span class="p">)</span> <span class="o">-</span><span class="n">exec</span> <span class="n">clang</span><span class="o">-</span><span class="nb">format</span> <span class="o">-</span><span class="n">i</span> <span class="p">{}</span> <span class="o">+</span>
+</pre></div>
+</div>
+</li>
+</ol>
+</li>
+<li><p>If you don’t already have a fork of the PeleC repository, follow the <a class="reference external" href="https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/working-with-forks/fork-a-repo">Github instructions</a> to create one. Then, push a feature branch to your forked PeleC repository:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">git</span> <span class="n">remote</span> <span class="n">add</span> <span class="n">remotename</span> <span class="n">git</span><span class="nd">@github</span><span class="o">.</span><span class="n">com</span><span class="p">:</span><span class="n">remoteurl</span> <span class="c1"># add a remote pointing to the user's fork</span>
+<span class="n">git</span> <span class="n">push</span> <span class="o">-</span><span class="n">u</span> <span class="n">remotename</span> <span class="n">AmazingNewFeature</span> <span class="c1"># Note: -u option required only for the first push of new branch</span>
+</pre></div>
+</div>
+</li>
+<li><p>Submit a pull request through <a class="reference external" href="mailto:git&#37;&#52;&#48;github&#46;com">git<span>&#64;</span>github<span>&#46;</span>com</a>:Pele-Suite/PeleC.git, and make sure you are requesting a merge against the development branch</p></li>
+<li><p>Check the CI status on Github and make sure the tests passed for merge request</p></li>
+</ol>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Github CI uses the CMake build system and CTest to test the core source files of PeleC. If you are adding source files, you will need to add them to the list of source files in the <code class="docutils literal notranslate"><span class="pre">CMake</span></code> directory for the tests to pass. Make sure to add them to the GNU make makefiles as well.</p>
+</div>
+</section>
+<section id="test-status">
+<h4>Test Status<a class="headerlink" href="#test-status" title="Link to this heading"></a></h4>
+<p>Nightly test results for PeleC against multiple compilers and machines can be seen on its <a class="reference external" href="https://my.cdash.org/index.php?project=Pele">CDash page</a>.</p>
+</section>
+<section id="id2">
+<h4>Documentation<a class="headerlink" href="#id2" title="Link to this heading"></a></h4>
+<p>The full documentation for Pele exists in the Docs directory; at present this is maintained inline using
+Sphinx  <a class="reference external" href="http://www.sphinx-doc.org">Sphinx</a>. With
+Sphinx, documentation is written in <em>Restructured Text</em>. reST is a markup language
+similar to Markdown, but with somewhat greater capabilities (and idiosyncrasies). There
+are several <a class="reference external" href="http://thomas-cokelaer.info/tutorials/sphinx/rest_syntax.html">primers</a>
+available to get started. One gotcha is that indentation matters. To build</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>$ cd Docs &amp;&amp; mkdir build &amp;&amp; cd build &amp;&amp; sphinx-build -M html ../sphinx .
+</pre></div>
+</div>
+</section>
+<section id="citation">
+<h4>Citation<a class="headerlink" href="#citation" title="Link to this heading"></a></h4>
+<p>To cite the PeleC software and refer to its computational performance, use the following journal articles for <a class="reference external" href="https://doi.org/10.1177/10943420221121151">PeleC</a> and the <a class="reference external" href="https://doi.org/10.1137/1.9781611977967.2">Pele software suite</a>:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="nd">@article</span><span class="p">{</span><span class="n">PeleC_IJHPCA</span><span class="p">,</span>
+  <span class="n">author</span> <span class="o">=</span> <span class="p">{</span><span class="n">Marc</span> <span class="n">T</span> <span class="p">{</span><span class="n">Henry</span> <span class="n">de</span> <span class="n">Frahan</span><span class="p">}</span> <span class="ow">and</span> <span class="n">Jon</span> <span class="n">S</span> <span class="n">Rood</span> <span class="ow">and</span> <span class="n">Marc</span> <span class="n">S</span> <span class="n">Day</span> <span class="ow">and</span> <span class="n">Hariswaran</span> <span class="n">Sitaraman</span> <span class="ow">and</span> <span class="n">Shashank</span> <span class="n">Yellapantula</span> <span class="ow">and</span> <span class="n">Bruce</span> <span class="n">A</span> <span class="n">Perry</span> <span class="ow">and</span> <span class="n">Ray</span> <span class="n">W</span> <span class="n">Grout</span> <span class="ow">and</span> <span class="n">Ann</span> <span class="n">Almgren</span> <span class="ow">and</span> <span class="n">Weiqun</span> <span class="n">Zhang</span> <span class="ow">and</span> <span class="n">John</span> <span class="n">B</span> <span class="n">Bell</span> <span class="ow">and</span> <span class="n">Jacqueline</span> <span class="n">H</span> <span class="n">Chen</span><span class="p">},</span>
+  <span class="n">title</span> <span class="o">=</span> <span class="p">{{</span><span class="n">PeleC</span><span class="p">:</span> <span class="n">An</span> <span class="n">adaptive</span> <span class="n">mesh</span> <span class="n">refinement</span> <span class="n">solver</span> <span class="k">for</span> <span class="n">compressible</span> <span class="n">reacting</span> <span class="n">flows</span><span class="p">}},</span>
+  <span class="n">journal</span> <span class="o">=</span> <span class="p">{</span><span class="n">The</span> <span class="n">International</span> <span class="n">Journal</span> <span class="n">of</span> <span class="n">High</span> <span class="n">Performance</span> <span class="n">Computing</span> <span class="n">Applications</span><span class="p">},</span>
+  <span class="n">volume</span> <span class="o">=</span> <span class="p">{</span><span class="mi">37</span><span class="p">},</span>
+  <span class="n">number</span> <span class="o">=</span> <span class="p">{</span><span class="mi">2</span><span class="p">},</span>
+  <span class="n">pages</span> <span class="o">=</span> <span class="p">{</span><span class="mi">115</span><span class="o">-</span><span class="mi">131</span><span class="p">},</span>
+  <span class="n">year</span> <span class="o">=</span> <span class="p">{</span><span class="mi">2022</span><span class="p">},</span>
+  <span class="n">doi</span> <span class="o">=</span> <span class="p">{</span><span class="mf">10.1177</span><span class="o">/</span><span class="mi">10943420221121151</span><span class="p">},</span>
+  <span class="n">url</span> <span class="o">=</span> <span class="p">{</span><span class="n">https</span><span class="p">:</span><span class="o">//</span><span class="n">doi</span><span class="o">.</span><span class="n">org</span><span class="o">/</span><span class="mf">10.1177</span><span class="o">/</span><span class="mi">10943420221121151</span><span class="p">}</span>
+<span class="p">}</span>
+
+<span class="nd">@article</span><span class="p">{</span><span class="n">PeleSoftware</span><span class="p">,</span>
+  <span class="n">author</span> <span class="o">=</span> <span class="p">{</span><span class="n">Marc</span> <span class="n">T</span><span class="o">.</span> <span class="p">{</span><span class="n">Henry</span> <span class="n">de</span> <span class="n">Frahan</span><span class="p">}</span> <span class="ow">and</span> <span class="n">Lucas</span> <span class="n">Esclapez</span> <span class="ow">and</span> <span class="n">Jon</span> <span class="n">Rood</span> <span class="ow">and</span> <span class="n">Nicholas</span> <span class="n">T</span><span class="o">.</span> <span class="n">Wimer</span> <span class="ow">and</span> <span class="n">Paul</span> <span class="n">Mullowney</span> <span class="ow">and</span> <span class="n">Bruce</span> <span class="n">A</span><span class="o">.</span> <span class="n">Perry</span> <span class="ow">and</span> <span class="n">Landon</span> <span class="n">Owen</span> <span class="ow">and</span> <span class="n">Hariswaran</span> <span class="n">Sitaraman</span> <span class="ow">and</span> <span class="n">Shashank</span> <span class="n">Yellapantula</span> <span class="ow">and</span> <span class="n">Malik</span> <span class="n">Hassanaly</span> <span class="ow">and</span> <span class="n">Mohammad</span> <span class="n">J</span><span class="o">.</span> <span class="n">Rahimi</span> <span class="ow">and</span> <span class="n">Michael</span> <span class="n">J</span><span class="o">.</span> <span class="n">Martin</span> <span class="ow">and</span> <span class="n">Olga</span> <span class="n">A</span><span class="o">.</span> <span class="n">Doronina</span> <span class="ow">and</span> <span class="n">Sreejith</span> <span class="n">N</span><span class="o">.</span> <span class="n">A</span><span class="o">.</span> <span class="ow">and</span> <span class="n">Martin</span> <span class="n">Rieth</span> <span class="ow">and</span> <span class="n">Wenjun</span> <span class="n">Ge</span> <span class="ow">and</span> <span class="n">Ramanan</span> <span class="n">Sankaran</span> <span class="ow">and</span> <span class="n">Ann</span> <span class="n">S</span><span class="o">.</span> <span class="n">Almgren</span> <span class="ow">and</span> <span class="n">Weiqun</span> <span class="n">Zhang</span> <span class="ow">and</span> <span class="n">John</span> <span class="n">B</span><span class="o">.</span> <span class="n">Bell</span> <span class="ow">and</span> <span class="n">Ray</span> <span class="n">Grout</span> <span class="ow">and</span> <span class="n">Marc</span> <span class="n">S</span><span class="o">.</span> <span class="n">Day</span> <span class="ow">and</span> <span class="n">Jacqueline</span> <span class="n">H</span><span class="o">.</span> <span class="n">Chen</span><span class="p">},</span>
+  <span class="n">title</span> <span class="o">=</span> <span class="p">{</span><span class="n">The</span> <span class="n">Pele</span> <span class="n">Simulation</span> <span class="n">Suite</span> <span class="k">for</span> <span class="n">Reacting</span> <span class="n">Flows</span> <span class="n">at</span> <span class="n">Exascale</span><span class="p">},</span>
+  <span class="n">booktitle</span> <span class="o">=</span> <span class="p">{</span><span class="n">Proceedings</span> <span class="n">of</span> <span class="n">the</span> <span class="mi">2024</span> <span class="n">SIAM</span> <span class="n">Conference</span> <span class="n">on</span> <span class="n">Parallel</span> <span class="n">Processing</span> <span class="k">for</span> <span class="n">Scientific</span> <span class="n">Computing</span><span class="p">},</span>
+  <span class="n">journal</span> <span class="o">=</span> <span class="p">{</span><span class="n">Proceedings</span> <span class="n">of</span> <span class="n">the</span> <span class="mi">2024</span> <span class="n">SIAM</span> <span class="n">Conference</span> <span class="n">on</span> <span class="n">Parallel</span> <span class="n">Processing</span> <span class="k">for</span> <span class="n">Scientific</span> <span class="n">Computing</span><span class="p">},</span>
+  <span class="n">chapter</span> <span class="o">=</span> <span class="p">{},</span>
+  <span class="n">pages</span> <span class="o">=</span> <span class="p">{</span><span class="mi">13</span><span class="o">-</span><span class="mi">25</span><span class="p">},</span>
+  <span class="n">doi</span> <span class="o">=</span> <span class="p">{</span><span class="mf">10.1137</span><span class="o">/</span><span class="mf">1.9781611977967.2</span><span class="p">},</span>
+  <span class="n">URL</span> <span class="o">=</span> <span class="p">{</span><span class="n">https</span><span class="p">:</span><span class="o">//</span><span class="n">epubs</span><span class="o">.</span><span class="n">siam</span><span class="o">.</span><span class="n">org</span><span class="o">/</span><span class="n">doi</span><span class="o">/</span><span class="nb">abs</span><span class="o">/</span><span class="mf">10.1137</span><span class="o">/</span><span class="mf">1.9781611977967.2</span><span class="p">},</span>
+  <span class="n">eprint</span> <span class="o">=</span> <span class="p">{</span><span class="n">https</span><span class="p">:</span><span class="o">//</span><span class="n">epubs</span><span class="o">.</span><span class="n">siam</span><span class="o">.</span><span class="n">org</span><span class="o">/</span><span class="n">doi</span><span class="o">/</span><span class="n">pdf</span><span class="o">/</span><span class="mf">10.1137</span><span class="o">/</span><span class="mf">1.9781611977967.2</span><span class="p">},</span>
+  <span class="n">year</span> <span class="o">=</span> <span class="p">{</span><span class="mi">2024</span><span class="p">},</span>
+  <span class="n">publisher</span> <span class="o">=</span> <span class="p">{</span><span class="n">Proceedings</span> <span class="n">of</span> <span class="n">the</span> <span class="mi">2024</span> <span class="n">SIAM</span> <span class="n">Conference</span> <span class="n">on</span> <span class="n">Parallel</span> <span class="n">Processing</span> <span class="k">for</span> <span class="n">Scientific</span> <span class="n">Computing</span><span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>Additionally, to cite the application of PeleC to compressible reacting flows, use the following <a class="reference external" href="https://doi.org/10.1016/j.combustflame.2021.111531">Combustion and Flame journal article</a>:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="nd">@article</span><span class="p">{</span><span class="n">Sitaraman2021</span><span class="p">,</span>
+  <span class="n">author</span> <span class="o">=</span> <span class="p">{</span><span class="n">Hariswaran</span> <span class="n">Sitaraman</span> <span class="ow">and</span> <span class="n">Shashank</span> <span class="n">Yellapantula</span> <span class="ow">and</span> <span class="n">Marc</span> <span class="n">T</span><span class="o">.</span> <span class="p">{</span><span class="n">Henry</span> <span class="n">de</span> <span class="n">Frahan</span><span class="p">}</span> <span class="ow">and</span> <span class="n">Bruce</span> <span class="n">Perry</span> <span class="ow">and</span> <span class="n">Jon</span> <span class="n">Rood</span> <span class="ow">and</span> <span class="n">Ray</span> <span class="n">Grout</span> <span class="ow">and</span> <span class="n">Marc</span> <span class="n">Day</span><span class="p">},</span>
+  <span class="n">title</span> <span class="o">=</span> <span class="p">{</span><span class="n">Adaptive</span> <span class="n">mesh</span> <span class="n">based</span> <span class="n">combustion</span> <span class="n">simulations</span> <span class="n">of</span> <span class="n">direct</span> <span class="n">fuel</span> <span class="n">injection</span> <span class="n">effects</span> <span class="ow">in</span> <span class="n">a</span> <span class="n">supersonic</span> <span class="n">cavity</span> <span class="n">flame</span><span class="o">-</span><span class="n">holder</span><span class="p">},</span>
+  <span class="n">journal</span> <span class="o">=</span> <span class="p">{</span><span class="n">Combustion</span> <span class="ow">and</span> <span class="n">Flame</span><span class="p">},</span>
+  <span class="n">volume</span> <span class="o">=</span> <span class="p">{</span><span class="mi">232</span><span class="p">},</span>
+  <span class="n">pages</span> <span class="o">=</span> <span class="p">{</span><span class="mi">111531</span><span class="p">},</span>
+  <span class="n">year</span> <span class="o">=</span> <span class="p">{</span><span class="mi">2021</span><span class="p">},</span>
+  <span class="n">issn</span> <span class="o">=</span> <span class="p">{</span><span class="mi">0010</span><span class="o">-</span><span class="mi">2180</span><span class="p">},</span>
+  <span class="n">doi</span> <span class="o">=</span> <span class="p">{</span><span class="n">https</span><span class="p">:</span><span class="o">//</span><span class="n">doi</span><span class="o">.</span><span class="n">org</span><span class="o">/</span><span class="mf">10.1016</span><span class="o">/</span><span class="n">j</span><span class="o">.</span><span class="n">combustflame</span><span class="mf">.2021.111531</span><span class="p">},</span>
+  <span class="n">url</span> <span class="o">=</span> <span class="p">{</span><span class="n">https</span><span class="p">:</span><span class="o">//</span><span class="n">www</span><span class="o">.</span><span class="n">sciencedirect</span><span class="o">.</span><span class="n">com</span><span class="o">/</span><span class="n">science</span><span class="o">/</span><span class="n">article</span><span class="o">/</span><span class="n">pii</span><span class="o">/</span><span class="n">S0010218021002741</span><span class="p">},</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>A full list of publications documenting the development of the Pele suite and its
+application to various reacting flow and other simulations is available on the main
+<a class="reference external" href="https://Pele-Suite.github.io/pubs.html">Pele suite page</a>. After publication,
+if you’d like your work to be included on that list, you can request to have it added
+<a class="reference external" href="https://github.com/Pele-Suite/Pele-Suite.github.io/discussions/3">here</a>.</p>
+</section>
+<section id="versioning">
+<h4>Versioning<a class="headerlink" href="#versioning" title="Link to this heading"></a></h4>
+<p>PeleC now uses a type of semantic versioning to help users navigate different versions of the code,
+which are labeled with <a class="reference external" href="https://github.com/Pele-Suite/PeleC/releases/">GitHub tags</a>. These tagged versions are not exhaustive, but they adhere to
+the following convention. Given a version number MAJOR.MINOR.PATCH:
+1. MAJOR version for changes to key aspects of the solver affecting input/source files for all cases, when a key model is changed to significantly affect results of simulations, when a major new capability is added
+2. MINOR version for when a significant feature is added (in a backward compatible manner), accumulation of smaller features, or changes to input file compatibility for less central aspects of the solver (e.g., post-processing) or aspects not affecting all cases
+3. PATCH version for backward compatible bug fixes and minor features</p>
+<p>PeleC previously used YY.MM formatting for versions. These should be interpreted as version 0 subversions,
+e.g. v25.04 is equivalent to v0.25.04.</p>
+</section>
+<section id="acknowledgment">
+<h4>Acknowledgment<a class="headerlink" href="#acknowledgment" title="Link to this heading"></a></h4>
+<p>This research was supported by the Exascale Computing Project (ECP), Project
+Number: 17-SC-20-SC, a collaborative effort of two DOE organizations – the
+Office of Science and the National Nuclear Security Administration –
+responsible for the planning and preparation of a capable exascale ecosystem –
+including software, applications, hardware, advanced system engineering, and
+early testbed platforms – to support the nation’s exascale computing
+imperative.</p>
+</section>
+</section>
+</section>
+<section id="indices-and-tables">
+<h2>Indices and tables<a class="headerlink" href="#indices-and-tables" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p><a class="reference internal" href="genindex.html"><span class="std std-ref">Index</span></a></p></li>
+<li><p><a class="reference internal" href="search.html"><span class="std std-ref">Search Page</span></a></p></li>
+</ul>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="Introduction.html" class="btn btn-neutral float-right" title="Introduction" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright AMReX Copyright (c) 2021, The Regents of the University of California, through Lawrence Berkeley National Laboratory, the Alliance for Sustainable Energy, LLC., through National Renewable Energy Laboratory, National Technology and Engineering Solutions of Sandia, LLC, and UT-Battelle, LLC (subject to receipt of any required approvals from the U.S. Dept. of Energy).  All rights reserved..</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
