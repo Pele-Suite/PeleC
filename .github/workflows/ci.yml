@@ -406,7 +406,7 @@ jobs:
       - name: Checkout Reference Version
         if: env.DO_REF_COMPARE == 'true'
         run : |
-          git remote add amrexcomb https://github.com/AMReX-Combustion/PeleC.git
+          git remote add amrexcomb https://github.com/Pele-Suite/PeleC.git
           git fetch amrexcomb development --depth=1
           git checkout amrexcomb/development
           git submodule update --recursive --depth=1

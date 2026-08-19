@@ -10,8 +10,8 @@ This example includes an optional demonstration of the "TurbInflow" capability,
 which can add turbulent fluctuations to an inflow boundary or set the inflow
 boundary condition based on planes saved from a previous simulation. This uses
 capability from PelePhysics, see that documentation for more details on the
-[TurbInflow](https://amrex-combustion.github.io/PelePhysics/Utility.html#turbulent-inflows)
-capability and the [TurbInflowGenerator](https://amrex-combustion.github.io/PelePhysics/Support.html#turbfilegenerator) support code. The TurbInflow utility populates the `turb_fluc`
+[TurbInflow](https://Pele-Suite.github.io/PelePhysics/Utility.html#turbulent-inflows)
+capability and the [TurbInflowGenerator](https://Pele-Suite.github.io/PelePhysics/Support.html#turbfilegenerator) support code. The TurbInflow utility populates the `turb_fluc`
 array that can be used to set the boundary condition in the `bcnormal` function in `prob.H`
 
 ## TurbInflow: Added Velocity fluctuations

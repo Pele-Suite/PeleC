@@ -1,7 +1,7 @@
 PeleC: An adaptive mesh refinement solver for compressible reacting flows
 -------------------------------------------------------------------------
 
-`Documentation <https://amrex-combustion.github.io/PeleC/>`_ | `Nightly Test Results <https://my.cdash.org/index.php?project=Pele>`_ | `PeleC Citation <https://doi.org/10.1177/10943420221121151>`_ | `Pele Citation <https://doi.org/10.1137/1.9781611977967.2>`_
+`Documentation <https://Pele-Suite.github.io/PeleC/>`_ | `Nightly Test Results <https://my.cdash.org/index.php?project=Pele>`_ | `PeleC Citation <https://doi.org/10.1177/10943420221121151>`_ | `Pele Citation <https://doi.org/10.1137/1.9781611977967.2>`_
 
 Getting Started
 ~~~~~~~~~~~~~~~
@@ -11,10 +11,10 @@ To compile and run `PeleC`, one needs a C++ compiler that supports the C++20 sta
 The best way to download `PeleC` and its necessary dependencies AMReX, PelePhysics, and SUNDIALS (as git submodules) is through a recursive
 git clone. To reduce the download size, the ``--shallow-submodules`` and ``--single-branch`` flags can be added to the clone command to omit
 extraneous parts of the git history. By default, you will download the latest version of PeleC. If you'd like to use a specific
-`released version <https://github.com/AMReX-Combustion/PeleC/releases/>`_
+`released version <https://github.com/Pele-Suite/PeleC/releases/>`_
 of PeleC, you can add the option ``--branch=<version>``, e.g. ``--branch=v25.04``, to your clone command. ::
 
-    git clone --recursive https://github.com/AMReX-Combustion/PeleC.git
+    git clone --recursive https://github.com/Pele-Suite/PeleC.git
 
 To run `PeleC` for a sample 3D flame problem::
 
@@ -84,7 +84,7 @@ To add a new feature to PeleC, the procedure is:
     git remote add remotename git@github.com:remoteurl # add a remote pointing to the user's fork
     git push -u remotename AmazingNewFeature # Note: -u option required only for the first push of new branch
 
-5. Submit a pull request through git@github.com:AMReX-Combustion/PeleC.git, and make sure you are requesting a merge against the development branch
+5. Submit a pull request through git@github.com:Pele-Suite/PeleC.git, and make sure you are requesting a merge against the development branch
 
 6. Check the CI status on Github and make sure the tests passed for merge request
 
@@ -159,15 +159,15 @@ Additionally, to cite the application of PeleC to compressible reacting flows, u
 
 A full list of publications documenting the development of the Pele suite and its
 application to various reacting flow and other simulations is available on the main
-`Pele suite page <https://amrex-combustion.github.io/pubs.html>`_. After publication,
+`Pele suite page <https://Pele-Suite.github.io/pubs.html>`_. After publication,
 if you'd like your work to be included on that list, you can request to have it added
-`here <https://github.com/AMReX-Combustion/AMReX-Combustion.github.io/discussions/3>`_.
+`here <https://github.com/Pele-Suite/Pele-Suite.github.io/discussions/3>`_.
 
 Versioning
 ~~~~~~~~~~
 
 PeleC now uses a type of semantic versioning to help users navigate different versions of the code,
-which are labeled with `GitHub tags <https://github.com/AMReX-Combustion/PeleC/releases/>`_. These tagged versions are not exhaustive, but they adhere to
+which are labeled with `GitHub tags <https://github.com/Pele-Suite/PeleC/releases/>`_. These tagged versions are not exhaustive, but they adhere to
 the following convention. Given a version number MAJOR.MINOR.PATCH:
 1. MAJOR version for changes to key aspects of the solver affecting input/source files for all cases, when a key model is changed to significantly affect results of simulations, when a major new capability is added
 2. MINOR version for when a significant feature is added (in a backward compatible manner), accumulation of smaller features, or changes to input file compatibility for less central aspects of the solver (e.g., post-processing) or aspects not affecting all cases

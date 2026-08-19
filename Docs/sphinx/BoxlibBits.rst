@@ -103,7 +103,7 @@ To add a new feature to PeleC, the procedure is:
 
     Check that Travis CI build passed. Currently to reduce load on the CI framework this is just a test that one of the regression tests will compile.
 
-4.  Submit a merge request through git@github.com:AMReX-Combustion/PeleC.git - be sure you are requesting to merge your branch to the development branch.
+4.  Submit a merge request through git@github.com:Pele-Suite/PeleC.git - be sure you are requesting to merge your branch to the development branch.
 
 
 
@@ -127,9 +127,9 @@ It is possibly---and desirable---to create the regression testing framework loca
      mkdir -p TestData/PeleC  # this is where the test results will be written
      mkdir Repositories   # this is where the src code to be tested is put
      cd Repositories
-     export PELE_HOME=`pwd`/PeleC; git clone git@github.com:AMReX-Combustion/PeleC.git $PELE_HOME
+     export PELE_HOME=`pwd`/PeleC; git clone git@github.com:Pele-Suite/PeleC.git $PELE_HOME
      cd $PELE_HOME; git checkout development; cd ..
-     export PELE_PHYSICS_HOME=`pwd`/PelePhysics; git clone git@github.com:AMReX-Combustion/PelePhysics.git $PELE_PHYSICS_HOME
+     export PELE_PHYSICS_HOME=`pwd`/PelePhysics; git clone git@github.com:Pele-Suite/PelePhysics.git $PELE_PHYSICS_HOME
      cd $PELE_PHYSICS_HOME; git checkout development; cd ..
      export AMREX_HOME=`pwd`/amrex; git clone git@github.com:AMReX-Codes/amrex.git $AMREX_HOME
      cd $AMREX_HOME; git checkout development; cd ..
