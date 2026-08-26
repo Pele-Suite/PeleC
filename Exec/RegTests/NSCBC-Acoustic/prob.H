@@ -85,11 +85,10 @@ pc_initdata(
     s = std::sqrt(AMREX_D_TERM(d[0] * d[0], +d[1] * d[1], +d[2] * d[2]));
   }
 
-  const amrex::Real dp =
-    (prob_parm.pulse_type == 2)
-      ? 0.0
-      : prob_parm.amp * prob_parm.p_amb *
-          std::exp(-(s / prob_parm.w) * (s / prob_parm.w));
+  const amrex::Real dp = (prob_parm.pulse_type == 2)
+                           ? 0.0
+                           : prob_parm.amp * prob_parm.p_amb *
+                               std::exp(-(s / prob_parm.w) * (s / prob_parm.w));
 
   // Isentropic in both cases: drho = dp / c^2.  The planar pulse is given the
   // right-running velocity dp = rho c u so that it is a single wave; the

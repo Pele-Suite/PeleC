@@ -162,7 +162,7 @@ comparison region, so the difference is the outflow's own error. :math:`R` is th
 .. table::
 
    ==============================  ==============  ======  ================  =====================  =============
-   Outflow                         :math:`\sigma`   ``eT``  :math:`\beta_s`   mean :math:`\Delta p`   :math:`R` [%]
+   Outflow                         :math:`\sigma`  ``eT``  :math:`\beta_s`   mean :math:`\Delta p`  :math:`R` [%]
    ==============================  ==============  ======  ================  =====================  =============
    hard ``p = p_amb``              --              --      --                --527                  --
    characteristic                  0.25            0       1                 +2252                  0.76
@@ -241,21 +241,21 @@ needs to be changed.
 
 .. table::
 
-   ==================================  =========  ==========================================================
-   Parameter                           Default    Meaning
-   ==================================  =========  ==========================================================
-   ``pelec.bc_nscbc``                  0          Master switch.
-   ``pelec.bc_nscbc_sigma``            0.25       Outflow pressure relaxation (Poinsot-Lele :math:`\sigma`).
-   ``pelec.bc_nscbc_relax_u``          2.0        Inflow normal-velocity relaxation; measured curve below.
-   ``pelec.bc_nscbc_relax_t``          0.2        Inflow temperature and tangential-velocity relaxation.
-   ``pelec.bc_nscbc_beta``             1.0        Transverse-term weight. 1 = off; **try 0.5**.
-   ``pelec.bc_nscbc_beta_s``           1.0        Reaction-source weight. 1 = off.
-   ``pelec.bc_nscbc_order``            2          Extrapolation order, 1 or 2. Verification knob only.
-   ``pelec.bc_nscbc_pin_farfield``     0          Pin the incoming acoustic instead of relaxing it.
-   ``pelec.bc_nscbc_extrap_temperature`` 0        Give the outflow face a controlled conductive flux.
-   ``pelec.bc_nscbc_extrap_material``  0          Continue material structure through the outflow.
-   ``pelec.bc_nscbc_backflow_material`` 0         Sustained backflow enters with the Target's reservoir state.
-   ==================================  =========  ==========================================================
+   =====================================  =========  ============================================================
+   Parameter                              Default    Meaning
+   =====================================  =========  ============================================================
+   ``pelec.bc_nscbc``                     0          Master switch.
+   ``pelec.bc_nscbc_sigma``               0.25       Outflow pressure relaxation (Poinsot-Lele :math:`\sigma`).
+   ``pelec.bc_nscbc_relax_u``             2.0        Inflow normal-velocity relaxation; measured curve below.
+   ``pelec.bc_nscbc_relax_t``             0.2        Inflow temperature and tangential-velocity relaxation.
+   ``pelec.bc_nscbc_beta``                1.0        Transverse-term weight. 1 = off; **try 0.5**.
+   ``pelec.bc_nscbc_beta_s``              1.0        Reaction-source weight. 1 = off.
+   ``pelec.bc_nscbc_order``               2          Extrapolation order, 1 or 2. Verification knob only.
+   ``pelec.bc_nscbc_pin_farfield``        0          Pin the incoming acoustic instead of relaxing it.
+   ``pelec.bc_nscbc_extrap_temperature``  0          Give the outflow face a controlled conductive flux.
+   ``pelec.bc_nscbc_extrap_material``     0          Continue material structure through the outflow.
+   ``pelec.bc_nscbc_backflow_material``   0          Sustained backflow enters with the Target's reservoir state.
+   =====================================  =========  ============================================================
 
 **All of these are positive.** The legacy Fortran implementation required ``relax_T`` to be negative and its
 documentation and its code disagreed about the sign of ``sigma_out``; every internal sign is now handled by the
@@ -474,7 +474,7 @@ when ``pelec.v > 0``. A silent fallback is a bug that will not be found.
    ``flow reversal`` count sustained above zero     The outflow is misplaced, or the face should be an
                                                     inflow. Transient counts are benign.
    ``material structure`` advisory printed          A front, flame or density gradient is sitting in the
-                                                    outflow boundary cells (|dS| > 5% of ρ per cell). Turn
+                                                    outflow boundary cells (:math:`|dS|` > 5% of ρ per cell). Turn
                                                     on the flame closures (``extrap_temperature = 1``,
                                                     ``beta_s = 0``); keep ``extrap_material`` off if it is
                                                     about to cross.

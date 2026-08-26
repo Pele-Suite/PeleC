@@ -245,10 +245,9 @@ amrex_probinit(
     // i.e. x_f(y) < x_out:  cos(k y) < (x_out - x0)/A.
     const amrex::Real c0 = (xout - pp_d->sheet_x0) / pp_d->wrinkle_amp;
     const amrex::Real frac = std::acos(c0) / constants::PI();
-    amrex::Print()
-      << "     STRADDLES the outflow: " << 100.0 * frac
-      << "% of the boundary is burnt, " << 100.0 * (1.0 - frac)
-      << "% fresh, with the reaction zone crossing at 2 points\n";
+    amrex::Print() << "     STRADDLES the outflow: " << 100.0 * frac
+                   << "% of the boundary is burnt, " << 100.0 * (1.0 - frac)
+                   << "% fresh, with the reaction zone crossing at 2 points\n";
   } else if (amrex::ParallelDescriptor::IOProcessor()) {
     // amrex::Warning prints on ALL ranks (Print::AllProcs to the error
     // stream), so gate it here -- probinit runs everywhere.

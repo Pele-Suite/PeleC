@@ -337,6 +337,4 @@ using ProblemSpecificFunctions = MyProblemSpecificFunctions;
 
 void pc_prob_close();
 
-
-
 #endif

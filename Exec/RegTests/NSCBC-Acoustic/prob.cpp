@@ -78,8 +78,7 @@ amrex_probinit(
   if (pp_d->pulse_type == 2) {
     // Quarter-wave frequency of the duct, Doppler-corrected -- the resonance
     // t3/t5 straddle.  Printed so the launch script never re-derives it.
-    const amrex::Real f0 =
-      (cs * cs - pp_d->u0 * pp_d->u0) / (4.0 * L[0] * cs);
+    const amrex::Real f0 = (cs * cs - pp_d->u0 * pp_d->u0) / (4.0 * L[0] * cs);
     amrex::Print() << "     DUCT: u0 = " << pp_d->u0 << " cm/s, forcing "
                    << pp_d->force_amp << " cm/s at " << pp_d->force_freq
                    << " Hz\n"

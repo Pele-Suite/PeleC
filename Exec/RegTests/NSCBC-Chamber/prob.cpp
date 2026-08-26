@@ -49,8 +49,7 @@ NSCBCChamberBox::build(
     {AMREX_D_DECL(x0 - wall_t, yhi, 0.0)},
     {AMREX_D_DECL(x0 + len, yhi + wall_t, 1.0)}, false);
   amrex::EB2::BoxIF back(
-    {AMREX_D_DECL(x0 - wall_t, ylo, 0.0)},
-    {AMREX_D_DECL(x0, yhi, 1.0)}, false);
+    {AMREX_D_DECL(x0 - wall_t, ylo, 0.0)}, {AMREX_D_DECL(x0, yhi, 1.0)}, false);
   auto walls = amrex::EB2::makeUnion(bot, top, back);
 
   if (baffle != 0) {
@@ -61,8 +60,8 @@ NSCBCChamberBox::build(
     amrex::EB2::BoxIF plate_hi(
       {AMREX_D_DECL(baffle_x, gh, 0.0)},
       {AMREX_D_DECL(baffle_x + baffle_w, yhi, 1.0)}, false);
-    auto gshop = amrex::EB2::makeShop(
-      amrex::EB2::makeUnion(walls, plate_lo, plate_hi));
+    auto gshop =
+      amrex::EB2::makeShop(amrex::EB2::makeUnion(walls, plate_lo, plate_hi));
     amrex::EB2::Build(
       gshop, geom, max_coarsening_level, max_coarsening_level, 4, false);
   } else {

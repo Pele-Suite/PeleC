@@ -274,23 +274,23 @@ struct Transverse
 // ---------------------------------------------------------------------------
 namespace Diag {
 enum : int {
-  supersonic = 0,  // |M| >= 1: zero-gradient copy is exact, not a failure
-  reversed,        // flow ran the wrong way through the face
-  body_state,      // an EB-covered cell was found in the stencil
-  eos_failure,     // an EOS call returned a non-finite or non-positive value
-  floored,         // a positivity floor was hit
-  transverse_drop, // a transverse derivative was unavailable or unusable
-  source_drop,     // a modelled source term was unavailable or unusable
+  supersonic = 0,    // |M| >= 1: zero-gradient copy is exact, not a failure
+  reversed,          // flow ran the wrong way through the face
+  body_state,        // an EB-covered cell was found in the stencil
+  eos_failure,       // an EOS call returned a non-finite or non-positive value
+  floored,           // a positivity floor was hit
+  transverse_drop,   // a transverse derivative was unavailable or unusable
+  source_drop,       // a modelled source term was unavailable or unusable
   target_incomplete, // a supersonic inflow whose Target carries no pressure:
                      // every characteristic is incoming, so the FULL state is
                      // required; the interior pressure was substituted, which
                      // makes the ghost depend on a domain it should be
                      // causally upstream of.  Set Target.p in bcnormal_nscbc.
-  structure,       // ADVISORY, not a fallback: material structure sat in an
-                   // outflow boundary cell (|dS| > 5% of rho).  A front at
-                   // the boundary wants the flame closures --
-                   // extrap_temperature and beta_s = 0; see
-                   // NSCBC-FlameOutflow/README.md.
+  structure,         // ADVISORY, not a fallback: material structure sat in an
+                     // outflow boundary cell (|dS| > 5% of rho).  A front at
+                     // the boundary wants the flame closures --
+                     // extrap_temperature and beta_s = 0; see
+                     // NSCBC-FlameOutflow/README.md.
   count
 };
 }
@@ -847,9 +847,9 @@ apply(
     // diffusive physics, and an amplitude-side term counts it twice
     // (measured: it moves the C12 driver error 104 -> -911).  Re-verify
     // against C12 before revisiting.
-    Rm_g = Rm_N + static_cast<amrex::Real>(layer) * dRm +
-           static_cast<amrex::Real>(layer) * dx_normal * L_in /
-             (lambda_in * rho_c);
+    Rm_g =
+      Rm_N + static_cast<amrex::Real>(layer) * dRm +
+      static_cast<amrex::Real>(layer) * dx_normal * L_in / (lambda_in * rho_c);
   }
 
   // ---- 6. Invert the acoustic pair --------------------------------------
@@ -898,8 +898,7 @@ apply(
       }
       for (int d = 0; d < 3; d++) {
         if (d != idir) {
-          dut[d] =
-            w_mat * minmod(qN.u[d] - qNm1.u[d], qNm1.u[d] - qNm2.u[d]);
+          dut[d] = w_mat * minmod(qN.u[d] - qNm1.u[d], qNm1.u[d] - qNm2.u[d]);
         }
       }
     }
@@ -987,8 +986,8 @@ apply(
             u_g[d] = (1.0 - w_rev) * u_g[d] + w_rev * tgt.u[d];
           }
         }
-        const amrex::Real T_floor = amrex::max<amrex::Real>(
-          1.0e-3 * qN.T, constants::very_small_num());
+        const amrex::Real T_floor =
+          amrex::max<amrex::Real>(1.0e-3 * qN.T, constants::very_small_num());
         if (!amrex::Math::isfinite(T_g) || (T_g < T_floor)) {
           T_g = T_floor;
           bump(Diag::floored);

@@ -339,14 +339,11 @@ struct PCHypFillExtDir
       // only the composed Target -- it stays a pure function.
       if (m_nscbc_reg != nullptr) {
         const int side = (sgn > 0) ? 0 : 1;
-        const long ridx =
-          nscbc_reg_index(idir, side, base, geom.Domain());
-        if (
-          (tgt.type == pc_nscbc::Type::inflow) && ((m_reg_mode & 1) != 0)) {
+        const long ridx = nscbc_reg_index(idir, side, base, geom.Domain());
+        if ((tgt.type == pc_nscbc::Type::inflow) && ((m_reg_mode & 1) != 0)) {
           tgt.u[idir] += m_nscbc_reg[ridx + reg::u_minus];
         }
-        if (
-          (tgt.type == pc_nscbc::Type::outflow) && ((m_reg_mode & 2) != 0)) {
+        if ((tgt.type == pc_nscbc::Type::outflow) && ((m_reg_mode & 2) != 0)) {
           tgt.p += m_nscbc_reg[ridx + reg::dp_ac];
         }
       }
@@ -601,9 +598,10 @@ pc_bcfill_hyp(
     }
   }
 
-  amrex::GpuBndryFuncFab<PCHypFillExtDir> hyp_bndry_func(PCHypFillExtDir{
-    lprobparm, PeleC::turb_inflow.is_initialized(), nscbc, nscbc_prm, diag,
-    reg_ptr, reg_mode});
+  amrex::GpuBndryFuncFab<PCHypFillExtDir> hyp_bndry_func(
+    PCHypFillExtDir{
+      lprobparm, PeleC::turb_inflow.is_initialized(), nscbc, nscbc_prm, diag,
+      reg_ptr, reg_mode});
   hyp_bndry_func(bx, data, dcomp, numcomp, geom, time, bcr, bcomp, scomp);
 }
 
@@ -665,8 +663,9 @@ PeleC::nscbc_check_fine_faces() const
       // Once per face per run: regridding can recur every few steps, and a
       // warning repeated 1600 times is a warning nobody reads.
       static bool warned[AMREX_SPACEDIM][2] = {};
-      if (touches && !warned[dir][side] &&
-          amrex::ParallelDescriptor::IOProcessor()) {
+      if (
+        touches && !warned[dir][side] &&
+        amrex::ParallelDescriptor::IOProcessor()) {
         warned[dir][side] = true;
         // A warning rather than an abort: the problem hook decides per
         // boundary POINT whether a face is characteristic, and the host
@@ -676,9 +675,9 @@ PeleC::nscbc_check_fine_faces() const
         // condition than the coarse level does on the same face -- a
         // level-dependent artefact that refining cannot remove.
         amrex::Warning(
-          "NSCBC: level " + std::to_string(level) +
-          " grids touch the domain " + (side == 0 ? "lo" : "hi") +
-          " face in direction " + std::to_string(dir) +
+          "NSCBC: level " + std::to_string(level) + " grids touch the domain " +
+          (side == 0 ? "lo" : "hi") + " face in direction " +
+          std::to_string(dir) +
           ", which is a Hard/UserBC face with pelec.bc_nscbc = 1. The "
           "characteristic fill's stencil is level-local, so a refined patch "
           "on a characteristic face makes the boundary condition "
@@ -698,9 +697,9 @@ PeleC::nscbc_check_fine_faces() const
 //  with a flame front sitting on the seam corner -- so the gate REPORTS the
 //  measured value and aborts only above 1e-2, an order of margin above the
 //  worst known-good state and an order below a broken stencil (the naive
-//  wrap measured 2.2e-2 here).  The report guards its own blind spots: the tangential spread
-//  of the boundary row is printed beside the mismatch (a pass on a
-//  boundary-uniform row gates nothing), and a decomposition with no image
+//  wrap measured 2.2e-2 here).  The report guards its own blind spots: the
+//  tangential spread of the boundary row is printed beside the mismatch (a pass
+//  on a boundary-uniform row gates nothing), and a decomposition with no image
 //  pair in one FAB says NOT CHECKED instead of passing.  Exercised by
 //  NSCBC-COVO/nscbc-wrapgate.inp.
 // ---------------------------------------------------------------------------
@@ -736,8 +735,7 @@ PeleC::nscbc_check_periodic_wrap()
 
   const int ng = numGrow();
   amrex::MultiFab S(grids, dmap, NVAR, ng, amrex::MFInfo(), Factory());
-  FillPatch(
-    *this, S, ng, state[State_Type].curTime(), State_Type, 0, NVAR);
+  FillPatch(*this, S, ng, state[State_Type].curTime(), State_Type, 0, NVAR);
 
   const amrex::Real big = std::numeric_limits<amrex::Real>::max();
 
@@ -787,20 +785,20 @@ PeleC::nscbc_check_periodic_wrap()
           sh.shift(-img);
           const amrex::Box pbx = fbx & reg & sh;
           if (!pbx.isEmpty()) {
-            op.eval(
-              pbx, rd, [=] AMREX_GPU_DEVICE(int i, int j, int k) -> RT {
-                const amrex::IntVect iv(AMREX_D_DECL(i, j, k));
-                const amrex::IntVect iw = iv + img;
-                amrex::Real e = 0.0;
-                for (int n = 0; n < NVAR; n++) {
-                  const amrex::Real u = a(iv, n);
-                  const amrex::Real v = a(iw, n);
-                  const amrex::Real s = amrex::max<amrex::Real>(
-                    amrex::Math::abs(u), amrex::max<amrex::Real>(amrex::Math::abs(v), 1.0e-300));
-                  e = amrex::max<amrex::Real>(e, amrex::Math::abs(u - v) / s);
-                }
-                return {e, amrex::Long(1), -big, big};
-              });
+            op.eval(pbx, rd, [=] AMREX_GPU_DEVICE(int i, int j, int k) -> RT {
+              const amrex::IntVect iv(AMREX_D_DECL(i, j, k));
+              const amrex::IntVect iw = iv + img;
+              amrex::Real e = 0.0;
+              for (int n = 0; n < NVAR; n++) {
+                const amrex::Real u = a(iv, n);
+                const amrex::Real v = a(iw, n);
+                const amrex::Real s = amrex::max<amrex::Real>(
+                  amrex::Math::abs(u),
+                  amrex::max<amrex::Real>(amrex::Math::abs(v), 1.0e-300));
+                e = amrex::max<amrex::Real>(e, amrex::Math::abs(u - v) / s);
+              }
+              return {e, amrex::Long(1), -big, big};
+            });
           }
 
           // The tangential structure of the boundary row itself: valid data,
@@ -810,11 +808,10 @@ PeleC::nscbc_check_periodic_wrap()
           row.setBig(idir, N_pos);
           row &= mfi.validbox();
           if (!row.isEmpty()) {
-            op.eval(
-              row, rd, [=] AMREX_GPU_DEVICE(int i, int j, int k) -> RT {
-                const amrex::Real r = a(i, j, k, URHO);
-                return {0.0, amrex::Long(0), r, r};
-              });
+            op.eval(row, rd, [=] AMREX_GPU_DEVICE(int i, int j, int k) -> RT {
+              const amrex::Real r = a(i, j, k, URHO);
+              return {0.0, amrex::Long(0), r, r};
+            });
           }
         }
 
@@ -828,9 +825,10 @@ PeleC::nscbc_check_periodic_wrap()
         amrex::ParallelDescriptor::ReduceRealMax(rmax);
         amrex::ParallelDescriptor::ReduceRealMin(rmin);
         const amrex::Real spread =
-          (rmax > -big) ? (rmax - rmin) / amrex::max<amrex::Real>(
-                                            amrex::Math::abs(rmax), 1.0e-300)
-                        : 0.0;
+          (rmax > -big)
+            ? (rmax - rmin) /
+                amrex::max<amrex::Real>(amrex::Math::abs(rmax), 1.0e-300)
+            : 0.0;
 
         constexpr amrex::Real tol = 1.0e-2;
         if (worst > tol) {
@@ -844,19 +842,18 @@ PeleC::nscbc_check_periodic_wrap()
             "domain is.");
         }
         if (amrex::ParallelDescriptor::IOProcessor() && (verbose > 0)) {
-          amrex::Print()
-            << "  NSCBC periodic-seam check: dir " << idir
-            << (side == 0 ? " lo" : " hi") << ", periodic tangential dir " << d
-            << " -- ";
+          amrex::Print() << "  NSCBC periodic-seam check: dir " << idir
+                         << (side == 0 ? " lo" : " hi")
+                         << ", periodic tangential dir " << d << " -- ";
           if (npairs == 0) {
             amrex::Print()
               << "NOT CHECKED: no box holds a ghost cell and its image "
                  "together.  Raise amr.max_grid_size in direction "
               << d << " to span the domain if you want this gated.\n";
           } else {
-            amrex::Print()
-              << npairs << " image pairs agree to " << worst
-              << " (boundary-row density spread " << spread << ")\n";
+            amrex::Print() << npairs << " image pairs agree to " << worst
+                           << " (boundary-row density spread " << spread
+                           << ")\n";
             if (spread == 0.0) {
               amrex::Print()
                 << "    (that row is uniform along the boundary, so this pass "
@@ -919,9 +916,9 @@ PeleC::nscbc_update_registers(const amrex::Real dt)
           b, [=] AMREX_GPU_DEVICE(int i, int j, int k) noexcept {
             auto eos = pele::physics::PhysicsType::eos();
             const amrex::IntVect iv(AMREX_D_DECL(i, j, k));
-            auto prims = [&](const amrex::IntVect& p_iv, amrex::Real& rho,
-                             amrex::Real& u_n, amrex::Real& p,
-                             amrex::Real& c) {
+            auto prims = [&](
+                           const amrex::IntVect& p_iv, amrex::Real& rho,
+                           amrex::Real& u_n, amrex::Real& p, amrex::Real& c) {
               rho = s(p_iv, URHO);
               u_n = s(p_iv, UMX + idir) / rho;
               const amrex::Real T = s(p_iv, UTEMP);
@@ -938,15 +935,14 @@ PeleC::nscbc_update_registers(const amrex::Real dt)
               return; // leave the register untouched on a sick state
             }
             const amrex::Real rhoc = rho * c;
-            const amrex::Real rc_ref = (rp == nullptr)
-                                         ? rhoc
-                                         : ((rp[nscbc_reg_index(
-                                               idir, side, iv, dom) +
-                                             reg::init] == 0.0)
-                                              ? rhoc
-                                              : rp[nscbc_reg_index(
-                                                     idir, side, iv, dom) +
-                                                   reg::ema_rhoc]);
+            const amrex::Real rc_ref =
+              (rp == nullptr)
+                ? rhoc
+                : ((rp[nscbc_reg_index(idir, side, iv, dom) + reg::init] == 0.0)
+                     ? rhoc
+                     : rp
+                         [nscbc_reg_index(idir, side, iv, dom) +
+                          reg::ema_rhoc]);
             const amrex::Real R_out = n_sgn * u_n + p / rc_ref;
 
             const long ridx = nscbc_reg_index(idir, side, iv, dom);
@@ -968,8 +964,7 @@ PeleC::nscbc_update_registers(const amrex::Real dt)
                 const amrex::Real S0 = rho - p * inv_c2;
                 const amrex::Real S1 = r1 - p1 * inv_c2;
                 const amrex::Real S2 = r2 - p2 * inv_c2;
-                dS_abs =
-                  std::abs(pc_nscbc::minmod(S0 - S1, S1 - S2)) / rho;
+                dS_abs = std::abs(pc_nscbc::minmod(S0 - S1, S1 - S2)) / rho;
               }
             }
 
@@ -980,7 +975,8 @@ PeleC::nscbc_update_registers(const amrex::Real dt)
               rp[ridx + reg::ema_rhoc] = rhoc;
               rp[ridx + reg::init] = 1.0;
             } else {
-              rp[ridx + reg::ema_Rout] += w * (R_out - rp[ridx + reg::ema_Rout]);
+              rp[ridx + reg::ema_Rout] +=
+                w * (R_out - rp[ridx + reg::ema_Rout]);
               rp[ridx + reg::ema_p] += w * (p - rp[ridx + reg::ema_p]);
               rp[ridx + reg::trend_dS] +=
                 w * (dS_abs - rp[ridx + reg::trend_dS]);
@@ -1095,8 +1091,7 @@ PeleC::nscbc_registers_restart(const std::string& dir)
       }
     }
   }
-  amrex::Gpu::copy(
-    amrex::Gpu::hostToDevice, h.begin(), h.end(), regs.begin());
+  amrex::Gpu::copy(amrex::Gpu::hostToDevice, h.begin(), h.end(), regs.begin());
 }
 
 pc_nscbc::Params
@@ -1144,10 +1139,10 @@ PeleC::nscbc_report_diagnostics()
   // beta or beta_s that does nothing, and the only way to tell the two apart
   // is to count it.
   const amrex::Long total =
-    h[pc_nscbc::Diag::reversed] +
-    h[pc_nscbc::Diag::body_state] + h[pc_nscbc::Diag::eos_failure] +
-    h[pc_nscbc::Diag::floored] + h[pc_nscbc::Diag::transverse_drop] +
-    h[pc_nscbc::Diag::source_drop] + h[pc_nscbc::Diag::target_incomplete];
+    h[pc_nscbc::Diag::reversed] + h[pc_nscbc::Diag::body_state] +
+    h[pc_nscbc::Diag::eos_failure] + h[pc_nscbc::Diag::floored] +
+    h[pc_nscbc::Diag::transverse_drop] + h[pc_nscbc::Diag::source_drop] +
+    h[pc_nscbc::Diag::target_incomplete];
   const amrex::Long structure = h[pc_nscbc::Diag::structure];
   if (
     amrex::ParallelDescriptor::IOProcessor() &&
@@ -1158,18 +1153,15 @@ PeleC::nscbc_report_diagnostics()
                    << h[pc_nscbc::Diag::body_state] << ",  EOS failure "
                    << h[pc_nscbc::Diag::eos_failure] << ",  floored "
                    << h[pc_nscbc::Diag::floored] << ",  transverse dropped "
-                   << h[pc_nscbc::Diag::transverse_drop]
-                   << ",  source dropped "
-                   << h[pc_nscbc::Diag::source_drop]
-                   << ",  target incomplete "
+                   << h[pc_nscbc::Diag::transverse_drop] << ",  source dropped "
+                   << h[pc_nscbc::Diag::source_drop] << ",  target incomplete "
                    << h[pc_nscbc::Diag::target_incomplete] << "\n";
     if (structure > 0) {
       // Advisory, not a fallback: a front is in the outflow boundary cells,
       // which is the configuration the flame closures exist for.
       amrex::Print()
         << "  NSCBC: material structure (|dS| > 5% of rho per cell) sat in "
-        << structure
-        << " outflow boundary-cell fills since the last report.\n"
+        << structure << " outflow boundary-cell fills since the last report.\n"
         << "         A flame or front is on this outflow: set "
            "bc_nscbc_extrap_temperature = 1 and bc_nscbc_beta_s = 0 (any "
            "sigma then\n"

@@ -173,8 +173,7 @@ kernel_burnt_distance(
   const amrex::Real xc = geomdata.ProbLo()[0] + prob_parm.kernel_x;
   const amrex::Real yc =
     geomdata.ProbLo()[1] + prob_parm.kernel_y * prob_parm.L[1];
-  const amrex::Real r =
-    std::sqrt((x - xc) * (x - xc) + (y - yc) * (y - yc));
+  const amrex::Real r = std::sqrt((x - xc) * (x - xc) + (y - yc) * (y - yc));
   return prob_parm.kernel_r - r;
 }
 
