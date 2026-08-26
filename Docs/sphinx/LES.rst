@@ -94,7 +94,7 @@ filter-grid ratio desired, e.g. ``pelec.les_filter_fgr = 2``. The user
 also specifies a filter type through ``pelec.les_filter_type = NUM``.
 Explicit filtering utilizes the Filter utility from PelePhysics, and
 the set of available filter types may be found in the
-`PelePhysics documentation <https://amrex-combustion.github.io/PelePhysics/Utility.html#filter>`_.
+`PelePhysics documentation <https://Pele-Suite.github.io/PelePhysics/Utility.html#filter>`_.
 
 An example input file section for a Gaussian filter with a filter-grid
 ration of 2 would be:

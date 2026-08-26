@@ -1,6 +1,6 @@
 # 2D Flow over a cylinder
 
-Building on the [EB-C10 case](https://amrex-combustion.github.io/PeleC/ebverification/C10/README.html), this case prescribes flow over a cylinder.
+Building on the [EB-C10 case](https://Pele-Suite.github.io/PeleC/ebverification/C10/README.html), this case prescribes flow over a cylinder.
 
 
 ## Short case description
