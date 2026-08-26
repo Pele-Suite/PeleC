@@ -105,6 +105,10 @@ PeleC::restart(amrex::Amr& papa, std::istream& is, bool bReadSpecial)
   // file
   AmrLevel::restart(papa, is, bReadSpecial);
 
+  if (level == 0) {
+    nscbc_registers_restart(papa.theRestartFile());
+  }
+
   // Deal here with new state descriptor types added, with corresponding
   // input_version > 0, if applicable
   amrex::Vector<int> state_in_checkpoint(desc_lst.size(), 1);
@@ -246,6 +250,10 @@ PeleC::checkPoint(
   bool /*dump_old_default*/)
 {
   amrex::AmrLevel::checkPoint(dir, os, how, dump_old);
+
+  if (level == 0) {
+    nscbc_registers_checkpoint(dir);
+  }
 
 #ifdef PELE_USE_SPRAY
   if (SprayPC != nullptr) {
