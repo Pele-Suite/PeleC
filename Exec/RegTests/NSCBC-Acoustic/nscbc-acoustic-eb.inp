@@ -1,0 +1,77 @@
+# NSCBC-Acoustic with an EB solid seated INSIDE the characteristic fill's
+# stencil: a rectangular body whose downstream edge sits half a cell from
+# the outflow face, so the middle stencil cell of the boundary points behind
+# it is fully covered.  This is the production form of check C6's synthetic
+# body-state test, and it is the case that FOUND the mandatory
+# eb_zero_body_state coupling:
+#
+#   * PeleC's default in-simulation body state is a SAMPLED FLUID state
+#     (define_body_state picks the first regular cell), which the fill
+#     cannot distinguish from interior data -- the body-state counter read
+#     exactly zero with a solid seated in the stencil, which is the silent
+#     fallback the counters exist to prevent.  bc_nscbc therefore requires
+#     pelec.eb_zero_body_state = 1 with EB geometry (fatal otherwise), and
+#     with it this run counts ~56000 body-state stencil degradations and
+#     completes cleanly.
+#   * A body CUTTING the domain face itself NaNs on the first step with the
+#     characteristic treatment AND with the hard boundary -- a pre-existing
+#     PeleC EB-at-domain-boundary limitation, not an NSCBC one.  Keep solids
+#     clear of the face plane.
+#
+# The heavy transient `flow reversal` count is correct physics, not a bug:
+# the body shadows part of a quiescent outflow, and the rarefaction behind
+# the departing pulse pulls gas back in through the shadowed points.
+#
+# The grid is isotropic (dx = dy = 0.025): the EB gradient stencil requires
+# it.
+
+max_step = 3000
+stop_time = 4.6e-4
+
+geometry.is_periodic = 0 1 0
+geometry.coord_sys   = 0
+geometry.prob_lo     = 0.0   0.0
+geometry.prob_hi     = 10.0  0.6
+
+pelec.lo_bc = "NoSlipWall" "Interior"
+pelec.hi_bc = "UserBC"     "Interior"
+
+pelec.bc_nscbc       = 1
+pelec.bc_nscbc_sigma = 0.25
+pelec.bc_nscbc_order = 2
+
+# Mandatory with bc_nscbc + EB; see the header comment.
+pelec.eb_zero_body_state = 1
+
+eb2.geom_type = "box"
+eb2.box_lo = 9.90 0.20
+eb2.box_hi = 9.99 0.40
+eb2.box_has_fluid_inside = 0
+eb2.small_volfrac = 1.0e-4
+
+pelec.do_hydro = 1
+pelec.do_mol = 0
+pelec.diffuse_vel = 0
+pelec.diffuse_temp = 0
+pelec.diffuse_spec = 0
+pelec.do_react = 0
+pelec.allow_negative_energy = 0
+
+pelec.cfl = 0.4
+pelec.init_shrink = 1.0
+pelec.change_max = 1.05
+pelec.dt_cutoff = 5.e-20
+pelec.v = 1
+pelec.sum_interval = 500
+amr.v = 1
+
+amr.n_cell   = 400 24
+amr.max_level = 0
+amr.blocking_factor = 8
+amr.max_grid_size = 64
+
+amr.checkpoint_files_output = 0
+amr.plot_files_output = 1
+amr.plot_int = 1600
+amr.plot_file = plt
+amr.derive_plot_vars = pressure x_velocity
