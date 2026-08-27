@@ -278,7 +278,7 @@ AMREX_GPU_DEVICE
 AMREX_FORCE_INLINE
 void
 bcnormal(
-  const amrex::Real x[AMREX_SPACEDIM],
+  const amrex::Real /*x*/[AMREX_SPACEDIM],
   const amrex::Real* s_int,
   amrex::Real s_ext[NVAR],
   const int idir,
@@ -330,7 +330,7 @@ struct MyProblemSpecificFunctions : public DefaultProblemSpecificFunctions
   AMREX_GPU_DEVICE
   AMREX_FORCE_INLINE
   static pc_nscbc::Target bcnormal_nscbc(
-    const amrex::Real x[AMREX_SPACEDIM],
+    const amrex::Real /*x*/[AMREX_SPACEDIM],
     const amrex::Real* /*s_int[NVAR]*/,
     const int idir,
     const int sgn,
