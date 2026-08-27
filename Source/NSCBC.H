@@ -489,8 +489,12 @@ pack_ghost(
   const amrex::Real e,
   const amrex::Real T,
   const amrex::Real Y[NUM_SPECIES],
+  const amrex::Real s_N[NVAR],
   amrex::Real s_ghost[NVAR]) noexcept
 {
+  // s_N feeds only the passive families below; in a build with no passive
+  // fields every #if block is empty and the parameter would warn as unused.
+  amrex::ignore_unused(s_N);
   s_ghost[URHO] = rho;
   s_ghost[UMX] = rho * u[0];
   s_ghost[UMY] = rho * u[1];
@@ -618,7 +622,7 @@ apply(
         amrex::Math::isfinite(rho_g) && (rho_g > 0.0) &&
         amrex::Math::isfinite(e_g)) {
         amrex::Real u_g[3] = {tgt.u[0], tgt.u[1], tgt.u[2]};
-        pack_ghost(rho_g, u_g, e_g, tgt.T, tgt.Y, s_ghost);
+        pack_ghost(rho_g, u_g, e_g, tgt.T, tgt.Y, s_N, s_ghost);
         bump(Diag::supersonic);
         return;
       }
@@ -1048,7 +1052,7 @@ apply(
   }
 
   // ---- 8. Pack and sanitise ---------------------------------------------
-  pack_ghost(rho_g, u_g, e_g, T_g, Y_g, s_ghost);
+  pack_ghost(rho_g, u_g, e_g, T_g, Y_g, s_N, s_ghost);
 
   for (int n = 0; n < NVAR; n++) {
     if (!amrex::Math::isfinite(s_ghost[n])) {
