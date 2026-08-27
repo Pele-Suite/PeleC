@@ -968,14 +968,14 @@ apply(
       const amrex::Real w_rev = amrex::min<amrex::Real>(
         amrex::max<amrex::Real>((-mach - m_lo) / (m_hi - m_lo), 0.0), 1.0);
       if (w_rev > 0.0) {
-        amrex::Real Ysum = 0.0;
+        amrex::Real Ysum_rev = 0.0;
         for (int n = 0; n < NUM_SPECIES; n++) {
           Y_g[n] = (1.0 - w_rev) * Y_g[n] +
                    w_rev * amrex::max<amrex::Real>(tgt.Y[n], 0.0);
-          Ysum += Y_g[n];
+          Ysum_rev += Y_g[n];
         }
-        if (Ysum > constants::very_small_num()) {
-          const amrex::Real inv = 1.0 / Ysum;
+        if (Ysum_rev > constants::very_small_num()) {
+          const amrex::Real inv = 1.0 / Ysum_rev;
           for (int n = 0; n < NUM_SPECIES; n++) {
             Y_g[n] *= inv;
           }
