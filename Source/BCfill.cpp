@@ -786,6 +786,7 @@ PeleC::nscbc_check_periodic_wrap()
           const amrex::Box pbx = fbx & reg & sh;
           if (!pbx.isEmpty()) {
             op.eval(pbx, rd, [=] AMREX_GPU_DEVICE(int i, int j, int k) -> RT {
+              amrex::ignore_unused(k); // 2-D: AMREX_D_DECL drops it
               const amrex::IntVect iv(AMREX_D_DECL(i, j, k));
               const amrex::IntVect iw = iv + img;
               amrex::Real e = 0.0;
@@ -914,6 +915,7 @@ PeleC::nscbc_update_registers(const amrex::Real dt)
         const amrex::Box sbox = mfi.validbox();
         amrex::ParallelFor(
           b, [=] AMREX_GPU_DEVICE(int i, int j, int k) noexcept {
+            amrex::ignore_unused(k); // 2-D: AMREX_D_DECL drops it
             auto eos = pele::physics::PhysicsType::eos();
             const amrex::IntVect iv(AMREX_D_DECL(i, j, k));
             auto prims = [&](
@@ -1078,6 +1080,7 @@ PeleC::nscbc_registers_restart(const std::string& dir)
           continue;
         }
         amrex::LoopOnCpu(b, [&](int i, int j, int k) {
+          amrex::ignore_unused(k); // 2-D: AMREX_D_DECL drops it
           const amrex::IntVect iv(AMREX_D_DECL(i, j, k));
           owned[nscbc_reg_index(idir, side, iv, dom) / reg::ncomp] = 1;
         });
