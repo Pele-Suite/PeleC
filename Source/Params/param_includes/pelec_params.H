@@ -29,6 +29,8 @@ static bool bc_nscbc_pin_farfield;
 static bool bc_nscbc_extrap_temperature;
 static bool bc_nscbc_extrap_material;
 static bool bc_nscbc_backflow_material;
+static bool bc_nscbc_nri;
+static bool bc_nscbc_ndnr;
 static bool add_ext_src;
 static amrex::GpuArray<amrex::Real, AMREX_SPACEDIM> external_forcing;
 static bool add_forcing_src;

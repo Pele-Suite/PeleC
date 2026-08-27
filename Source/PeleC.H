@@ -99,6 +99,10 @@ public:
   // filler capture its parameters HOST-side into a POD functor member.  A
   // device kernel must never read a class static or ParmParse directly.
   static bool nscbc_active() { return bc_nscbc; }
+  static int nscbc_register_mode()
+  {
+    return (bc_nscbc_nri ? 1 : 0) | (bc_nscbc_ndnr ? 2 : 0);
+  }
   static pc_nscbc::Params nscbc_params(int idir);
   // Report and reset the NSCBC fallback counters.  A silent fallback is a bug
   // that will not be found; this is how it surfaces.
@@ -106,6 +110,9 @@ public:
 
   // Boundary registers (Docs/NSCBC-boundary-registers-design.md): the
   // once-per-advance update, and checkpoint/restart of the register array.
+  void nscbc_update_registers(amrex::Real dt);
+  static void nscbc_registers_checkpoint(const std::string& dir);
+  void nscbc_registers_restart(const std::string& dir);
 
   // Warn when THIS refined level's grids touch a domain face that the
   // characteristic treatment can reach (Hard/UserBC): the extrapolation

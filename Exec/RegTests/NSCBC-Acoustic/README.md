@@ -233,3 +233,52 @@ but faithful nowhere (2.7× overshoot at relax_u = 5), and on resonance the
 injection collapses at any stiffness because a velocity relaxation cannot
 drive the velocity node it is aimed at. The deterioration is a property of
 the formulation, not of either code.
+
+## Boundary registers (NRI and NDNR) — the PeleC half of driver t3-register/ndnr
+
+The stateful repairs from `Docs/NSCBC-boundary-registers-design.md`, wired
+into PeleC (`pelec.bc_nscbc_nri=1` for inlets, `pelec.bc_nscbc_ndnr=1` for
+outlets; registers update once per level-0 advance in
+`PeleC::nscbc_update_registers`, and `BCfill` composes the effective target —
+the kernel stays a pure function).
+
+**NRI** (inlet reflection cancellation), duct point relax_u = 2, f = 0.8 f0,
+with the hook's feed-forward (`prob.force_feedforward=1`):
+
+| treatment | I_in | I_u | driver |
+|---|---|---|---|
+| feed-forward alone | 2.419 | 1.493 | 2.40 |
+| feed-forward + register (`bc_nscbc_nri=1`) | **0.970** | 0.593 | 1.031 / 0.660 |
+
+**NDNR** (EMA-mean relaxation at outlets), the planar σ = 16 pulse of the
+main table:
+
+| treatment | R [%] | mean p at end |
+|---|---|---|
+| σ = 16, classical | 30.10 | 1013178.2 |
+| σ = 16 + `bc_nscbc_ndnr=1` | **3.66** | 1013212.8 |
+
+The driver's collapse is 28.14% → 3.56%; PeleC reproduces the 8× reduction
+while holding the mean to 37 ppm of the 1013250 target (the classical row
+holds 71 ppm — NDNR anchors *better*, because the relaxation no longer
+spends its authority fighting the acoustic wave).
+
+**A measured implementation lesson.** The register invariant must be
+referenced to a *time-frozen* impedance (the store carries a slow-EMA
+`rho c` per point). Computing `R₋ = u − p/(ρc)` with the instantaneous
+local impedance aliases the mean `p/(ρc)` (~10⁴ cm/s) times the coherent
+0.1% impedance oscillation into the invariant — tens of cm/s, the same
+order as the signal. Measured identically in both codes: local impedance
+degrades I_in from 1.03 to 1.61 (driver, `NSCBC1D_LOCAL_RC=1`) and to 1.59
+(PeleC). The kernel's per-fill frozen `rho_c` never had this problem
+because it differences across the stencil at one instant; the register
+differences across time.
+
+**Determinism.** Straight-through vs checkpoint+restart (σ = 16 NDNR, split
+at step 400 of 800) is bit-identical; the registers ride in the checkpoint
+as `NSCBCRegisters`. Decomposition: n1 vs n6 of the same MPI binary is
+bit-identical on every state field, including a 400×64 grid whose
+`max_grid_size=32` splits the register faces tangentially across ranks.
+(Note the case GNUmakefile defaults to `USE_MPI=FALSE`; build with
+`USE_MPI=TRUE` before believing any `mpiexec` result, and compare
+plotfiles field-by-field — a multi-rank run shards `Cell_D`.)

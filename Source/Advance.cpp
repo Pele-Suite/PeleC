@@ -39,6 +39,11 @@ PeleC::advance(
     dt_new = do_sdc_advance(time, dt, amr_iteration, amr_ncycle);
   }
 
+  // Boundary-register update: once per level advance, after the new-time
+  // state is final, outside every fill path -- the registers the fills read
+  // during the NEXT advance (Docs/NSCBC-boundary-registers-design.md).
+  nscbc_update_registers(dt);
+
   return dt_new;
 }
 

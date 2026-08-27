@@ -178,6 +178,20 @@ bc_nscbc_extrap_material    bool          false
 # (and Y); inert otherwise.  Default false.
 bc_nscbc_backflow_material  bool          false
 
+# Boundary registers, phase A (inlets): compose the effective inflow target
+# with the outgoing-wave velocity split off a learned reference mean (EMA of
+# the outgoing invariant, tau = 3 t_a), so the relaxation ignores the wave
+# the domain sends back.  With Target::dudt supplied by the problem hook,
+# the measured injection index I_in is ~1 at any relax_u and any frequency
+# (driver t3; Docs/NSCBC-boundary-registers-design.md).  Level 0 only.
+bc_nscbc_nri                bool          false
+
+# Boundary registers, phase B (outlets): the relaxation acts on the
+# EMA-mean pressure rather than the instantaneous one, so acoustics never
+# reach sigma -- measured in the driver to collapse the sigma = 16
+# reflection 28% -> 3.6% while the anchoring improves.  Level 0 only.
+bc_nscbc_ndnr               bool          false
+
 
 # NOTE: pelec.nscbc_adv and pelec.nscbc_diff were removed here.  They were
 # declared and queried but never read by any live code path -- the
