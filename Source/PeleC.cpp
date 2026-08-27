@@ -198,10 +198,10 @@ PeleC::read_params()
   // Ghost-Cell NSCBC deleted in 2d3a6f6; they have had no effect since.
   // Abort rather than ignore, so that an inputs file which believes it is
   // configuring a characteristic boundary treatment is not silently wrong.
-  for (const std::string& removed : {"nscbc_adv", "nscbc_diff"}) {
-    if (pp.contains(removed.c_str())) {
+  for (const char* removed : {"nscbc_adv", "nscbc_diff"}) {
+    if (pp.contains(removed)) {
       amrex::Abort(
-        "pelec." + removed +
+        "pelec." + std::string(removed) +
         " has been removed: it has had no effect since the Fortran GC-NSCBC "
         "was deleted. Remove it from your inputs file. See "
         "Docs/sphinx/BoundaryConditions.rst for the currently recommended "
