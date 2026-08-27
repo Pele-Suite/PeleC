@@ -366,8 +366,8 @@ cell_primitives(const amrex::Real s[NVAR]) noexcept
   }
   if (Ysum > constants::very_small_num()) {
     const amrex::Real inv = 1.0 / Ysum;
-    for (int n = 0; n < NUM_SPECIES; n++) {
-      q.Y[n] *= inv;
+    for (amrex::Real& yv : q.Y) {
+      yv *= inv;
     }
   } else {
     q.ok = false;
@@ -414,12 +414,12 @@ reaction_dpdt(CellPrim const& q, bool& ok) noexcept
                                          // it cannot see RTY2WDOT fill it
   eos.RTY2WDOT(q.rho, q.T, q.Y, wdot);
   amrex::Real wmax = 0.0;
-  for (int n = 0; n < NUM_SPECIES; n++) {
-    if (!amrex::Math::isfinite(wdot[n])) {
+  for (const amrex::Real wn : wdot) {
+    if (!amrex::Math::isfinite(wn)) {
       ok = false;
       return 0.0;
     }
-    wmax = amrex::max<amrex::Real>(wmax, std::abs(wdot[n]));
+    wmax = amrex::max<amrex::Real>(wmax, std::abs(wn));
   }
   if (wmax <= 0.0) {
     return 0.0; // frozen chemistry here; nothing to correct
@@ -438,8 +438,8 @@ reaction_dpdt(CellPrim const& q, bool& ok) noexcept
     ok = false;
     return 0.0;
   }
-  for (int n = 0; n < NUM_SPECIES; n++) {
-    Yp[n] /= sum;
+  for (amrex::Real& yp : Yp) {
+    yp /= sum;
   }
   amrex::Real Tp = q.T, pp = 0.0;
   eos.REY2T(q.rho, q.e, Yp, Tp);
@@ -591,7 +591,7 @@ apply(
   }
 
   // ---- 1. Outward-normal frame ------------------------------------------
-  const amrex::Real n_sgn = static_cast<amrex::Real>(-sgn);
+  const auto n_sgn = static_cast<amrex::Real>(-sgn);
   const amrex::Real u_out_N = n_sgn * qN.u[idir];
   const amrex::Real c_N = qN.c;
   const amrex::Real mach = u_out_N / c_N;
@@ -906,7 +906,7 @@ apply(
         }
       }
     }
-    const amrex::Real fl = static_cast<amrex::Real>(layer);
+    const auto fl = static_cast<amrex::Real>(layer);
     const amrex::Real S_g = S_N + fl * dS;
     rho_g = S_g + p_g * inv_c2;
 
@@ -923,8 +923,8 @@ apply(
     }
     if (Ysum > constants::very_small_num()) {
       const amrex::Real inv = 1.0 / Ysum;
-      for (int n = 0; n < NUM_SPECIES; n++) {
-        Y_g[n] *= inv;
+      for (amrex::Real& yg : Y_g) {
+        yg *= inv;
       }
     } else {
       for (int n = 0; n < NUM_SPECIES; n++) {
@@ -980,8 +980,8 @@ apply(
         }
         if (Ysum_rev > constants::very_small_num()) {
           const amrex::Real inv = 1.0 / Ysum_rev;
-          for (int n = 0; n < NUM_SPECIES; n++) {
-            Y_g[n] *= inv;
+          for (amrex::Real& yg : Y_g) {
+            yg *= inv;
           }
         }
         T_g = (1.0 - w_rev) * T_g + w_rev * tgt.T;
@@ -1026,8 +1026,8 @@ apply(
     }
     if (Ysum > constants::very_small_num()) {
       const amrex::Real inv = 1.0 / Ysum;
-      for (int n = 0; n < NUM_SPECIES; n++) {
-        Y_g[n] *= inv;
+      for (amrex::Real& yg : Y_g) {
+        yg *= inv;
       }
     } else {
       for (int n = 0; n < NUM_SPECIES; n++) {

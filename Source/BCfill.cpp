@@ -725,7 +725,7 @@ PeleC::nscbc_check_periodic_wrap()
     for (int d = 0; d < AMREX_SPACEDIM; ++d) {
       relevant =
         relevant || ((characteristic(idir, 0) || characteristic(idir, 1)) &&
-                     (d != idir) && (geom.isPeriodic(d) != 0));
+                     (d != idir) && geom.isPeriodic(d));
     }
   }
   if (!relevant) {
@@ -747,7 +747,7 @@ PeleC::nscbc_check_periodic_wrap()
       const int N_pos = (side == 0) ? dom.smallEnd(idir) : dom.bigEnd(idir);
 
       for (int d = 0; d < AMREX_SPACEDIM; ++d) {
-        if ((d == idir) || (geom.isPeriodic(d) == 0)) {
+        if ((d == idir) || (!geom.isPeriodic(d))) {
           continue;
         }
         const int n_d = dom.length(d);
@@ -906,7 +906,7 @@ PeleC::nscbc_update_registers(const amrex::Real dt)
         band.setSmall(idir, dom.bigEnd(idir));
       }
       const int sgn = (side == 0) ? +1 : -1;
-      const amrex::Real n_sgn = static_cast<amrex::Real>(-sgn);
+      const auto n_sgn = static_cast<amrex::Real>(-sgn);
       const int e_int = sgn; // step toward the interior along idir
 
       for (amrex::MFIter mfi(S, false); mfi.isValid(); ++mfi) {
@@ -936,7 +936,7 @@ PeleC::nscbc_update_registers(const amrex::Real dt)
             };
             amrex::Real rho = 0.0, u_n = 0.0, p = 0.0, c = 0.0;
             prims(iv, rho, u_n, p, c);
-            if (!(amrex::Math::isfinite(p) && (c > 0.0) && (rho > 0.0))) {
+            if (!amrex::Math::isfinite(p) || (c <= 0.0) || (rho <= 0.0)) {
               return; // leave the register untouched on a sick state
             }
             const amrex::Real rhoc = rho * c;

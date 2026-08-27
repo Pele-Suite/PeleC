@@ -219,8 +219,8 @@ struct MyProblemSpecificFunctions : public DefaultProblemSpecificFunctions
           t.dudt = prob_parm.force_amp * om * std::cos(om * time);
         }
         t.T = prob_parm.T_amb;
-        for (int n = 0; n < NUM_SPECIES; n++) {
-          t.Y[n] = 0.0;
+        for (amrex::Real& yv : t.Y) {
+          yv = 0.0;
         }
         t.Y[0] = 1.0;
       }

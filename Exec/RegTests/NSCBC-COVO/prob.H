@@ -62,7 +62,7 @@ pc_initdata(
   massfrac[0] = 1.0;
 
   amrex::Real rho = prob_parm.rho_amb;
-  amrex::Real p = prob_parm.p_amb;
+  amrex::Real p = 0.0; // set per probtype below
   amrex::Real T = prob_parm.T_amb;
   amrex::Real u = prob_parm.u_mean;
   amrex::Real v = 0.0;
