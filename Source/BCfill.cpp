@@ -188,10 +188,42 @@ struct PCHypFillExtDir
       // Boundary-register composition (level 0 only; the registers change
       // once per advance and are read frozen here).  The kernel below sees
       // only the composed Target -- it stays a pure function.
+      // Tangential neighbours of the boundary cell, for the transverse terms,
+      // clamped into the domain: at a corner the clamp collapses the stencil
+      // and inv_dt falls to a one-sided spacing, or to zero if both
+      // neighbours land on the same cell.
+      pc_nscbc::Transverse tr;
+      amrex::Real s_tm[AMREX_SPACEDIM][NVAR], s_tp[AMREX_SPACEDIM][NVAR];
+      if (m_nscbc_prm[idir].beta < 1.0) {
+        for (int d = 0; d < AMREX_SPACEDIM; ++d) {
+          if (d == idir) {
+            continue;
+          }
+          const int dlo = amrex::max<int>(domlo[d], fab_lo[d]);
+          const int dhi = amrex::min<int>(domhi[d], fab_hi[d]);
+          const int jm = amrex::max<int>(ivN[d] - 1, dlo);
+          const int jp = amrex::min<int>(ivN[d] + 1, dhi);
+          if (jp == jm) {
+            continue;
+          }
+          amrex::IntVect ivm(ivN), ivp(ivN);
+          ivm[d] = jm;
+          ivp[d] = jp;
+          for (int n = 0; n < NVAR; n++) {
+            s_tm[d][n] = dest(ivm, n);
+            s_tp[d][n] = dest(ivp, n);
+          }
+          tr.sm[d] = s_tm[d];
+          tr.sp[d] = s_tp[d];
+          tr.inv_dt[d] = 1.0 / (static_cast<amrex::Real>(jp - jm) * dx[d]);
+          tr.valid = true;
+        }
+      }
+
       amrex::Real s_ghost[NVAR];
       pc_nscbc::apply(
         s_N, s_Nm1, s_Nm2, n_stencil, dx[idir], idir, sgn, layer, tgt,
-        m_nscbc_prm[idir], s_ghost, m_nscbc_diag);
+        m_nscbc_prm[idir], s_ghost, m_nscbc_diag, &tr);
       for (int n = 0; n < NVAR; n++) {
         dest(iv, n) = s_ghost[n];
       }
@@ -483,6 +515,188 @@ PeleC::nscbc_check_fine_faces() const
   }
 }
 
+// ---------------------------------------------------------------------------
+//  Periodic-seam gate.  Measures how far the characteristic fill is from
+//  periodic where the domain is: the worst relative mismatch between ghost
+//  cells and their images one period away.  The clamped tangential stencil
+//  (see nscbc_fill) leaves a deliberate residual at the seam under amrex's
+//  corner-strip protocol -- measured 2e-4 on the inert vortex and 1.6e-3
+//  with a flame front sitting on the seam corner -- so the gate REPORTS the
+//  measured value and aborts only above 1e-2, an order of margin above the
+//  worst known-good state and an order below a broken stencil (the naive
+//  wrap measured 2.2e-2 here).  The report guards its own blind spots: the
+//  tangential spread of the boundary row is printed beside the mismatch (a pass
+//  on a boundary-uniform row gates nothing), and a decomposition with no image
+//  pair in one FAB says NOT CHECKED instead of passing.  Exercised by
+//  NSCBC-COVO/nscbc-wrapgate.inp.
+// ---------------------------------------------------------------------------
+void
+PeleC::nscbc_check_periodic_wrap()
+{
+  if (!bc_nscbc || (level != 0)) {
+    return;
+  }
+  static bool done = false;
+  if (done) {
+    return;
+  }
+
+  const amrex::Box& dom = geom.Domain();
+  auto characteristic = [&](const int dir, const int side) {
+    const int t = (side == 0) ? phys_bc.lo(dir) : phys_bc.hi(dir);
+    return (t == PCPhysBCType::inflow) || (t == PCPhysBCType::user_bc);
+  };
+
+  bool relevant = false;
+  for (int idir = 0; idir < AMREX_SPACEDIM; ++idir) {
+    for (int d = 0; d < AMREX_SPACEDIM; ++d) {
+      relevant =
+        relevant || ((characteristic(idir, 0) || characteristic(idir, 1)) &&
+                     (d != idir) && geom.isPeriodic(d));
+    }
+  }
+  if (!relevant) {
+    return;
+  }
+  done = true;
+
+  const int ng = numGrow();
+  amrex::MultiFab S(grids, dmap, NVAR, ng, amrex::MFInfo(), Factory());
+  FillPatch(*this, S, ng, state[State_Type].curTime(), State_Type, 0, NVAR);
+
+  const amrex::Real big = std::numeric_limits<amrex::Real>::max();
+
+  for (int idir = 0; idir < AMREX_SPACEDIM; ++idir) {
+    for (int side = 0; side < 2; ++side) {
+      if (!characteristic(idir, side)) {
+        continue;
+      }
+      const int N_pos = (side == 0) ? dom.smallEnd(idir) : dom.bigEnd(idir);
+
+      for (int d = 0; d < AMREX_SPACEDIM; ++d) {
+        if ((d == idir) || (!geom.isPeriodic(d))) {
+          continue;
+        }
+        const int n_d = dom.length(d);
+        if (n_d < ng) {
+          continue; // the image slab would fold over itself
+        }
+
+        // The ghost cells of this face that sit above the domain in d.  The
+        // image of each is n_d cells below, and is a ghost of this face too.
+        amrex::Box reg = amrex::grow(dom, ng);
+        if (side == 0) {
+          reg.setBig(idir, dom.smallEnd(idir) - 1);
+        } else {
+          reg.setSmall(idir, dom.bigEnd(idir) + 1);
+        }
+        reg.setSmall(d, dom.bigEnd(d) + 1);
+        reg.setBig(d, dom.bigEnd(d) + ng);
+
+        const amrex::IntVect img = -n_d * amrex::IntVect::TheDimensionVector(d);
+
+        amrex::ReduceOps<
+          amrex::ReduceOpMax, amrex::ReduceOpSum, amrex::ReduceOpMax,
+          amrex::ReduceOpMin>
+          op;
+        amrex::ReduceData<amrex::Real, amrex::Long, amrex::Real, amrex::Real>
+          rd(op);
+        using RT = typename decltype(rd)::Type;
+
+        for (amrex::MFIter mfi(S); mfi.isValid(); ++mfi) {
+          auto const& a = S.const_array(mfi);
+          const amrex::Box& fbx = mfi.fabbox();
+
+          // The image pairs this FAB holds both halves of.
+          amrex::Box sh(fbx);
+          sh.shift(-img);
+          const amrex::Box pbx = fbx & reg & sh;
+          if (!pbx.isEmpty()) {
+            op.eval(pbx, rd, [=] AMREX_GPU_DEVICE(int i, int j, int k) -> RT {
+              amrex::ignore_unused(k); // 2-D: AMREX_D_DECL drops it
+              const amrex::IntVect iv(AMREX_D_DECL(i, j, k));
+              const amrex::IntVect iw = iv + img;
+              amrex::Real e = 0.0;
+              for (int n = 0; n < NVAR; n++) {
+                const amrex::Real u = a(iv, n);
+                const amrex::Real v = a(iw, n);
+                const amrex::Real s = amrex::max<amrex::Real>(
+                  amrex::Math::abs(u),
+                  amrex::max<amrex::Real>(
+                    amrex::Math::abs(v),
+                    std::numeric_limits<amrex::Real>::min()));
+                e = amrex::max<amrex::Real>(e, amrex::Math::abs(u - v) / s);
+              }
+              return {e, amrex::Long(1), -big, big};
+            });
+          }
+
+          // The tangential structure of the boundary row itself: valid data,
+          // so this measures whether the check above could have failed.
+          amrex::Box row = dom;
+          row.setSmall(idir, N_pos);
+          row.setBig(idir, N_pos);
+          row &= mfi.validbox();
+          if (!row.isEmpty()) {
+            op.eval(row, rd, [=] AMREX_GPU_DEVICE(int i, int j, int k) -> RT {
+              const amrex::Real r = a(i, j, k, URHO);
+              return {0.0, amrex::Long(0), r, r};
+            });
+          }
+        }
+
+        auto hv = rd.value(op);
+        amrex::Real worst = amrex::get<0>(hv);
+        amrex::Long npairs = amrex::get<1>(hv);
+        amrex::Real rmax = amrex::get<2>(hv);
+        amrex::Real rmin = amrex::get<3>(hv);
+        amrex::ParallelDescriptor::ReduceRealMax(worst);
+        amrex::ParallelDescriptor::ReduceLongSum(npairs);
+        amrex::ParallelDescriptor::ReduceRealMax(rmax);
+        amrex::ParallelDescriptor::ReduceRealMin(rmin);
+        const amrex::Real spread =
+          (rmax > -big)
+            ? (rmax - rmin) / amrex::max<amrex::Real>(
+                                amrex::Math::abs(rmax),
+                                std::numeric_limits<amrex::Real>::min())
+            : 0.0;
+
+        constexpr amrex::Real tol = 1.0e-2;
+        if (worst > tol) {
+          amrex::Abort(
+            "NSCBC periodic-seam check FAILED on direction " +
+            std::to_string(idir) + " " + (side == 0 ? "lo" : "hi") +
+            " with periodic tangential direction " + std::to_string(d) +
+            ": worst relative mismatch " + std::to_string(worst) + " over " +
+            std::to_string(npairs) +
+            " image pairs.  The characteristic fill is not periodic where the "
+            "domain is.");
+        }
+        if (amrex::ParallelDescriptor::IOProcessor() && (verbose > 0)) {
+          amrex::Print() << "  NSCBC periodic-seam check: dir " << idir
+                         << (side == 0 ? " lo" : " hi")
+                         << ", periodic tangential dir " << d << " -- ";
+          if (npairs == 0) {
+            amrex::Print()
+              << "NOT CHECKED: no box holds a ghost cell and its image "
+                 "together.  Raise amr.max_grid_size in direction "
+              << d << " to span the domain if you want this gated.\n";
+          } else {
+            amrex::Print() << npairs << " image pairs agree to " << worst
+                           << " (boundary-row density spread " << spread
+                           << ")\n";
+            if (spread == 0.0) {
+              amrex::Print()
+                << "    (that row is uniform along the boundary, so this pass "
+                   "is vacuous -- a clamped stencil would pass it too.)\n";
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
 pc_nscbc::Params
 PeleC::nscbc_params(const int idir)
 {
@@ -491,6 +705,7 @@ PeleC::nscbc_params(const int idir)
   p.relax_u = bc_nscbc_relax_u;
   p.relax_t = bc_nscbc_relax_t;
   p.order = bc_nscbc_order;
+  p.beta = bc_nscbc_beta;
   p.pin_farfield = bc_nscbc_pin_farfield;
   // Only the ratio sigma/L_ref is physical.  L_ref is fixed to the domain
   // extent along the boundary normal so that sigma keeps the meaning it has

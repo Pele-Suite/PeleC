@@ -1300,6 +1300,7 @@ PeleC::post_init(amrex::Real /*stop_time*/)
     for (int lev = 1; lev <= finest; ++lev) {
       getLevel(lev).nscbc_check_fine_faces();
     }
+    nscbc_check_periodic_wrap();
   }
 
   amrex::Real dtlev = parent->dtLevel(level);

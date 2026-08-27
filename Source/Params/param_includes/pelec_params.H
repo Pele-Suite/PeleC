@@ -22,6 +22,7 @@ static bool bc_nscbc;
 static amrex::Real bc_nscbc_sigma;
 static amrex::Real bc_nscbc_relax_u;
 static amrex::Real bc_nscbc_relax_t;
+static amrex::Real bc_nscbc_beta;
 static int bc_nscbc_order;
 static bool bc_nscbc_pin_farfield;
 static bool add_ext_src;

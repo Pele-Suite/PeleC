@@ -94,6 +94,28 @@ bc_nscbc_relax_u            Real          2.0
 # PeleC is positive and the internal signs are handled by the kernel.
 bc_nscbc_relax_t            Real          0.2
 
+# Weight on the transverse terms in the modelled incoming acoustic wave:
+#   1  discard them -- the 1-D-normal LODI limit, and the DEFAULT
+#   0  include them fully
+#   <0 use the local Mach number (the legacy Fortran convention; not
+#      recommended, see below)
+#
+# The transverse terms are what a boundary needs when a wave arrives obliquely,
+# or when a vortex rather than a sound wave crosses it.  Measured in
+# Exec/RegTests/NSCBC-COVO, against a periodic no-boundary reference:
+#
+#   convected vortex, rms residual:  hard 14.0x floor,  beta=1 10.0x,
+#                                    beta=0.5 3.8x,  beta=0.2 16.1x, beta=0 132x
+#   circular pulse, front amplitude spread:  hard 21.4%,  beta=1 0.90%,
+#                                    beta=0.8 0.066%,  beta=0 2.9%
+#
+# The optimum follows beta = 1 - cos(theta)/(1 + cos(theta)) for a wave meeting
+# the boundary at angle theta: 0.5 at normal incidence, rising toward 1 at
+# grazing incidence.  Too little correction costs a factor of a few; too much
+# is catastrophic.  RECOMMENDED STARTING VALUE 0.5.  The default is 1 only
+# because a wrong beta is far more dangerous than an absent one.  Must be <= 1.
+bc_nscbc_beta               Real          1.0
+
 # Order of the outgoing-invariant extrapolation, 1 or 2.  Verification and
 # debugging knob, not a physics knob; leave at 2.
 bc_nscbc_order              int           2

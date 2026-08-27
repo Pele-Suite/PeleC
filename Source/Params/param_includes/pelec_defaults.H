@@ -22,6 +22,7 @@ bool PeleC::bc_nscbc = false;
 amrex::Real PeleC::bc_nscbc_sigma = 0.25;
 amrex::Real PeleC::bc_nscbc_relax_u = 2.0;
 amrex::Real PeleC::bc_nscbc_relax_t = 0.2;
+amrex::Real PeleC::bc_nscbc_beta = 1.0;
 int PeleC::bc_nscbc_order = 2;
 bool PeleC::bc_nscbc_pin_farfield = false;
 bool PeleC::add_ext_src = false;
