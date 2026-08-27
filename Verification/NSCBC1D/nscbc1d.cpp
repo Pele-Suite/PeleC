@@ -626,7 +626,12 @@ check_species()
 //     is the curve the AMReX regression test is checked against.
 Real
 reflection_coefficient(
-  Real sigma, int n, int order, bool pin, Real* p_drift, bool mat = false,
+  Real sigma,
+  int n,
+  int order,
+  bool pin,
+  Real* p_drift,
+  bool mat = false,
   bool ndnr = false)
 {
   Case cs;
@@ -892,7 +897,8 @@ check_reflection(bool sweep)
   // This is the acoustic half of the extrap_material contract; C9(a) gates
   // the material half.
   Real drift_mat = 0.0;
-  const Real R2m = reflection_coefficient(0.25, 400, 2, false, &drift_mat, true);
+  const Real R2m =
+    reflection_coefficient(0.25, 400, 2, false, &drift_mat, true);
   std::snprintf(
     buf, sizeof(buf),
     "R = %.4f %% (entropy %.4f %%), drift %.2f (entropy %.2f)", 100.0 * R2m,
@@ -910,15 +916,14 @@ check_reflection(bool sweep)
     inflow_reflection(10.0, 400), inflow_reflection(50.0, 400)};
   std::snprintf(
     buf, sizeof(buf),
-    "R = %.3f / %.3f / %.3f / %.3f at relax_u = 0.5 / 2 / 10 / 50",
-    Ri[0], Ri[1], Ri[2], Ri[3]);
+    "R = %.3f / %.3f / %.3f / %.3f at relax_u = 0.5 / 2 / 10 / 50", Ri[0],
+    Ri[1], Ri[2], Ri[3]);
   check(
     (Ri[0] <= Ri[1] * 1.05) && (Ri[1] <= Ri[2] * 1.05) &&
       (Ri[2] <= Ri[3] * 1.05),
     "inflow reflection rises monotonically with relax_u", buf);
   check(
-    Ri[3] > 2.0 * Ri[0],
-    "relax_u spans soft to stiff (the ends differ)", buf);
+    Ri[3] > 2.0 * Ri[0], "relax_u spans soft to stiff (the ends differ)", buf);
 
   if (sweep) {
     std::printf("\n  sigma sweep (n=400, order=2)\n");
@@ -1035,8 +1040,9 @@ check_relaxation_rate()
   // must decay the same offset at the same K.
   const auto r200m = measure(200, true);
   std::snprintf(
-    buf, sizeof(buf), "K = %.2f with extrap_material, %.2f without (ratio %.3f)",
-    r200m.first, r200.first, r200m.first / r200.first);
+    buf, sizeof(buf),
+    "K = %.2f with extrap_material, %.2f without (ratio %.3f)", r200m.first,
+    r200.first, r200m.first / r200.first);
   check(
     std::abs(r200m.first / r200.first - 1.0) < 0.1,
     "extrap_material leaves the relaxation rate unchanged", buf);
@@ -1122,7 +1128,8 @@ check_fallbacks()
     pc_nscbc::apply(sN, sN, sN, 3, dx, 0, -1, 1, sin_t, prm, sg, diag);
     const pc_nscbc::CellPrim qg1 = pc_nscbc::cell_primitives(sg);
     std::snprintf(
-      buf, sizeof(buf), "ghost p %.6g vs target %.6g, T %.2f, counter still "
+      buf, sizeof(buf),
+      "ghost p %.6g vs target %.6g, T %.2f, counter still "
       "%lld",
       qg1.p, 1.2 * cs.p0, qg1.T,
       static_cast<long long>(diag[pc_nscbc::Diag::target_incomplete]));
@@ -1455,8 +1462,8 @@ check_sustained_recirculation()
     }
     std::snprintf(buf, sizeof(buf), "max relative ghost difference %.2e", dmax);
     check(
-      dmax < 1.0e-12,
-      "the ramp is inert at breathing amplitudes (|M| ~ 1e-4)", buf);
+      dmax < 1.0e-12, "the ramp is inert at breathing amplitudes (|M| ~ 1e-4)",
+      buf);
   }
 }
 
@@ -1987,8 +1994,7 @@ fit_profile_ghosts(
     const Real gam = qN.rho * c_N * c_N / qN.p;
     const Real g_sus = (gam - 1.0) * q_src / (qN.rho * c_N * c_N);
     const Real g_meas = (qN.u - qM.u) / dx;
-    wgt =
-      (g_meas > 1.0e-12 * u0 / dx) ? std::min(1.0, g_sus / g_meas) : 0.0;
+    wgt = (g_meas > 1.0e-12 * u0 / dx) ? std::min(1.0, g_sus / g_meas) : 0.0;
     if (wgt <= 0.0) {
       return; // nothing sustainable; released to the plain kernel
     }
@@ -2067,12 +2073,12 @@ check_extrapolation_drives_solution()
   }
   char buf[256];
 
-  const int n = 200;      // cells over cs.L = 10 cm, so dx = 0.05 cm
+  const int n = 200; // cells over cs.L = 10 cm, so dx = 0.05 cm
   const Real dx = cs.L / n;
-  const Real u0 = 3.0e2;  // cm/s, M ~ 0.01: quasi-frozen
-  const Real wr = 1.0;    // ramp half-width, cm -- 20 cells, and wide enough
-                          // that advecting it 0.2 cm leaves the gradient at the
-                          // boundary essentially unchanged over the run
+  const Real u0 = 3.0e2; // cm/s, M ~ 0.01: quasi-frozen
+  const Real wr = 1.0;   // ramp half-width, cm -- 20 cells, and wide enough
+                         // that advecting it 0.2 cm leaves the gradient at the
+                         // boundary essentially unchanged over the run
   const Real t_end = 3.0e-4; // ~1 relaxation time at sigma = 1
   const int NS = 6;          // history samples
 
@@ -2114,8 +2120,9 @@ check_extrapolation_drives_solution()
   // re-fit lets it go (tracking the weakening interior slope, and bailing to
   // the plain kernel when the structure is gone) or holds it alive at the
   // face the way extrap_material measurably does.
-  auto run = [&](const int nc, const Real sigma, const int order,
-                 const Real ratio, const int bmode, Real* pm, Real* gr) {
+  auto run = [&](
+               const int nc, const Real sigma, const int order,
+               const Real ratio, const int bmode, Real* pm, Real* gr) {
     Field f(nc), g(nc), h(nc);
     init(f, nc, ratio);
 
@@ -2159,8 +2166,7 @@ check_extrapolation_drives_solution()
         fill_bcs(f, off, out, prm, dx);
         if (bmode >= 2) {
           fit_profile_ghosts(
-            f, dx, u0, ratio, mdot, cs.p0, Y, true,
-            (bmode == 3) ? 0.0 : -1.0);
+            f, dx, u0, ratio, mdot, cs.p0, Y, true, (bmode == 3) ? 0.0 : -1.0);
         }
         stage(f, g, dx, dt);
         for (int layer = 1; layer <= NG; layer++) {
@@ -2169,8 +2175,7 @@ check_extrapolation_drives_solution()
         fill_bcs(g, off, out, prm, dx);
         if (bmode >= 2) {
           fit_profile_ghosts(
-            g, dx, u0, ratio, mdot, cs.p0, Y, true,
-            (bmode == 3) ? 0.0 : -1.0);
+            g, dx, u0, ratio, mdot, cs.p0, Y, true, (bmode == 3) ? 0.0 : -1.0);
         }
         stage(g, h, dx, dt);
         for (int i = 0; i < nc; i++) {
@@ -2187,8 +2192,9 @@ check_extrapolation_drives_solution()
   // One shielded reference per (sigma, order, ratio).  Its own outflow is 40 cm
   // from the common region: the expanded gas reaches ~1200 K, where c ~ 7e4
   // cm/s, so 20 cm would only just be shielded over t_end and 40 cm is not.
-  auto err = [&](const Real sigma, const int order, const Real ratio,
-                 const int bmode, Real* eh, Real* gh, Real* gr) {
+  auto err = [&](
+               const Real sigma, const int order, const Real ratio,
+               const int bmode, Real* eh, Real* gh, Real* gr) {
     Real pr[NS], pt[NS];
     run(5 * n, sigma, order, ratio, bmode, pr, gr);
     run(n, sigma, order, ratio, bmode, pt, gh);
@@ -2198,8 +2204,9 @@ check_extrapolation_drives_solution()
   };
 
   Real eh[NS], gh[NS], gr[NS];
-  auto row = [&](const Real sigma, const int order, const Real ratio,
-                 const int bmode = 0) {
+  auto row = [&](
+               const Real sigma, const int order, const Real ratio,
+               const int bmode = 0) {
     const char* bl[4] = {"  ", " m", " f", " b"};
     err(sigma, order, ratio, bmode, eh, gh, gr);
     std::printf("    %6.2f %6d %6.1f%s", sigma, order, ratio, bl[bmode]);
@@ -2212,8 +2219,9 @@ check_extrapolation_drives_solution()
     return eh[NS - 1];
   };
 
-  std::printf("\n    %6s %6s %6s   %s\n", "sigma", "order", "ratio",
-              "<p>-<p>_ref at t_end/5 .. t_end");
+  std::printf(
+    "\n    %6s %6s %6s   %s\n", "sigma", "order", "ratio",
+    "<p>-<p>_ref at t_end/5 .. t_end");
 
   // --- prediction 1: error proportional to du_out ------------------------
   const Real e_r2 = row(1.0, 2, 2.0);
@@ -2418,95 +2426,95 @@ check_sustained_ramp()
   // any ghost-cell closure can possibly do.  The oracle is the yardstick the
   // closures are gated against: the truncated discrete problem has its own
   // attractor (see below), and no ghost fill can beat the oracle's.
-  auto run = [&](const int nc, const Real sigma, const int mode, Real* pm,
-                 Real* gr) {
-    Field f(nc), g(nc), h(nc);
-    init(f, nc);
-    const auto q = make_source(nc);
+  auto run =
+    [&](const int nc, const Real sigma, const int mode, Real* pm, Real* gr) {
+      Field f(nc), g(nc), h(nc);
+      init(f, nc);
+      const auto q = make_source(nc);
 
-    auto oracle_ghosts = [&](Field& w) {
-      auto eos2 = pele::physics::PhysicsType::eos();
-      for (int layer = 1; layer <= NG; layer++) {
-        const int i = w.n - 1 + layer;
-        const Real x = (i + 0.5) * dx;
-        const Real u = uofx(x);
-        const Real rho = mdot / u;
-        const Real p = cs.p0 + mdot * (u0 - u);
-        Real T = 0.0;
-        eos2.RYP2T(rho, Y, p, T);
-        set_state(w.at(i), rho, u, T, Y);
-      }
-    };
-
-    pc_nscbc::Params prm;
-    prm.L_ref = nc * dx;
-    prm.sigma = sigma;
-    prm.extrap_material = (mode == 1);
-    prm.extrap_temperature = (mode == 3);
-    pc_nscbc::Target off, out;
-    out.type = pc_nscbc::Type::outflow;
-    out.p = cs.p0 + mdot * (u0 - uofx(cs.L)); // the exact face pressure
-
-    auto sample = [&](const int k) {
-      Real psum = 0.0;
-      for (int i = 0; i < n; i++) {
-        psum += get_prim(f.at(i)).p;
-      }
-      pm[k] = psum / n;
-      gr[k] = (get_prim(f.at(n - 1)).u - get_prim(f.at(n - 2)).u) / dx;
-    };
-
-    Real t = 0.0;
-    int k = 0;
-    sample(k++);
-    while (k < NS) {
-      const Real t_next = t_end * static_cast<Real>(k) / (NS - 1);
-      while (t < t_next) {
-        Real cmax = 0.0;
-        for (int i = 0; i < nc; i++) {
-          const Prim qq = get_prim(f.at(i));
-          cmax = std::max(cmax, std::abs(qq.u) + sound_speed(qq));
-        }
-        Real dt = std::min(cs.cfl * dx / cmax, t_next - t);
-        if (dt <= 0.0) {
-          break;
-        }
+      auto oracle_ghosts = [&](Field& w) {
+        auto eos2 = pele::physics::PhysicsType::eos();
         for (int layer = 1; layer <= NG; layer++) {
-          set_state(f.at(-layer), rho0, u0, cs.T0, Y);
+          const int i = w.n - 1 + layer;
+          const Real x = (i + 0.5) * dx;
+          const Real u = uofx(x);
+          const Real rho = mdot / u;
+          const Real p = cs.p0 + mdot * (u0 - u);
+          Real T = 0.0;
+          eos2.RYP2T(rho, Y, p, T);
+          set_state(w.at(i), rho, u, T, Y);
         }
-        fill_bcs(f, off, out, prm, dx);
-        if (mode == 2) {
-          oracle_ghosts(f);
-        } else if (mode >= 4) {
-          fit_profile_ghosts(
-            f, dx, u0, (mode == 5 || mode == 7) ? 0.85 * ratio : ratio,
-            mdot, cs.p0, Y, mode >= 6, (mode == 8) ? q[nc - 1] : -1.0);
+      };
+
+      pc_nscbc::Params prm;
+      prm.L_ref = nc * dx;
+      prm.sigma = sigma;
+      prm.extrap_material = (mode == 1);
+      prm.extrap_temperature = (mode == 3);
+      pc_nscbc::Target off, out;
+      out.type = pc_nscbc::Type::outflow;
+      out.p = cs.p0 + mdot * (u0 - uofx(cs.L)); // the exact face pressure
+
+      auto sample = [&](const int k) {
+        Real psum = 0.0;
+        for (int i = 0; i < n; i++) {
+          psum += get_prim(f.at(i)).p;
         }
-        stage(f, g, dx, dt);
-        add_source(g, q, dt);
-        for (int layer = 1; layer <= NG; layer++) {
-          set_state(g.at(-layer), rho0, u0, cs.T0, Y);
-        }
-        fill_bcs(g, off, out, prm, dx);
-        if (mode == 2) {
-          oracle_ghosts(g);
-        } else if (mode >= 4) {
-          fit_profile_ghosts(
-            g, dx, u0, (mode == 5 || mode == 7) ? 0.85 * ratio : ratio,
-            mdot, cs.p0, Y, mode >= 6, (mode == 8) ? q[nc - 1] : -1.0);
-        }
-        stage(g, h, dx, dt);
-        add_source(h, q, dt);
-        for (int i = 0; i < nc; i++) {
-          for (int v = 0; v < NVAR; v++) {
-            f.at(i)[v] = 0.5 * (f.at(i)[v] + h.at(i)[v]);
-          }
-        }
-        t += dt;
-      }
+        pm[k] = psum / n;
+        gr[k] = (get_prim(f.at(n - 1)).u - get_prim(f.at(n - 2)).u) / dx;
+      };
+
+      Real t = 0.0;
+      int k = 0;
       sample(k++);
-    }
-  };
+      while (k < NS) {
+        const Real t_next = t_end * static_cast<Real>(k) / (NS - 1);
+        while (t < t_next) {
+          Real cmax = 0.0;
+          for (int i = 0; i < nc; i++) {
+            const Prim qq = get_prim(f.at(i));
+            cmax = std::max(cmax, std::abs(qq.u) + sound_speed(qq));
+          }
+          Real dt = std::min(cs.cfl * dx / cmax, t_next - t);
+          if (dt <= 0.0) {
+            break;
+          }
+          for (int layer = 1; layer <= NG; layer++) {
+            set_state(f.at(-layer), rho0, u0, cs.T0, Y);
+          }
+          fill_bcs(f, off, out, prm, dx);
+          if (mode == 2) {
+            oracle_ghosts(f);
+          } else if (mode >= 4) {
+            fit_profile_ghosts(
+              f, dx, u0, (mode == 5 || mode == 7) ? 0.85 * ratio : ratio, mdot,
+              cs.p0, Y, mode >= 6, (mode == 8) ? q[nc - 1] : -1.0);
+          }
+          stage(f, g, dx, dt);
+          add_source(g, q, dt);
+          for (int layer = 1; layer <= NG; layer++) {
+            set_state(g.at(-layer), rho0, u0, cs.T0, Y);
+          }
+          fill_bcs(g, off, out, prm, dx);
+          if (mode == 2) {
+            oracle_ghosts(g);
+          } else if (mode >= 4) {
+            fit_profile_ghosts(
+              g, dx, u0, (mode == 5 || mode == 7) ? 0.85 * ratio : ratio, mdot,
+              cs.p0, Y, mode >= 6, (mode == 8) ? q[nc - 1] : -1.0);
+          }
+          stage(g, h, dx, dt);
+          add_source(h, q, dt);
+          for (int i = 0; i < nc; i++) {
+            for (int v = 0; v < NVAR; v++) {
+              f.at(i)[v] = 0.5 * (f.at(i)[v] + h.at(i)[v]);
+            }
+          }
+          t += dt;
+        }
+        sample(k++);
+      }
+    };
 
   const Real g0 =
     (uofx(cs.L - 0.5 * dx) - uofx(cs.L - 1.5 * dx)) / dx; // initial du/dn
@@ -2531,8 +2539,8 @@ check_sustained_ramp()
       fill_bcs(f, off, out, prm, dx);
       Real sl[NVAR], sr[NVAR];
       for (int v = 0; v < NVAR; v++) {
-        const Real dL = mm(
-          f.at(n - 1)[v] - f.at(n - 2)[v], f.at(n)[v] - f.at(n - 1)[v]);
+        const Real dL =
+          mm(f.at(n - 1)[v] - f.at(n - 2)[v], f.at(n)[v] - f.at(n - 1)[v]);
         const Real dR =
           mm(f.at(n)[v] - f.at(n - 1)[v], f.at(n + 1)[v] - f.at(n)[v]);
         sl[v] = f.at(n - 1)[v] + 0.5 * dL;
@@ -2664,7 +2672,8 @@ check_sustained_ramp()
     e_ent1, e_mat1, e_orc);
   report("the truncated MMS walks off its source at late time", buf);
   std::snprintf(
-    buf, sizeof(buf), "sigma 1 -> 4 at late time: %.1f -> %.1f (the C9(a) "
+    buf, sizeof(buf),
+    "sigma 1 -> 4 at late time: %.1f -> %.1f (the C9(a) "
     "bias would fall x4)",
     e_ent1, e_ent4);
   report("the late-time offset is not the C9(a) bias", buf);
@@ -2741,28 +2750,27 @@ check_sustained_ramp()
   // profile actually matching the flame.
   {
     true_shape = 1;
-    Real prd[NS], grd[NS], ptd[NS], gtd[NS];
+    Real prd[NS], grd[NS], p_td[NS], g_td[NS];
     run(5 * n, 1.0, 0, prd, grd); // fresh shielded reference, distorted truth
-    const Real g0d =
-      (uofx(cs.L - 0.5 * dx) - uofx(cs.L - 1.5 * dx)) / dx;
+    const Real g0d = (uofx(cs.L - 0.5 * dx) - uofx(cs.L - 1.5 * dx)) / dx;
     std::printf(
       "\n     distorted truth (Richards k=3), tanh-family fit; exact du/dn "
       "%.0f\n",
       g0d);
     auto rowd = [&](const int mode) {
-      run(n, 1.0, mode, ptd, gtd);
+      run(n, 1.0, mode, p_td, g_td);
       std::printf("    %6.2f  %5s  ", 1.0, label[mode]);
       for (int k = 1; k < NS; k++) {
-        std::printf(" %9.1f", ptd[k] - prd[k]);
+        std::printf(" %9.1f", p_td[k] - prd[k]);
       }
       std::printf(
-        "   | %5.0f -> %5.0f (exact %.0f)\n", gtd[0], gtd[NS - 1], g0d);
-      return ptd[1] - prd[1];
+        "   | %5.0f -> %5.0f (exact %.0f)\n", g_td[0], g_td[NS - 1], g0d);
+      return p_td[1] - prd[1];
     };
     const Real d1_orc = rowd(2);
     const Real d1_ent = rowd(0);
     const Real d1_fitU = rowd(6);
-    const Real dE_fitU = ptd[NS - 1] - prd[NS - 1];
+    const Real dE_fitU = p_td[NS - 1] - prd[NS - 1];
     const Real d1_fitB = rowd(8);
     const Real denom = d1_ent - d1_orc;
     const Real frac =
@@ -2879,8 +2887,7 @@ check_reaction_source()
   }
   std::snprintf(buf, sizeof(buf), "final relative error %.3e", err_k[3]);
   check(
-    ok && err_k[3] < 1e-3, "closed-form dp/dt matches the directional FD",
-    buf);
+    ok && err_k[3] < 1e-3, "closed-form dp/dt matches the directional FD", buf);
   std::snprintf(
     buf, sizeof(buf),
     "error falls monotonically to %.2e at tau/%.0f, then sits at the "
@@ -3088,8 +3095,8 @@ hard_p_fill_hi(Field& f, Real p0)
 
 struct DuctForcedResult
 {
-  Real I_u = 0.0;  // achieved u' amplitude at the inlet cell / target A
-  Real I_in = 0.0; // incoming-invariant amplitude / ideal injector's 2A
+  Real I_u = 0.0;         // achieved u' amplitude at the inlet cell / target A
+  Real I_in = 0.0;        // incoming-invariant amplitude / ideal injector's 2A
   std::vector<Real> prms; // P_RMS(x) per cell over the measurement window
 };
 
@@ -3341,7 +3348,8 @@ run_t1(int n)
   const int nk = static_cast<int>(sizeof(ks) / sizeof(ks[0]));
   std::printf(
     "\nT1  step-change convergence vs relax_u (duct, hard-p far end, "
-    "n = %d)\n", n);
+    "n = %d)\n",
+    n);
   std::printf(
     "    t_conv = last time |<u> - u^t| > 0.1%% of the step, in units of "
     "t_a = 2L/c\n\n");
@@ -3357,8 +3365,9 @@ run_t1(int n)
   }
   char buf[220];
   std::snprintf(
-    buf, sizeof(buf), "argmin relax_u = %.2f, t_conv %.2f t_a (ends: %.2f, %.2f)",
-    ks[imin], tc[imin], tc[0], tc[nk - 1]);
+    buf, sizeof(buf),
+    "argmin relax_u = %.2f, t_conv %.2f t_a (ends: %.2f, %.2f)", ks[imin],
+    tc[imin], tc[0], tc[nk - 1]);
   check(
     (imin > 0) && (imin < nk - 1) && (tc[0] > 1.2 * tc[imin]) &&
       (tc[nk - 1] > 1.2 * tc[imin]),
@@ -3396,7 +3405,8 @@ run_t3_t5(bool profiles, int n, Real relax_cli)
     const Real kv[] = {0.0, 0.5, 2.0, 5.0};
     std::printf(
       "\nT3  forced-inlet injection fidelity (duct, hard-p far end, "
-      "f0 = %.1f Hz)\n", f0);
+      "f0 = %.1f Hz)\n",
+      f0);
     std::printf(
       "    I_u = achieved u' at the boundary cell / target amplitude "
       "(1 = faithful);\n"
@@ -3412,12 +3422,11 @@ run_t3_t5(bool profiles, int n, Real relax_cli)
         const DuctForcedResult r = duct_forced(kv[m], fr[j], n, 6, 4);
         const Real th = duct_roundtrip_phase(fr[j], cs.L, c0, u0);
         const Real stiff =
-          1.0 /
-          std::max(std::hypot(1.0 + std::cos(th), std::sin(th)), 1.0e-12);
+          1.0 / std::max(std::hypot(1.0 + std::cos(th), std::sin(th)), 1.0e-12);
         if (stiff < 999.0) {
           std::printf(
-            "    %8.2f %10.2f %8.3f %8.3f %10.2f\n", kv[m], fr[j] / f0,
-            r.I_u, r.I_in, stiff);
+            "    %8.2f %10.2f %8.3f %8.3f %10.2f\n", kv[m], fr[j] / f0, r.I_u,
+            r.I_in, stiff);
         } else {
           std::printf(
             "    %8.2f %10.2f %8.3f %8.3f %10s\n", kv[m], fr[j] / f0, r.I_u,
@@ -3432,8 +3441,8 @@ run_t3_t5(bool profiles, int n, Real relax_cli)
     std::snprintf(
       buf, sizeof(buf), "I_u(relax_u=0) = %.4f at f = 0.8 f0", Iu_row[0]);
     check(
-      Iu_row[0] < 0.05,
-      "relax_u = 0 injects nothing (no amplitude slot: I.3e)", buf);
+      Iu_row[0] < 0.05, "relax_u = 0 injects nothing (no amplitude slot: I.3e)",
+      buf);
     std::snprintf(
       buf, sizeof(buf), "I_u = %.3f -> %.3f -> %.3f for relax_u 0.5 -> 2 -> 5",
       Iu_row[1], Iu_row[2], Iu_row[3]);
@@ -3446,8 +3455,8 @@ run_t3_t5(bool profiles, int n, Real relax_cli)
     // I = 1 claim).  Mode 2: the stateless feed-forward amplitude slot
     // (Target::dudt).  Mode 3: both together.
     for (int md = 1; md <= 3; md++) {
-      const char* names[] = {"", "NRI register", "dudt feed-forward",
-                             "register + feed-forward"};
+      const char* names[] = {
+        "", "NRI register", "dudt feed-forward", "register + feed-forward"};
       std::printf("\n    same matrix, %s:\n", names[md]);
       Real imin = 1.0e30, imax = 0.0;
       for (int m2 = 1; m2 < 4; m2++) {
@@ -3466,8 +3475,7 @@ run_t3_t5(bool profiles, int n, Real relax_cli)
         // Phase-A driver gate: the full NRI property, I_in ~ 1 at every
         // stiffness and frequency measured, resonance included.
         std::snprintf(
-          buf, sizeof(buf), "I_in in [%.3f, %.3f] over the matrix", imin,
-          imax);
+          buf, sizeof(buf), "I_in in [%.3f, %.3f] over the matrix", imin, imax);
         check(
           (imin > 0.85) && (imax < 1.15),
           "register + feed-forward: I_in ~ 1 at any K and f", buf);
@@ -3477,7 +3485,8 @@ run_t3_t5(bool profiles, int n, Real relax_cli)
     const Real k = relax_cli > 0.0 ? relax_cli : 2.0;
     std::printf(
       "\nT5  standing-wave pattern under forcing (relax_u = %.2f, "
-      "f0 = %.1f Hz)\n", k, f0);
+      "f0 = %.1f Hz)\n",
+      k, f0);
     std::printf(
       "    P_RMS(x) in dyn/cm^2 at 17 stations, against the analytic\n"
       "    envelope shape |sin(k_eff (L-x))|, k_eff = round-trip phase / "
@@ -3486,7 +3495,8 @@ run_t3_t5(bool profiles, int n, Real relax_cli)
       const DuctForcedResult r = duct_forced(k, fr[j], n, 6, 4);
       // Analytic envelope shape for the reflecting end: |sin(k_eff (L-x))|
       // with k_eff from the Doppler-mean wavenumber.
-      const Real keff = duct_roundtrip_phase(fr[j], cs.L, c0, u0) / (2.0 * cs.L);
+      const Real keff =
+        duct_roundtrip_phase(fr[j], cs.L, c0, u0) / (2.0 * cs.L);
       Real num = 0.0, mag_m = 0.0, mag_a = 0.0, pk = 0.0;
       std::printf("    f/f0 = %.2f\n      x/L :", fr[j] / f0);
       for (int s = 0; s < 17; s++) {
@@ -3494,14 +3504,14 @@ run_t3_t5(bool profiles, int n, Real relax_cli)
       }
       std::printf("\n      Prms:");
       for (int s = 0; s < 17; s++) {
-        const int i = std::min(
-          static_cast<int>((s / 16.0) * (n - 1) + 0.5), n - 1);
+        const int i =
+          std::min(static_cast<int>((s / 16.0) * (n - 1) + 0.5), n - 1);
         std::printf(" %6.1f", r.prms[i]);
       }
       std::printf("\n      anly:");
       for (int s = 0; s < 17; s++) {
-        const int i = std::min(
-          static_cast<int>((s / 16.0) * (n - 1) + 0.5), n - 1);
+        const int i =
+          std::min(static_cast<int>((s / 16.0) * (n - 1) + 0.5), n - 1);
         const Real x = (i + 0.5) * (cs.L / n);
         const Real a = std::abs(std::sin(keff * (cs.L - x)));
         const Real m = r.prms[i];
@@ -3511,12 +3521,11 @@ run_t3_t5(bool profiles, int n, Real relax_cli)
         pk = std::max(pk, m);
         std::printf(" %6.2f", a);
       }
-      const Real corr = num / std::max(
-        std::sqrt(mag_m * mag_a), 1.0e-300);
+      const Real corr = num / std::max(std::sqrt(mag_m * mag_a), 1.0e-300);
       char buf[220];
       std::snprintf(
-        buf, sizeof(buf), "shape correlation %.3f, antinode P_RMS %.1f",
-        corr, pk);
+        buf, sizeof(buf), "shape correlation %.3f, antinode P_RMS %.1f", corr,
+        pk);
       if (std::abs(fr[j] / f0 - 1.0) > 0.05) {
         check(corr > 0.95, "standing-wave geometry matches the envelope", buf);
       } else {
@@ -3543,13 +3552,15 @@ run_ndnr()
   for (const Real sg : {0.25, 4.0, 16.0}) {
     Real dc = 0.0, dn = 0.0;
     const Real Rc = reflection_coefficient(sg, 400, 2, false, &dc);
-    const Real Rn =
-      reflection_coefficient(sg, 400, 2, false, &dn, false, true);
+    const Real Rn = reflection_coefficient(sg, 400, 2, false, &dn, false, true);
     std::printf(
-      "    %8.2f %12.3f %12.3f %14.2f %14.2f\n", sg, 100.0 * Rc, 100.0 * Rn,
-      dc, dn);
+      "    %8.2f %12.3f %12.3f %14.2f %14.2f\n", sg, 100.0 * Rc, 100.0 * Rn, dc,
+      dn);
     if (sg == 16.0) {
-      Rc16 = Rc; Rn16 = Rn; dc16 = dc; dn16 = dn;
+      Rc16 = Rc;
+      Rn16 = Rn;
+      dc16 = dc;
+      dn16 = dn;
     }
   }
   char buf[220];
@@ -3557,8 +3568,7 @@ run_ndnr()
     buf, sizeof(buf), "R 16: %.2f%% -> %.2f%%; drift %.1f -> %.1f",
     100.0 * Rc16, 100.0 * Rn16, dc16, dn16);
   check(
-    Rn16 < 0.2 * Rc16,
-    "NDNR collapses the sigma = 16 reflection (>5x)", buf);
+    Rn16 < 0.2 * Rc16, "NDNR collapses the sigma = 16 reflection (>5x)", buf);
   check(
     std::abs(dn16) < 3.0 * std::abs(dc16) + 5.0,
     "NDNR keeps the anchoring (drift comparable)", buf);

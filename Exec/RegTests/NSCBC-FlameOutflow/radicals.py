@@ -79,7 +79,7 @@ def boundary_profile(pltf, species):
 if __name__ == '__main__':
     which = sys.argv[1] if len(sys.argv) > 1 else 'ch4'
     if which == 'h2':
-        d = '/tmp/fo/final/ref'
+        d = '/tmp/h2/final/ref'
         ps = [f'{d}/plt00000', f'{d}/plt00400', f'{d}/plt00974']
         report(ps, 'H', 'H2/air phi=0.40, LiDryer, Le~0.3')
         b = boundary_profile(ps[-1], ['H', 'OH'])

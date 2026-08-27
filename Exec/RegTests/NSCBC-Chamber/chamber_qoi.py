@@ -171,8 +171,8 @@ def ringdown(tr, t_from):
           and abs(s[j]) > 0]
     if len(ex) < 3:
         return f, np.nan, len(ex)
-    te, ae = np.array(ex).T
-    lam = -np.polyfit(te, np.log(ae), 1)[0]
+    t_ex, a_ex = np.array(ex).T
+    lam = -np.polyfit(t_ex, np.log(a_ex), 1)[0]
     return f, float(lam), len(ex)
 
 

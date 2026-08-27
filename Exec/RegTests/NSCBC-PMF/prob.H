@@ -153,14 +153,14 @@ pc_initdata(
     // The flame normal is the LAST dimension, so this case runs in 2-D as
     // well as 3-D.  (PMF hardcodes prob_lo[2] and is 3-D only.)
     const int ivv[3] = {i, j, k};
-    constexpr int nd = AMREX_SPACEDIM - 1;
-    const amrex::Real xn = prob_lo[nd] + (ivv[nd] + 0.5) * dx[nd];
+    constexpr int ndir = AMREX_SPACEDIM - 1;
+    const amrex::Real xn = prob_lo[ndir] + (ivv[ndir] + 0.5) * dx[ndir];
     const amrex::Real x = prob_lo[0] + (i + 0.5) * dx[0];
     amrex::ignore_unused(x, ivv);
     amrex::GpuArray<amrex::Real, NUM_SPECIES + 4> pmf_vals = {{0.0}};
     const amrex::Real pert = 0.0; // 1-D flame; no transverse seeding
-    const amrex::Real z1 = (xn - prob_parm.standoff - 0.5 * dx[nd] + pert);
-    const amrex::Real z2 = (xn - prob_parm.standoff + 0.5 * dx[nd] + pert);
+    const amrex::Real z1 = (xn - prob_parm.standoff - 0.5 * dx[ndir] + pert);
+    const amrex::Real z2 = (xn - prob_parm.standoff + 0.5 * dx[ndir] + pert);
     pmf(z1, z2, pmf_vals, prob_parm);
     amrex::Real molefrac[NUM_SPECIES] = {0.0};
     for (int n = 0; n < NUM_SPECIES; n++) {
