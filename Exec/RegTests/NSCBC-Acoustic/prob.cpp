@@ -95,8 +95,8 @@ amrex_probinit(
     // the front is a sphere only if all three arrive on the same clock.
     amrex::Real dmin = L[0];
     AMREX_D_TERM(
-      dmin = 0.5 * L[0];, dmin = amrex::min(dmin, 0.5 * L[1]);
-      , dmin = amrex::min(dmin, 0.5 * L[2]);)
+      dmin = 0.5 * L[0];, dmin = amrex::min<amrex::Real>(dmin, 0.5 * L[1]);
+      , dmin = amrex::min<amrex::Real>(dmin, 0.5 * L[2]);)
     amrex::Print() << "     RADIAL pulse at ("
                    << AMREX_D_TERM(
                         pp_d->xc[0], << ", " << pp_d->xc[1],

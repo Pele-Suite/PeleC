@@ -61,10 +61,11 @@ pc_initdata(
   const amrex::Real* prob_lo = geomdata.ProbLo();
   const amrex::Real* dx = geomdata.CellSize();
 
+  const amrex::Real half = 0.5;
   const amrex::Real xv[AMREX_SPACEDIM] = {AMREX_D_DECL(
-    prob_lo[0] + (static_cast<amrex::Real>(i) + 0.5) * dx[0],
-    prob_lo[1] + (static_cast<amrex::Real>(j) + 0.5) * dx[1],
-    prob_lo[2] + (static_cast<amrex::Real>(k) + 0.5) * dx[2])};
+    prob_lo[0] + (static_cast<amrex::Real>(i) + half) * dx[0],
+    prob_lo[1] + (static_cast<amrex::Real>(j) + half) * dx[1],
+    prob_lo[2] + (static_cast<amrex::Real>(k) + half) * dx[2])};
 
   auto eos = pele::physics::PhysicsType::eos();
   amrex::Real massfrac[NUM_SPECIES] = {0.0};

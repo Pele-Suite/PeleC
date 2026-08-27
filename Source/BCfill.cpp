@@ -795,7 +795,9 @@ PeleC::nscbc_check_periodic_wrap()
                 const amrex::Real v = a(iw, n);
                 const amrex::Real s = amrex::max<amrex::Real>(
                   amrex::Math::abs(u),
-                  amrex::max<amrex::Real>(amrex::Math::abs(v), 1.0e-300));
+                  amrex::max<amrex::Real>(
+                    amrex::Math::abs(v),
+                    std::numeric_limits<amrex::Real>::min()));
                 e = amrex::max<amrex::Real>(e, amrex::Math::abs(u - v) / s);
               }
               return {e, amrex::Long(1), -big, big};
@@ -827,8 +829,9 @@ PeleC::nscbc_check_periodic_wrap()
         amrex::ParallelDescriptor::ReduceRealMin(rmin);
         const amrex::Real spread =
           (rmax > -big)
-            ? (rmax - rmin) /
-                amrex::max<amrex::Real>(amrex::Math::abs(rmax), 1.0e-300)
+            ? (rmax - rmin) / amrex::max<amrex::Real>(
+                                amrex::Math::abs(rmax),
+                                std::numeric_limits<amrex::Real>::min())
             : 0.0;
 
         constexpr amrex::Real tol = 1.0e-2;

@@ -410,7 +410,8 @@ reaction_dpdt(CellPrim const& q, bool& ok) noexcept
   auto eos = pele::physics::PhysicsType::eos();
   ok = true;
 
-  amrex::Real wdot[NUM_SPECIES];
+  amrex::Real wdot[NUM_SPECIES] = {0.0}; // GCC -Wmaybe-uninitialized at -O:
+                                         // it cannot see RTY2WDOT fill it
   eos.RTY2WDOT(q.rho, q.T, q.Y, wdot);
   amrex::Real wmax = 0.0;
   for (int n = 0; n < NUM_SPECIES; n++) {
