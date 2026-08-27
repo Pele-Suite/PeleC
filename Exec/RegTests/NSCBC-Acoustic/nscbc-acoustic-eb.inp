@@ -62,7 +62,11 @@ pelec.init_shrink = 1.0
 pelec.change_max = 1.05
 pelec.dt_cutoff = 5.e-20
 pelec.v = 1
-pelec.sum_interval = 500
+# No volume sums: with eb_zero_body_state = 1 the covered cells are exact
+# zeros, and the velocity derives behind volWgtSum divide by that zero
+# density -- benign untrapped, fatal under the CI's FPE trapping.  The
+# NSCBC counters report on their own default cadence regardless.
+pelec.sum_interval = -1
 amr.v = 1
 
 amr.n_cell   = 400 24

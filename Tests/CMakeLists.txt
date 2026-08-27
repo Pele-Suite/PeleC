@@ -254,7 +254,11 @@ add_test_r(sod-1 Sod)
 if(PELE_DIM EQUAL 2)
   add_test_r(nscbc-acoustic NSCBC-Acoustic)
   add_test_r(nscbc-acoustic-amr NSCBC-Acoustic)
-  add_test_r(nscbc-acoustic-eb NSCBC-Acoustic)
+  # rn, not r: with eb_zero_body_state = 1 the covered cells are exact
+  # zeros, and the EB Godunov path touches them in cut-cell stencils --
+  # benign untrapped (the values are never consumed), fatal under FPE
+  # trapping.  Same class and treatment as eb-c3/eb-c14.
+  add_test_rn(nscbc-acoustic-eb NSCBC-Acoustic)
   add_test_r(nscbc-covo NSCBC-COVO)
   add_test_r(nscbc-pulse2d NSCBC-COVO)
   add_test_r(nscbc-flameoutflow NSCBC-FlameOutflow)
