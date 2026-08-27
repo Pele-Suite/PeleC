@@ -116,6 +116,22 @@ bc_nscbc_relax_t            Real          0.2
 # because a wrong beta is far more dangerous than an absent one.  Must be <= 1.
 bc_nscbc_beta               Real          1.0
 
+# Weight on the REACTION source term in the modelled incoming acoustic, same
+# convention as bc_nscbc_beta: 1 discards it (default), 0 includes it fully.
+#
+# A flame near an outflow raises the pressure in the boundary cell at a rate
+# the 1-D relaxation has no model for, so sigma has to absorb it and the mean
+# pressure sits off target.  This supplies the missing dp/dt.  Only worth
+# enabling when the reaction zone is close enough to the boundary to matter --
+# the correct first answer to that situation is to move the boundary.
+#
+# Chemistry conserves mass, and PeleC's constant-volume reactor conserves total
+# internal energy because the formation enthalpies live inside e, so the entire
+# effect is compositional: dp/dY|_{rho,e}.  Exact in closed form for ideal-gas
+# EOS; a directional finite difference along the reaction path is used for SRK.
+# Must be <= 1.
+bc_nscbc_beta_s             Real          1.0
+
 # Order of the outgoing-invariant extrapolation, 1 or 2.  Verification and
 # debugging knob, not a physics knob; leave at 2.
 bc_nscbc_order              int           2
@@ -128,6 +144,39 @@ bc_nscbc_order              int           2
 # reservoir; inappropriate for a duct exhausting into a plenum whose true mean
 # pressure is not the target.  bc_nscbc_sigma is ignored when this is set.
 bc_nscbc_pin_farfield       bool          false
+
+# Close the lambda_0 family at an outflow on TEMPERATURE rather than on the
+# linearised entropy invariant.  Matters because PeleC's diffusion operator
+# forms the boundary-face conductive and species fluxes from the NSCBC ghost
+# cells, and with the entropy closure the ghost temperature is a by-product of
+# the acoustic algebra: check C8 in Verification/NSCBC1D measures a 40%
+# overstatement of the face temperature gradient on a flame-like ramp.  Turn it
+# on when a thermal or compositional structure is near the boundary.  Default
+# false because it changes every outflow result.
+bc_nscbc_extrap_temperature bool          false
+
+# Continue the material (non-acoustic) part of the incoming invariant R_- into
+# the ghost at an outflow, in addition to the relaxation increment.  The
+# material slope is bounded through the entropy family (outgoing, carries no
+# acoustics), which cancels the ghost-pressure bias of check C9(a) in
+# Verification/NSCBC1D without touching reflection, anchoring or the
+# relaxation rate.  For a front SITTING on the outflow it is worth 5% alone
+# and 42% together with bc_nscbc_extrap_temperature; for a front PASSING OUT
+# through the face it is a liability -- at small sigma the quasi-steady model
+# turns the crossing into a runaway (see NSCBC-FlameOutflow/README.md).  Keep
+# sigma > 0 with this on.  Default false.  Ignored by pin_farfield.
+bc_nscbc_extrap_material    bool          false
+
+# Treat FIRM reversal at an outflow as a local inflow of reservoir gas: under
+# sustained backflow the lambda_0 ghost content ramps from the frozen interior
+# values to the ambient state the face's bcnormal_nscbc Target carries (T, Y,
+# tangential u), over an outward-Mach band [1e-3, 1e-2].  Without it, a face
+# held in recirculation feeds the domain its own exhaust (driver check C14,
+# the flush test); with it, the entering gas carries the reservoir state.
+# Breathing reversals (|M| << 1e-3 at the face) never leave the frozen
+# closure either way.  Requires the problem's outflow Target to supply T > 0
+# (and Y); inert otherwise.  Default false.
+bc_nscbc_backflow_material  bool          false
 
 
 # NOTE: pelec.nscbc_adv and pelec.nscbc_diff were removed here.  They were
