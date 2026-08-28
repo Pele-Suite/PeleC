@@ -16,9 +16,12 @@ amr.n_cell           =  16  16  16
 pelec.lo_bc       =  "FOExtrap" "NoSlipWall"  "Hard"
 pelec.hi_bc       =  "Hard" "NoSlipWall"  "FOExtrap"
 
-# We should not have NSCBC turned on for this test case
-pelec.nscbc_adv = 0
-pelec.nscbc_diff = 0
+# NOTE: this case must keep its "Hard" faces as exact Dirichlet faces -- the
+# manufactured solution is imposed there and any characteristic relaxation of
+# the boundary state would invalidate the convergence test.  It therefore must
+# NOT enable the characteristic (NSCBC) boundary treatment.  (This used to be
+# spelled pelec.nscbc_adv = 0 / pelec.nscbc_diff = 0, which had no effect; both
+# keys have been removed.)
 
 # WHICH PHYSICS
 pelec.do_hydro = 1
