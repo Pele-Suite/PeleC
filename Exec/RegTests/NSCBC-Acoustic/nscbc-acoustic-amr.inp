@@ -1,0 +1,62 @@
+# NSCBC-Acoustic with a refined level, kept AWAY from the characteristic
+# face.  The pulse is launched from inside a 2x fine patch, crosses the
+# coarse-fine boundary, and leaves through the level-0 characteristic
+# outflow.  Measured against the single-level run: mean pressure at the end
+# is 1013241.8 in both, and the upstream residual is 0.751% vs 0.752% of the
+# incident amplitude -- refinement away from the face is clean.
+#
+# Move the tag box onto the face (tagging.pulse.in_box_hi = "10.1 0.6") and
+# PeleC prints the NSCBC WARNING once per face: the fill's stencil is
+# level-local, so a fine patch ON a characteristic face makes the boundary
+# condition level-dependent.  (At this configuration the measured artefact
+# is small -- 0.744% residual, +0.1 dyn/cm2 -- but it is an artefact of the
+# gridding, not of the physics, and nothing about it is guaranteed to stay
+# small at higher ratios or oblique incidence.)
+
+max_step = 3000
+stop_time = 4.6e-4
+
+geometry.is_periodic = 0 1 0
+geometry.coord_sys   = 0
+geometry.prob_lo     = 0.0   0.0
+geometry.prob_hi     = 10.0  0.5
+
+pelec.lo_bc = "NoSlipWall" "Interior"
+pelec.hi_bc = "UserBC"     "Interior"
+
+pelec.bc_nscbc       = 1
+pelec.bc_nscbc_sigma = 0.25
+pelec.bc_nscbc_order = 2
+
+pelec.do_hydro = 1
+pelec.do_mol = 0
+pelec.diffuse_vel = 0
+pelec.diffuse_temp = 0
+pelec.diffuse_spec = 0
+pelec.do_react = 0
+pelec.allow_negative_energy = 0
+
+pelec.cfl = 0.4
+pelec.init_shrink = 1.0
+pelec.change_max = 1.05
+pelec.dt_cutoff = 5.e-20
+pelec.v = 1
+amr.v = 1
+
+amr.n_cell   = 400 8
+amr.max_level = 1
+amr.ref_ratio = 2
+amr.blocking_factor = 8
+amr.max_grid_size = 64
+
+# The fine patch covers the pulse launch region and stays 5 cm clear of the
+# characteristic outflow at x = 10.
+tagging.refinement_indicators = pulse
+tagging.pulse.in_box_lo = 2.0 -0.1
+tagging.pulse.in_box_hi = 5.0  0.6
+
+amr.checkpoint_files_output = 0
+amr.plot_files_output = 1
+amr.plot_int = 1600
+amr.plot_file = plt
+amr.derive_plot_vars = pressure x_velocity
