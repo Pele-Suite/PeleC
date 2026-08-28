@@ -249,6 +249,24 @@ if(PELE_DIM GREATER 2)
   add_test_rv(hit-les HIT)
 endif()
 add_test_r(sod-1 Sod)
+# The 2-D NSCBC protocols: their inputs carry 2-D geometry, so they are
+# dim-gated like hit-les; the -3d pair below covers three dimensions.
+if(PELE_DIM EQUAL 2)
+  add_test_r(nscbc-acoustic NSCBC-Acoustic)
+  add_test_r(nscbc-acoustic-amr NSCBC-Acoustic)
+  # rn, not r: with eb_zero_body_state = 1 the covered cells are exact
+  # zeros, and the EB Godunov path touches them in cut-cell stencils --
+  # benign untrapped (the values are never consumed), fatal under FPE
+  # trapping.  Same class and treatment as eb-c3/eb-c14.
+  add_test_rn(nscbc-acoustic-eb NSCBC-Acoustic)
+  add_test_r(nscbc-covo NSCBC-COVO)
+  add_test_r(nscbc-pulse2d NSCBC-COVO)
+  add_test_r(nscbc-flameoutflow NSCBC-FlameOutflow)
+endif()
+if(PELE_DIM EQUAL 3)
+  add_test_r(nscbc-acoustic-3d NSCBC-Acoustic)
+  add_test_r(nscbc-acoustic-3d-radial NSCBC-Acoustic)
+endif()
 add_test_r(sod-2 Sod)
 add_test_rv(sod-3 Sod)
 add_test_rv(sod-4 Sod)
