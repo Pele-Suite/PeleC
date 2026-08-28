@@ -67,10 +67,126 @@ use_hybrid_weno              bool          false
 # WENO scheme type in PPM method
 weno_scheme                  int           1
 
-# permits Ghost-Cells Navier-Stokes Boundary Conditions to be turned on and off
-# for advective terms (adv) and for diffusion terms (diff)
-nscbc_adv                   bool          true
-nscbc_diff                  bool          false
+# ---------------------------------------------------------------------------
+# Characteristic (NSCBC) boundary treatment.  See Source/NSCBC.H for the
+# formulation and Docs/sphinx/BoundaryConditions.rst for guidance.
+#
+# Master switch.  Even when true, the treatment is applied only at boundary
+# POINTS for which the problem's ProblemSpecificFunctions::bcnormal_nscbc()
+# returns a type other than `off`, so a problem that does not provide that
+# hook is unaffected.
+bc_nscbc                    bool          false
+
+# Outflow pressure relaxation, the classical Poinsot-Lele sigma.  The
+# relaxation rate is K = sigma * (1 - M^2) * c / L, with L the domain extent
+# along the boundary normal, so the boundary pressure relaxes toward the
+# target over tau = 1/K, which is 1/(sigma (1 - M^2)) acoustic transit times.
+# 0 is perfectly non-reflecting and leaves the mean pressure unanchored.
+# Literature band is 0.15-0.3.  Must be >= 0.
+bc_nscbc_sigma              Real          0.25
+
+# Inflow normal-velocity relaxation coefficient.  Larger imposes the target
+# velocity more strongly and reflects more.  Must be >= 0.
+bc_nscbc_relax_u            Real          2.0
+
+# Inflow temperature and tangential-velocity relaxation coefficient.  Must be
+# >= 0: unlike the legacy Fortran, every user-facing NSCBC coefficient in
+# PeleC is positive and the internal signs are handled by the kernel.
+bc_nscbc_relax_t            Real          0.2
+
+# Weight on the transverse terms in the modelled incoming acoustic wave:
+#   1  discard them -- the 1-D-normal LODI limit, and the DEFAULT
+#   0  include them fully
+#   <0 use the local Mach number (the legacy Fortran convention; not
+#      recommended, see below)
+#
+# The transverse terms are what a boundary needs when a wave arrives obliquely,
+# or when a vortex rather than a sound wave crosses it.  Measured in
+# Exec/RegTests/NSCBC-COVO, against a periodic no-boundary reference:
+#
+#   convected vortex, rms residual:  hard 14.0x floor,  beta=1 10.0x,
+#                                    beta=0.5 3.8x,  beta=0.2 16.1x, beta=0 132x
+#   circular pulse, front amplitude spread:  hard 21.4%,  beta=1 0.90%,
+#                                    beta=0.8 0.066%,  beta=0 2.9%
+#
+# The optimum follows beta = 1 - cos(theta)/(1 + cos(theta)) for a wave meeting
+# the boundary at angle theta: 0.5 at normal incidence, rising toward 1 at
+# grazing incidence.  Too little correction costs a factor of a few; too much
+# is catastrophic.  RECOMMENDED STARTING VALUE 0.5.  The default is 1 only
+# because a wrong beta is far more dangerous than an absent one.  Must be <= 1.
+bc_nscbc_beta               Real          1.0
+
+# Weight on the REACTION source term in the modelled incoming acoustic, same
+# convention as bc_nscbc_beta: 1 discards it (default), 0 includes it fully.
+#
+# A flame near an outflow raises the pressure in the boundary cell at a rate
+# the 1-D relaxation has no model for, so sigma has to absorb it and the mean
+# pressure sits off target.  This supplies the missing dp/dt.  Only worth
+# enabling when the reaction zone is close enough to the boundary to matter --
+# the correct first answer to that situation is to move the boundary.
+#
+# Chemistry conserves mass, and PeleC's constant-volume reactor conserves total
+# internal energy because the formation enthalpies live inside e, so the entire
+# effect is compositional: dp/dY|_{rho,e}.  Exact in closed form for ideal-gas
+# EOS; a directional finite difference along the reaction path is used for SRK.
+# Must be <= 1.
+bc_nscbc_beta_s             Real          1.0
+
+# Order of the outgoing-invariant extrapolation, 1 or 2.  Verification and
+# debugging knob, not a physics knob; leave at 2.
+bc_nscbc_order              int           2
+
+# Pin the incoming acoustic invariant to its far-field value instead of
+# relaxing it toward the target at rate K.  Simultaneously non-reflecting and
+# anchored, but it anchors to p_target + rho c u rather than to p_target and
+# its effective relaxation rate is c/dx, so it does not converge under mesh
+# refinement.  Appropriate for an open boundary onto a large quiescent
+# reservoir; inappropriate for a duct exhausting into a plenum whose true mean
+# pressure is not the target.  bc_nscbc_sigma is ignored when this is set.
+bc_nscbc_pin_farfield       bool          false
+
+# Close the lambda_0 family at an outflow on TEMPERATURE rather than on the
+# linearised entropy invariant.  Matters because PeleC's diffusion operator
+# forms the boundary-face conductive and species fluxes from the NSCBC ghost
+# cells, and with the entropy closure the ghost temperature is a by-product of
+# the acoustic algebra: check C8 in Verification/NSCBC1D measures a 40%
+# overstatement of the face temperature gradient on a flame-like ramp.  Turn it
+# on when a thermal or compositional structure is near the boundary.  Default
+# false because it changes every outflow result.
+bc_nscbc_extrap_temperature bool          false
+
+# Continue the material (non-acoustic) part of the incoming invariant R_- into
+# the ghost at an outflow, in addition to the relaxation increment.  The
+# material slope is bounded through the entropy family (outgoing, carries no
+# acoustics), which cancels the ghost-pressure bias of check C9(a) in
+# Verification/NSCBC1D without touching reflection, anchoring or the
+# relaxation rate.  For a front SITTING on the outflow it is worth 5% alone
+# and 42% together with bc_nscbc_extrap_temperature; for a front PASSING OUT
+# through the face it is a liability -- at small sigma the quasi-steady model
+# turns the crossing into a runaway (see NSCBC-FlameOutflow/README.md).  Keep
+# sigma > 0 with this on.  Default false.  Ignored by pin_farfield.
+bc_nscbc_extrap_material    bool          false
+
+# Treat FIRM reversal at an outflow as a local inflow of reservoir gas: under
+# sustained backflow the lambda_0 ghost content ramps from the frozen interior
+# values to the ambient state the face's bcnormal_nscbc Target carries (T, Y,
+# tangential u), over an outward-Mach band [1e-3, 1e-2].  Without it, a face
+# held in recirculation feeds the domain its own exhaust (driver check C14,
+# the flush test); with it, the entering gas carries the reservoir state.
+# Breathing reversals (|M| << 1e-3 at the face) never leave the frozen
+# closure either way.  Requires the problem's outflow Target to supply T > 0
+# (and Y); inert otherwise.  Default false.
+bc_nscbc_backflow_material  bool          false
+
+
+# NOTE: pelec.nscbc_adv and pelec.nscbc_diff were removed here.  They were
+# declared and queried but never read by any live code path -- the
+# Ghost-Cell NSCBC implementation they controlled was deleted with the rest
+# of the Fortran in 2d3a6f6.  nscbc_adv defaulted to true, so leaving them in
+# place meant that reconnecting a live NSCBC would silently change the
+# behaviour of every Hard/UserBC case that did not explicitly opt out.
+# PeleC::read_params aborts with a migration message if either key is present
+# in an inputs file.  See Docs/sphinx/BoundaryConditions.rst.
 
 # if true, define an external source term
 add_ext_src                 bool           false
@@ -219,8 +335,14 @@ PrT                          Real          1.0
 # category: EB
 #-----------------------------------------------------------------------------
 
-# set the EB boundary temperature for isothermal walls
-eb_boundary_T                Real         1.0
+# set the EB boundary temperature for isothermal walls.  The default is
+# ambient-like on purpose: this used to default to 1.0 K, and because
+# eb_isothermal also defaults true, any diffusive EB case that did not set
+# both parameters was silently conducting heat into one-kelvin walls -- the
+# NSCBC-Chamber box variants refrigerated their cut cells to 77 K and NaN'd
+# at the corners before this was found (see that case's README).  A wall
+# temperature is physics; set it deliberately.
+eb_boundary_T                Real         300.0
 
 # flag for isothermal EB boundary
 eb_isothermal                bool         true
