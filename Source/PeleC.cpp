@@ -194,6 +194,21 @@ PeleC::read_params()
 
   pp.query("v", verbose);
 
+  // Removed parameters. nscbc_adv/nscbc_diff controlled the Fortran
+  // Ghost-Cell NSCBC deleted in 2d3a6f6; they have had no effect since.
+  // Abort rather than ignore, so that an inputs file which believes it is
+  // configuring a characteristic boundary treatment is not silently wrong.
+  for (const char* removed : {"nscbc_adv", "nscbc_diff"}) {
+    if (pp.contains(removed)) {
+      amrex::Abort(
+        "pelec." + std::string(removed) +
+        " has been removed: it has had no effect since the Fortran GC-NSCBC "
+        "was deleted. Remove it from your inputs file. See "
+        "Docs/sphinx/BoundaryConditions.rst for the currently recommended "
+        "subsonic inflow/outflow treatment.");
+    }
+  }
+
   // Get boundary conditions
   amrex::Vector<std::string> lo_bc_char(AMREX_SPACEDIM);
   amrex::Vector<std::string> hi_bc_char(AMREX_SPACEDIM);
@@ -321,6 +336,88 @@ PeleC::read_params()
           "Cannot have isothermal wall on a BC that isn't a wall or "
           "user defined BC");
       }
+    }
+  }
+
+  if (bc_nscbc) {
+    pc_nscbc::Params probe = nscbc_params(0);
+    probe.sigma = bc_nscbc_sigma;
+    std::string why;
+    if (!probe.validate(why)) {
+      amrex::Abort("pelec.bc_nscbc_*: " + why);
+    }
+    // The treatment only ever acts on ext_dir faces, i.e. Hard/UserBC.
+    bool any_ext_dir = false;
+    for (int dir = 0; dir < AMREX_SPACEDIM; ++dir) {
+      for (const auto& b : {lo_bc[dir], hi_bc[dir]}) {
+        any_ext_dir = any_ext_dir || (b == PCPhysBCType::user_bc) ||
+                      (b == PCPhysBCType::inflow);
+      }
+    }
+    if (!any_ext_dir) {
+      amrex::Abort(
+        "pelec.bc_nscbc = 1 but no boundary is Hard or UserBC. The "
+        "characteristic treatment only acts on those faces.");
+    }
+    // Chemistry integrated in ghost cells would burn the state the boundary
+    // condition just wrote there -- a hot inflow target composition would
+    // ignite in the ghost region.
+    if (state_nghost > 0) {
+      amrex::Abort(
+        "pelec.bc_nscbc = 1 with pelec.state_nghost > 0: reactions are "
+        "integrated over grown tileboxes, which would advance chemistry in "
+        "the ghost cells written by the boundary condition.");
+    }
+    // The characteristic fill has no EBCellFlag: it detects covered stencil
+    // cells by their non-positive density.  The DEFAULT body state is a
+    // sampled fluid state (define_body_state) -- positive density,
+    // undetectable -- so without eb_zero_body_state the fill would silently
+    // read body values as if they were interior data.  Fatal rather than
+    // silent: that is the standing rule for this boundary condition.
+    if (eb_in_domain && !eb_zero_body_state) {
+      amrex::Abort(
+        "pelec.bc_nscbc = 1 with EB geometry requires "
+        "pelec.eb_zero_body_state = 1: the characteristic fill detects "
+        "covered stencil cells by non-positive density, and the default "
+        "body state is a sampled fluid state it cannot distinguish from "
+        "interior data.");
+    }
+    if (amrex::ParallelDescriptor::IOProcessor()) {
+      amrex::Print()
+        << "\n  NSCBC: characteristic boundary treatment ENABLED (advective "
+           "ghost fill).\n"
+        << "    This is the 1-D-normal LODI limit: no transverse terms and no\n"
+        << "    reaction-source correction. Place outflows away from flames,\n"
+        << "    shear layers and composition fronts. See Source/NSCBC.H.\n";
+      if (bc_nscbc_pin_farfield) {
+        amrex::Print()
+          << "    incoming acoustic PINNED to the far field; bc_nscbc_sigma "
+             "ignored.\n"
+          << "    Anchors to p_target + rho*c*u and does not converge under "
+             "mesh refinement.\n";
+      } else {
+        amrex::Print() << "    sigma   = " << bc_nscbc_sigma;
+        if (bc_nscbc_sigma > 0.0) {
+          amrex::Print()
+            << "  ->  outflow pressure relaxes over " << 1.0 / bc_nscbc_sigma
+            << " acoustic transit times at low Mach\n"
+            << "               (tau_relax / tau_acoustic = 1 / (sigma (1 - "
+               "M^2)));\n"
+            << "               it must be much larger than 1 and much smaller "
+               "than the run time.\n";
+        } else {
+          amrex::Print() << "  ->  perfectly non-reflecting; the mean pressure "
+                            "is NOT anchored and will drift.\n";
+        }
+      }
+      amrex::Print() << "    relax_u = " << bc_nscbc_relax_u
+                     << ",  relax_t = " << bc_nscbc_relax_t
+                     << ",  order = " << bc_nscbc_order << "\n";
+      amrex::Print() << "    L_ref   = (";
+      for (int dir = 0; dir < AMREX_SPACEDIM; ++dir) {
+        amrex::Print() << (dir > 0 ? ", " : "") << nscbc_params(dir).L_ref;
+      }
+      amrex::Print() << ")\n\n";
     }
   }
 
@@ -1157,6 +1254,19 @@ PeleC::postCoarseTimeStep(amrex::Real cumtime)
 {
   BL_PROFILE("PeleC::postCoarseTimeStep()");
   AmrLevel::postCoarseTimeStep(cumtime);
+
+  // NSCBC counters must never be silent: without this, a run with the
+  // default sum_interval = -1 never calls nscbc_report_diagnostics() and a
+  // boundary counting millions of reversal fills looks identical to one
+  // counting none (that misread happened; see
+  // Docs/NSCBC-reversal-branch-defect.md).  When the user has not opted
+  // into periodic reporting, report on a fixed cadence -- the report only
+  // prints when something actually counted, so healthy runs stay quiet.
+  if (bc_nscbc && verbose > 0 && sum_interval <= 0 && sum_per <= 0.0) {
+    if (parent->levelSteps(0) % 100 == 0) {
+      nscbc_report_diagnostics();
+    }
+  }
 }
 
 void
@@ -1176,12 +1286,21 @@ PeleC::post_regrid(int lbase, int /*new_finest*/)
   if ((do_react) && (use_typical_vals_chem)) {
     set_typical_values_chem();
   }
+
+  nscbc_check_fine_faces();
 }
 
 void
 PeleC::post_init(amrex::Real /*stop_time*/)
 {
   BL_PROFILE("PeleC::post_init()");
+
+  if (level == 0) {
+    const int finest = parent->finestLevel();
+    for (int lev = 1; lev <= finest; ++lev) {
+      getLevel(lev).nscbc_check_fine_faces();
+    }
+  }
 
   amrex::Real dtlev = parent->dtLevel(level);
   amrex::Real cumtime = parent->cumTime();

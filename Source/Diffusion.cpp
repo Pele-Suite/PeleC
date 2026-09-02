@@ -143,39 +143,23 @@ PeleC::getMOLSrcTerm(
             }
           });
       }
-      // TODO deal with NSCBC
-      /*
-         for (int dir = 0; dir < AMREX_SPACEDIM ; dir++)  {
-         const amrex::Box& bxtmp = amrex::surroundingNodes(vbox,dir);
-         amrex::Box TestBox(bxtmp);
-         for(int d=0; d<AMREX_SPACEDIM; ++d) {
-         if (dir!=d) TestBox.grow(d,1);
-         }
-
-         bcMask[dir].resize(TestBox,1, amrex::The_Async_Arena());
-         bcMask[dir].setVal(0);
-         }
-
-      // Because bcMask is read in the Riemann solver in any case,
-      // here we put physbc values in the appropriate faces for the
-      non-nscbc case set_bc_mask(lo, hi, domain_lo, domain_hi,
-      AMREX_D_DECL(AMREX_TO_FORTRAN(bcMask[0]),
-      AMREX_TO_FORTRAN(bcMask[1]),
-      AMREX_TO_FORTRAN(bcMask[2])));
-
-      if (nscbc_diff == 1)
-      {
-      impose_NSCBC(lo, hi, domain_lo, domain_hi,
-      AMREX_TO_FORTRAN(Sfab),
-      AMREX_TO_FORTRAN(q.fab()),
-      AMREX_TO_FORTRAN(qaux.fab()),
-      AMREX_D_DECL(AMREX_TO_FORTRAN(bcMask[0]),
-      AMREX_TO_FORTRAN(bcMask[1]),
-      AMREX_TO_FORTRAN(bcMask[2])),
-      &flag_nscbc_isAnyPerio, flag_nscbc_perio,
-      &time, dx, &dt);
-      }
-      */
+      // Phase-2 NSCBC hook point for the diffusive (viscous) LODI terms; see
+      // the corresponding note in Hydro.cpp.  Two facts about how this
+      // operator meets the domain boundary matter for any boundary treatment:
+      //
+      //  * Ghost values are consumed at their CELL CENTRES over a full dx --
+      //    pc_diffusion_flux forms every normal gradient as
+      //    (q(iv) - q(ivm)) / dx with no boundary special-casing, so the
+      //    boundary-face heat flux is lambda (T_int - T_ghost)/dx.  The
+      //    value-on-the-face convention (dT = 2 (T_int - T_wall)/dx, as in
+      //    the MLMG-based Pele codes) exists in PeleC only in the opt-in
+      //    pc_isothermal_wall_fluxes path.
+      //
+      //  * The whole numGrow() ghost region is consumed, not just the first
+      //    layer: this source feeds sources_for_hydro on cbox =
+      //    grow(vbox, ng-1), so fluxes are formed at faces up to ng-1 cells
+      //    OUTSIDE the domain, and the transverse gradients' four-point
+      //    averages (straddling j+-1/k+-1) read the corner ghosts besides.
 
       // Compute transport coefficients, coincident with Q
       auto const& coe_cc = coeff_cc.array();
