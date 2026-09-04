@@ -115,49 +115,19 @@ PeleC::construct_hydro_source(
             });
         }
 
-        // TODO GPUize NCSCBC
-        // Imposing Ghost-Cells Navier-Stokes Characteristic BCs if "UserBC" are
-        // used For the theory, see Motheau et al. AIAA J. Vol. 55, No. 10 : pp.
-        // 3399-3408, 2017.
-        //
-        // The user should provide a bcnormal routine in bc_fill_module with
-        // additional optional arguments to temporary fill ghost-cells for
-        // amrex::BCType::ext_dir and to provide target BC values. See the
-        // examples.
-
-        // Allocate fabs for bcMask. Note that we grow in the opposite direction
-        // because the Riemann solver wants a face value in a ghost-cell
-        /*
-              for (int dir = 0; dir < AMREX_SPACEDIM ; dir++)  {
-                const Box& bxtmp = amrex::surroundingNodes(fbx,dir);
-                Box TestBox(bxtmp);
-                for(int d=0; d<AMREX_SPACEDIM; ++d) {
-                  if (dir!=d) TestBox.grow(d,1);
-                }
-                bcMask[dir].resize(TestBox,1, amrex::The_Async_Arena());
-                bcMask[dir].setVal(0);
-              }
-
-              // Because bcMask is read in the Riemann solver in any case,
-              // here we put physbc values in the appropriate faces for the
-           non-nscbc case set_bc_mask(lo, hi, domain_lo, domain_hi,
-                          AMREX_D_DECL(AMREX_TO_FORTRAN(bcMask[0]),
-                                 AMREX_TO_FORTRAN(bcMask[1]),
-                                 AMREX_TO_FORTRAN(bcMask[2])));
-
-              if (nscbc_adv == 1)
-              {
-                impose_NSCBC(lo, hi, domain_lo, domain_hi,
-                             AMREX_TO_FORTRAN(*statein),
-                             AMREX_TO_FORTRAN(q.fab()),
-                             AMREX_TO_FORTRAN(qaux.fab()),
-                             AMREX_D_DECL(AMREX_TO_FORTRAN(bcMask[0]),
-                                    AMREX_TO_FORTRAN(bcMask[1]),
-                                    AMREX_TO_FORTRAN(bcMask[2])),
-                             &flag_nscbc_isAnyPerio, flag_nscbc_perio,
-                             &time, dx, &dt);
-              }
-        */
+        // Phase-2 NSCBC hook point.  The deleted Fortran GC-NSCBC (Motheau et
+        // al., AIAA J. 55:3399, 2017) was called here, between ctoprim and
+        // srctoprim.  This remains the right location for any characteristic
+        // boundary treatment that needs more than the conserved state: it is
+        // the only place where q, qaux, sources_for_hydro (hence the reaction
+        // contribution to dp/dt), flag_arr, dx and dt are all in scope.  The
+        // ghost-cell-only form of the boundary condition does not need any of
+        // that and lives in BCfill.cpp instead.  The old call also maintained
+        // per-direction face-centred `bcMask` fabs so the Riemann solver could
+        // hard-zero the normal flux at points where an otherwise-UserBC face is
+        // locally a wall; the C++ Riemann path has no equivalent (see the
+        // commented-out bcMask argument in Godunov.H).  Recover the original
+        // Fortran with `git show 2d3a6f6^:Source/Src_2d/impose_NSCBC_2d.f90`.
         {
           BL_PROFILE("PeleC::srctoprim()");
           const auto& src_in = sources_for_hydro.array(mfi);
