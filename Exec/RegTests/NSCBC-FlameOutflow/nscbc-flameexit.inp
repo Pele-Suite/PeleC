@@ -1,0 +1,87 @@
+# NSCBC-FlameExit: the wrinkled sheet of nscbc-flameoutflow.inp, but actually
+# LEAVING.  The parent case parks the sheet on the outflow plane and freezes
+# it there (drift Mach ~6e-4: clearing the boundary would take ~400 acoustic
+# transits); this variant raises the stream to U = 40 S_L so the whole
+# passage -- approach, crossing, exit, and the emptied domain afterwards --
+# fits in 6e-4 s.  The wrinkle keeps the parent's slope (A and Ly scaled
+# together, so the flame normal is still tilted 51 deg off the boundary
+# normal at the crossings) and the grid keeps the parent's dx (11 cells
+# through the thermal thickness).
+#
+# What replaces the shielded reference: nothing stays causally shielded for
+# 5e-4 s, and nothing needs to.  During transit the front must advect at
+# U - S_L with its wrinkle amplitude frozen (the decay times are 100x the
+# window); after the exit the exact solution is known outright -- a uniform
+# fresh stream at (U, p_amb, T_in) -- and any residual field is
+# boundary-made.  measure with exit_metrics.py (see README.md).
+#
+# The velocity jump across the front is (rho_u/rho_b - 1) S_L ~ 78 cm/s
+# regardless of U, so at 40 S_L the front is close to an advecting contact:
+# large drho, modest du.  That is the regime where the quasi-steady bound in
+# bc_nscbc_extrap_material is accurate (the parent's U = 2 S_L is its worst
+# case, off by 2x).
+
+max_step  = 1000000
+stop_time = 6.0e-4
+
+geometry.is_periodic = 0 1
+geometry.coord_sys   = 0
+geometry.prob_lo     = 0.0  0.0
+geometry.prob_hi     = 0.6  0.2
+
+pelec.lo_bc = "UserBC" "Interior"
+pelec.hi_bc = "UserBC" "Interior"
+
+pelec.bc_nscbc         = 1
+pelec.bc_nscbc_sigma   = 0.25
+pelec.bc_nscbc_relax_u = 2.0
+pelec.bc_nscbc_relax_t = 0.2
+pelec.bc_nscbc_beta    = 0.5
+pelec.bc_nscbc_beta_s  = 0.0
+pelec.bc_nscbc_order   = 2
+pelec.bc_nscbc_extrap_temperature = 1
+pelec.bc_nscbc_extrap_material    = 1
+
+prob.pamb          = 1013250.0
+prob.phi_in        = -0.5
+prob.u_ratio       = 40.0
+prob.sheet_x       = 0.7
+prob.wrinkle_amp   = 0.04
+prob.wrinkle_k     = 1.0
+prob.pmf_flame_loc = 3.0
+prob.pmf_datafile  = "LiDryer_H2_p1_phi0_4000tu0300.dat"
+# The inlet is a hard Dirichlet in every measured configuration, so that the
+# length-dependent inflow relaxation rate is not part of any comparison.
+prob.nscbc_inflow  = 0
+
+pelec.do_hydro = 1
+pelec.do_mol = 0
+pelec.diffuse_vel  = 1
+pelec.diffuse_temp = 1
+pelec.diffuse_spec = 1
+pelec.diffuse_enth = 1
+pelec.do_react = 1
+pelec.chem_integrator = "ReactorRK64"
+# Must stay at the default 1: setting it to 0 destroys a reacting state on the
+# first step (see NSCBC-PMF/README.md).
+pelec.allow_negative_energy = 1
+
+pelec.cfl = 0.3
+pelec.init_shrink = 0.3
+pelec.change_max = 1.1
+pelec.sdc_iters = 2
+pelec.sum_interval = 200
+pelec.v = 1
+amr.v = 1
+
+amr.n_cell   = 96 32
+amr.max_level = 0
+amr.blocking_factor = 8
+amr.max_grid_size = 32
+
+amr.checkpoint_files_output = 0
+amr.plot_files_output = 1
+amr.plot_int = -1
+amr.plot_per = 2.0e-5
+amr.plot_file = plt
+amr.derive_plot_vars = pressure Temp x_velocity y_velocity

@@ -1,0 +1,72 @@
+# NSCBC-PMF: a lean H2/air premixed flame with a subsonic outflow downstream.
+#
+# The domain is FIXED so that L_ref, and hence the relaxation rate
+# K = sigma (1-M^2) c / L, is the same in every run; prob.standoff moves the
+# flame toward the outflow.  The PMF profile spans 2.5..3.5 cm with the flame
+# near 3.0, so standoff = y_flame - 3.0:
+#
+#   standoff = -2.0  ->  flame at y = 1.0,  1.00 cm of burnt gas to the outflow
+#   standoff = -1.5  ->  flame at y = 1.5,  0.50 cm
+#   standoff = -1.2  ->  flame at y = 1.8,  0.20 cm (outflow inside the tail)
+#
+# The flame barely moves over the run: at S_L ~ 23 cm/s it travels ~2e-3 cm in
+# 1e-4 s, while the acoustic transit is ~2e-5 s.  So the flame is effectively a
+# stationary heat source and what is being measured is purely how the boundary
+# copes with heat release nearby.
+
+max_step  = 100000
+stop_time = 1.2e-4
+
+geometry.is_periodic = 1 0
+geometry.coord_sys   = 0
+geometry.prob_lo     = 0.0    0.0
+geometry.prob_hi     = 0.125  2.0
+
+pelec.lo_bc = "Interior" "UserBC"
+pelec.hi_bc = "Interior" "UserBC"
+
+pelec.bc_nscbc         = 1
+pelec.bc_nscbc_sigma   = 0.5
+pelec.bc_nscbc_relax_u = 2.0
+pelec.bc_nscbc_relax_t = 0.2
+pelec.bc_nscbc_beta    = 1.0
+pelec.bc_nscbc_beta_s  = 1.0
+pelec.bc_nscbc_order   = 2
+
+prob.pamb          = 1013250.0
+prob.phi_in        = -0.5
+prob.pertmag       = 0.0
+prob.standoff      = -2.0
+prob.pmf_datafile  = "LiDryer_H2_p1_phi0_4000tu0300.dat"
+
+pelec.do_hydro = 1
+pelec.do_mol = 0
+pelec.diffuse_vel  = 1
+pelec.diffuse_temp = 1
+pelec.diffuse_spec = 1
+pelec.diffuse_enth = 1
+pelec.do_react = 1
+pelec.chem_integrator = "ReactorRK64"
+# NOTE: must stay at the default 1 here.  Setting it to 0 -- harmless in the
+# inert NSCBC cases -- destroys this state on the first reaction step
+# (T collapses from 298/1426 K to ~11 K everywhere).
+pelec.allow_negative_energy = 1
+
+pelec.cfl = 0.3
+pelec.init_shrink = 0.3
+pelec.change_max = 1.1
+pelec.sum_interval = -1
+pelec.sdc_iters = 2
+pelec.v = 1
+amr.v = 1
+
+amr.n_cell   = 8 256
+amr.max_level = 0
+amr.blocking_factor = 8
+amr.max_grid_size = 128
+
+amr.checkpoint_files_output = 0
+amr.plot_files_output = 1
+amr.plot_int = 100000
+amr.plot_file = plt
+amr.derive_plot_vars = pressure Temp y_velocity

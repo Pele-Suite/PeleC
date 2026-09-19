@@ -268,6 +268,51 @@ jobs:
           cat warnings.txt
           export return=$(tail -n 1 warnings.txt | awk '{print $2}')
           exit ${return}
+  NSCBC-Driver:
+    needs: Formatting
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Clone
+        uses: actions/checkout@v6
+        with:
+          submodules: 'recursive'
+      - name: Build AMReX 1D
+        run: |
+          cmake -S Submodules/PelePhysics/Submodules/amrex -B ${{runner.temp}}/amrex1d-build \
+            -DCMAKE_INSTALL_PREFIX=${{runner.temp}}/amrex1d \
+            -DAMReX_SPACEDIM=1 -DAMReX_MPI=OFF -DAMReX_OMP=OFF -DAMReX_FORTRAN=OFF \
+            -DAMReX_PARTICLES=OFF -DAMReX_EB=OFF -DAMReX_PLOTFILE_TOOLS=OFF \
+            -DCMAKE_BUILD_TYPE=Release
+          cmake --build ${{runner.temp}}/amrex1d-build -j $(nproc) --target install
+      - name: Driver, air
+        working-directory: ./Verification/NSCBC1D
+        run: |
+          cmake -S . -B build_air -DAMReX_DIR=${{runner.temp}}/amrex1d/lib/cmake/AMReX \
+            -DCMAKE_BUILD_TYPE=Release
+          cmake --build build_air -j $(nproc)
+          ./build_air/nscbc1d
+      - name: Driver, LiDryer (reacting)
+        working-directory: ./Verification/NSCBC1D
+        run: |
+          cmake -S . -B build_lidryer -DAMReX_DIR=${{runner.temp}}/amrex1d/lib/cmake/AMReX \
+            -DPELE_MECHANISM=LiDryer -DCMAKE_BUILD_TYPE=Release
+          cmake --build build_lidryer -j $(nproc)
+          ./build_lidryer/nscbc1d
+      - name: Driver, passive scalars
+        working-directory: ./Verification/NSCBC1D
+        run: |
+          cmake -S . -B build_adv -DAMReX_DIR=${{runner.temp}}/amrex1d/lib/cmake/AMReX \
+            -DPELE_NUM_ADV=2 -DCMAKE_BUILD_TYPE=Release
+          cmake --build build_adv -j $(nproc)
+          ./build_adv/nscbc1d
+      - name: Driver, SRK real gas (static checks)
+        working-directory: ./Verification/NSCBC1D
+        run: |
+          cmake -S . -B build_srk -DAMReX_DIR=${{runner.temp}}/amrex1d/lib/cmake/AMReX \
+            -DPELE_MECHANISM=LiDryer -DPELE_EOS=SRK -DCMAKE_BUILD_TYPE=Release
+          cmake --build build_srk -j $(nproc)
+          ./build_srk/nscbc1d
+
   CPU-CMake:
     needs: Formatting
     runs-on: ${{matrix.os}}

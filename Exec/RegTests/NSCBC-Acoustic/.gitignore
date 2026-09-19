@@ -1,0 +1,10 @@
+# Directories only (trailing slash): a bare "plt*" once silently swallowed a
+# source file named pltdump.cpp on git add.
+plt*/
+chk*/
+build*/
+run*/
+d*_bs*/
+Backtrace.*
+*.log
+__pycache__/
