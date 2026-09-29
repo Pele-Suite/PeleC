@@ -67,10 +67,55 @@ use_hybrid_weno              bool          false
 # WENO scheme type in PPM method
 weno_scheme                  int           1
 
-# permits Ghost-Cells Navier-Stokes Boundary Conditions to be turned on and off
-# for advective terms (adv) and for diffusion terms (diff)
-nscbc_adv                   bool          true
-nscbc_diff                  bool          false
+# ---------------------------------------------------------------------------
+# Characteristic (NSCBC) boundary treatment.  See Source/NSCBC.H for the
+# formulation and Docs/sphinx/BoundaryConditions.rst for guidance.
+#
+# Master switch.  Even when true, the treatment is applied only at boundary
+# POINTS for which the problem's ProblemSpecificFunctions::bcnormal_nscbc()
+# returns a type other than `off`, so a problem that does not provide that
+# hook is unaffected.
+bc_nscbc                    bool          false
+
+# Outflow pressure relaxation, the classical Poinsot-Lele sigma.  The
+# relaxation rate is K = sigma * (1 - M^2) * c / L, with L the domain extent
+# along the boundary normal, so the boundary pressure relaxes toward the
+# target over tau = 1/K, which is 1/(sigma (1 - M^2)) acoustic transit times.
+# 0 is perfectly non-reflecting and leaves the mean pressure unanchored.
+# Literature band is 0.15-0.3.  Must be >= 0.
+bc_nscbc_sigma              Real          0.25
+
+# Inflow normal-velocity relaxation coefficient.  Larger imposes the target
+# velocity more strongly and reflects more.  Must be >= 0.
+bc_nscbc_relax_u            Real          2.0
+
+# Inflow temperature and tangential-velocity relaxation coefficient.  Must be
+# >= 0: unlike the legacy Fortran, every user-facing NSCBC coefficient in
+# PeleC is positive and the internal signs are handled by the kernel.
+bc_nscbc_relax_t            Real          0.2
+
+# Order of the outgoing-invariant extrapolation, 1 or 2.  Verification and
+# debugging knob, not a physics knob; leave at 2.
+bc_nscbc_order              int           2
+
+# Pin the incoming acoustic invariant to its far-field value instead of
+# relaxing it toward the target at rate K.  Simultaneously non-reflecting and
+# anchored, but it anchors to p_target + rho c u rather than to p_target and
+# its effective relaxation rate is c/dx, so it does not converge under mesh
+# refinement.  Appropriate for an open boundary onto a large quiescent
+# reservoir; inappropriate for a duct exhausting into a plenum whose true mean
+# pressure is not the target.  bc_nscbc_sigma is ignored when this is set.
+bc_nscbc_pin_farfield       bool          false
+
+
+# NOTE: pelec.nscbc_adv and pelec.nscbc_diff were removed here.  They were
+# declared and queried but never read by any live code path -- the
+# Ghost-Cell NSCBC implementation they controlled was deleted with the rest
+# of the Fortran in 2d3a6f6.  nscbc_adv defaulted to true, so leaving them in
+# place meant that reconnecting a live NSCBC would silently change the
+# behaviour of every Hard/UserBC case that did not explicitly opt out.
+# PeleC::read_params aborts with a migration message if either key is present
+# in an inputs file.  See Docs/sphinx/BoundaryConditions.rst.
 
 # if true, define an external source term
 add_ext_src                 bool           false
@@ -219,8 +264,14 @@ PrT                          Real          1.0
 # category: EB
 #-----------------------------------------------------------------------------
 
-# set the EB boundary temperature for isothermal walls
-eb_boundary_T                Real         1.0
+# set the EB boundary temperature for isothermal walls.  The default is
+# ambient-like on purpose: this used to default to 1.0 K, and because
+# eb_isothermal also defaults true, any diffusive EB case that did not set
+# both parameters was silently conducting heat into one-kelvin walls -- the
+# NSCBC-Chamber box variants refrigerated their cut cells to 77 K and NaN'd
+# at the corners before this was found (see that case's README).  A wall
+# temperature is physics; set it deliberately.
+eb_boundary_T                Real         300.0
 
 # flag for isothermal EB boundary
 eb_isothermal                bool         true

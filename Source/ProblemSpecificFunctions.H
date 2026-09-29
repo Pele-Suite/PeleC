@@ -7,6 +7,7 @@
 
 #include "PeleC.H"
 #include "IndexDefines.H"
+#include "NSCBC.H"
 
 struct DefaultProblemSpecificFunctions
 {
@@ -158,6 +159,37 @@ struct DefaultProblemSpecificFunctions
     ProbParmDevice const& /*prob_parm*/,
     const amrex::RealVect& /*x*/)
   {
+  }
+
+  // Characteristic (NSCBC) boundary treatment.
+  //
+  // Return the target state for one boundary POINT.  The default returns
+  // Type::off, which leaves that point to the ordinary bcnormal() path, so
+  // pelec.bc_nscbc = 1 is a no-op for a problem that does not override this.
+  // Because the decision is per point, a single face may mix an inflow, an
+  // outflow and a wall.
+  //
+  // Only the fields relevant to the returned type are read:
+  //     Type::outflow -> p
+  //     Type::inflow  -> u[], T, Y[]
+  // There is deliberately no relaxation coefficient for composition; see
+  // Source/NSCBC.H.
+  //
+  // s_int is the state in the first interior cell along the boundary normal,
+  // for problems whose target depends on the interior state (a back-pressure
+  // that tracks a measured plenum, say).  Most problems will not need it.
+  AMREX_GPU_DEVICE
+  AMREX_FORCE_INLINE
+  static pc_nscbc::Target bcnormal_nscbc(
+    const amrex::Real* /*x[AMREX_SPACEDIM]*/,
+    const amrex::Real* /*s_int[NVAR]*/,
+    const int /*idir*/,
+    const int /*sgn*/,
+    const amrex::Real /*time*/,
+    amrex::GeometryData const& /*geomdata*/,
+    ProbParmDevice const& /*prob_parm*/)
+  {
+    return pc_nscbc::Target{};
   }
 
   /* TODO
