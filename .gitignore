@@ -38,3 +38,4 @@ Docs/sphinx/doctrees/
 Docs/sphinx_doc/
 
 __pycache__
+build*/
