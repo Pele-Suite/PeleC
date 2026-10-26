@@ -322,6 +322,9 @@ add_test_r(soot-zerod Soot-ZeroD 94.86)
 # Not run in CI
 add_test_re(pmf-lidryer-rk64 PMF 676.01)
 add_test_re(pmf-lidryer-cvode PMF 655.63)
+# Multicomponent diffusion: need PelePhysics with the multicomponent transport extension
+add_test_re(pmf-lidryer-multicomp PMF)
+add_test_re(pmf-lidryer-matrixdiff PMF)
 add_test_re(sedov-1 Sedov 946.91)
 add_test_re(shu-osher-1 Shu-Osher 34.23)
 add_test_re(zerod-1 zeroD 59.04)

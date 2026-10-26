@@ -41,6 +41,22 @@
 #define dComp_xi (dComp_mu + 1)
 #define dComp_lambda (dComp_xi + 1)
 
+// Optional multicomponent diffusion (pelec.use_multicomponent_diffusion):
+// available for the ideal gas (Fuego) EOS with Simple transport, without
+// sprays or soot, and only when PelePhysics provides the multicomponent
+// transport extension (SimpleConductivity.H exists only in that version).
+#if defined(USE_FUEGO_EOS) && defined(USE_SIMPLE_TRANSPORT) && \
+  !defined(PELE_USE_SPRAY) && !defined(PELE_USE_SOOT) &&       \
+  __has_include("SimpleConductivity.H")
+#define PELEC_MULTICOMPONENT_DIFFUSION 1
+#endif
+// Additional transport coefficients used by the multicomponent path:
+// the flux diffusion matrix rho*Y_k*D_kj (row-major, k*NUM_SPECIES + j) and
+// the rescaled thermal diffusion ratios
+#define dComp_Dmat (dComp_lambda + 1)
+#define dComp_chit (dComp_Dmat + NUM_SPECIES * NUM_SPECIES)
+#define nCompTrMC (dComp_chit + NUM_SPECIES)
+
 #define comp_Cs2 0
 #define comp_CI (comp_Cs2 + 1)
 #define comp_PrT (comp_CI + 1)

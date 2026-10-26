@@ -38,6 +38,7 @@ CEXE_headers += Hydro.H
 CEXE_headers += Timestep.H
 CEXE_headers += IndexDefines.H
 CEXE_headers += Diffterm.H
+CEXE_headers += DifftermMC.H
 CEXE_headers += Diffusion.H
 CEXE_headers += GradUtil.H
 CEXE_headers += Godunov.H

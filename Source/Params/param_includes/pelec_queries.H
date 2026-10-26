@@ -61,6 +61,9 @@ pp.query("diffuse_enth", diffuse_enth);
 pp.query("diffuse_spec", diffuse_spec);
 pp.query("diffuse_vel", diffuse_vel);
 pp.query("transport_harmonic_mean", transport_harmonic_mean);
+pp.query("use_multicomponent_diffusion", use_multicomponent_diffusion);
+pp.query("use_soret", use_soret);
+pp.query("use_dufour", use_dufour);
 pp.query("do_isothermal_walls", do_isothermal_walls);
 {
   amrex::Vector<amrex::Real> tmp(AMREX_SPACEDIM, -1.0);

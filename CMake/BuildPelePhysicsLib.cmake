@@ -89,7 +89,9 @@ function(build_pele_physics_lib pele_physics_lib_name)
                    ${PELE_PHYSICS_TRANSPORT_DIR}/TransportTypes.H
                    ${PELE_PHYSICS_TRANSPORT_DIR}/Constant.H
                    ${PELE_PHYSICS_TRANSPORT_DIR}/Simple.H
-                   ${PELE_PHYSICS_TRANSPORT_DIR}/Sutherland.H)
+                   ${PELE_PHYSICS_TRANSPORT_DIR}/Sutherland.H
+                   ${PELE_PHYSICS_TRANSPORT_DIR}/TransportUtils.H
+                   ${PELE_PHYSICS_TRANSPORT_DIR}/SimpleConductivity.H)
     target_include_directories(${pele_physics_lib_name} PUBLIC ${PELE_PHYSICS_TRANSPORT_DIR})
     if("${PELE_PHYSICS_TRANSPORT_MODEL}" STREQUAL "Constant")
       target_compile_definitions(${pele_physics_lib_name} PUBLIC USE_CONSTANT_TRANSPORT)

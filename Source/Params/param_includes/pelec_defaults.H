@@ -55,6 +55,9 @@ bool PeleC::diffuse_enth = false;
 bool PeleC::diffuse_spec = false;
 bool PeleC::diffuse_vel = false;
 bool PeleC::transport_harmonic_mean = true;
+bool PeleC::use_multicomponent_diffusion = false;
+bool PeleC::use_soret = false;
+bool PeleC::use_dufour = false;
 bool PeleC::do_isothermal_walls = false;
 amrex::GpuArray<amrex::Real, AMREX_SPACEDIM> PeleC::domlo_isothermal_temp = {
   -1.0};

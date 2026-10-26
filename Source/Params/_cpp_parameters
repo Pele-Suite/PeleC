@@ -184,6 +184,15 @@ diffuse_vel                   bool         false
 # flag for harmonic averaging of transport coefficients to the face
 transport_harmonic_mean       bool         true
 
+# flag for full multicomponent species diffusion (ideal gas, Simple transport, no spray/soot; explicit species and energy diffusion)
+use_multicomponent_diffusion  bool         false
+
+# flag for the thermal diffusion (Soret) term with multicomponent diffusion (needs transport.conductivity_model = lct1 or lct3)
+use_soret                     bool         false
+
+# flag for the Dufour heat flux with multicomponent diffusion (needs use_soret)
+use_dufour                    bool         false
+
 # flag for isothermal walls
 do_isothermal_walls           bool         false
 

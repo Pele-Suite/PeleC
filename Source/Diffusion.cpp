@@ -1,5 +1,6 @@
 #include "Diffusion.H"
 #include "prob.H"
+#include "DifftermMC.H"
 
 void
 PeleC::getMOLSrcTerm(
@@ -65,7 +66,8 @@ PeleC::getMOLSrcTerm(
      sure what are the consequences of that.
   */
 
-  const int nCompTr = dComp_lambda + 1;
+  const int nCompTr =
+    use_multicomponent_diffusion ? nCompTrMC : (dComp_lambda + 1);
   const amrex::GpuArray<amrex::Real, AMREX_SPACEDIM> dxinv =
     geom.InvCellSizeArray();
 
@@ -193,30 +195,86 @@ PeleC::getMOLSrcTerm(
         const ProbParmDevice* lprobparm = PeleC::d_prob_parm_device;
         const bool get_xi = true, get_mu = true, get_lam = true,
                    get_Ddiag = true, get_chi = false;
-        amrex::ParallelFor(
-          gbox, [=] AMREX_GPU_DEVICE(int i, int j, int k) noexcept {
-            amrex::Real muloc, xiloc, lamloc;
-            amrex::Real Ddiag[NUM_SPECIES], Y[NUM_SPECIES] = {0.0};
-            amrex::Real* chi_mix = nullptr;
-            amrex::Real T = qar_Tin(i, j, k);
-            amrex::Real rho = qar_rhoin(i, j, k);
-            for (int n = 0; n < NUM_SPECIES; ++n) {
-              Y[n] = qar_yin(i, j, k, n);
-            }
+#ifdef PELEC_MULTICOMPONENT_DIFFUSION
+        if (use_multicomponent_diffusion) {
+          // Multicomponent path: flux diffusion matrix (and rescaled thermal
+          // diffusion ratios) from PelePhysics; the mixture-averaged
+          // coefficients are not used and set to zero.
+          const bool l_use_soret = use_soret;
+          amrex::ParallelFor(
+            gbox, [=] AMREX_GPU_DEVICE(int i, int j, int k) noexcept {
+              amrex::Real muloc = 0.0, xiloc = 0.0, lamloc = 0.0;
+              amrex::Real Y[NUM_SPECIES] = {0.0};
+              amrex::Real Dmat[NUM_SPECIES * NUM_SPECIES] = {0.0};
+              amrex::Real chit[NUM_SPECIES] = {0.0};
+              amrex::Real Ddiag_dummy[NUM_SPECIES] = {0.0};
+              const amrex::Real T = qar_Tin(i, j, k);
+              const amrex::Real rho = qar_rhoin(i, j, k);
+              for (int n = 0; n < NUM_SPECIES; ++n) {
+                Y[n] = qar_yin(i, j, k, n);
+              }
 
-            const amrex::RealVect x =
-              pc_cmp_loc({AMREX_D_DECL(i, j, k)}, geomdata);
-            pc_transcoeff(
-              get_xi, get_mu, get_lam, get_Ddiag, get_chi, T, rho, Y, Ddiag,
-              chi_mix, muloc, xiloc, lamloc, ltransparm, *lprobparm, x);
+              pele::physics::transport::TransportRequest req;
+              req.xi = get_xi;
+              req.mu = get_mu;
+              req.lam = get_lam;
+              req.Dmat = true;
+              req.chit = l_use_soret;
+              pele::physics::transport::TransportOutputs out;
+              out.mu = &muloc;
+              out.xi = &xiloc;
+              out.lam = &lamloc;
+              out.Dmat = Dmat;
+              out.chit = chit;
+              auto trans = pele::physics::PhysicsType::transport();
+              trans.transport(req, T, rho, Y, out, ltransparm);
 
-            for (int n = 0; n < NUM_SPECIES; ++n) {
-              coe_rhoD(i, j, k, n) = Ddiag[n];
-            }
-            coe_mu(i, j, k) = muloc;
-            coe_xi(i, j, k) = xiloc;
-            coe_lambda(i, j, k) = lamloc;
-          });
+              // Problem-specific modifications of mu, xi and lambda only
+              const amrex::RealVect x =
+                pc_cmp_loc({AMREX_D_DECL(i, j, k)}, geomdata);
+              ProblemSpecificFunctions::problem_modify_transport_coeffs(
+                get_xi, get_mu, get_lam, false, false, T, rho, Y, Ddiag_dummy,
+                nullptr, muloc, xiloc, lamloc, ltransparm, *lprobparm, x);
+
+              for (int n = 0; n < NUM_SPECIES; ++n) {
+                coe_rhoD(i, j, k, n) = 0.0;
+                coe_cc(i, j, k, dComp_chit + n) = chit[n];
+              }
+              for (int n = 0; n < NUM_SPECIES * NUM_SPECIES; ++n) {
+                coe_cc(i, j, k, dComp_Dmat + n) = Dmat[n];
+              }
+              coe_mu(i, j, k) = muloc;
+              coe_xi(i, j, k) = xiloc;
+              coe_lambda(i, j, k) = lamloc;
+            });
+        } else
+#endif
+        {
+          amrex::ParallelFor(
+            gbox, [=] AMREX_GPU_DEVICE(int i, int j, int k) noexcept {
+              amrex::Real muloc, xiloc, lamloc;
+              amrex::Real Ddiag[NUM_SPECIES], Y[NUM_SPECIES] = {0.0};
+              amrex::Real* chi_mix = nullptr;
+              amrex::Real T = qar_Tin(i, j, k);
+              amrex::Real rho = qar_rhoin(i, j, k);
+              for (int n = 0; n < NUM_SPECIES; ++n) {
+                Y[n] = qar_yin(i, j, k, n);
+              }
+
+              const amrex::RealVect x =
+                pc_cmp_loc({AMREX_D_DECL(i, j, k)}, geomdata);
+              pc_transcoeff(
+                get_xi, get_mu, get_lam, get_Ddiag, get_chi, T, rho, Y, Ddiag,
+                chi_mix, muloc, xiloc, lamloc, ltransparm, *lprobparm, x);
+
+              for (int n = 0; n < NUM_SPECIES; ++n) {
+                coe_rhoD(i, j, k, n) = Ddiag[n];
+              }
+              coe_mu(i, j, k) = muloc;
+              coe_xi(i, j, k) = xiloc;
+              coe_lambda(i, j, k) = lamloc;
+            });
+        }
       }
 
       amrex::FArrayBox flux_ec[AMREX_SPACEDIM];
@@ -243,6 +301,9 @@ PeleC::getMOLSrcTerm(
         // Compute Extensive diffusion fluxes for X, Y, Z
         BL_PROFILE("PeleC::diffusion_flux()");
         const bool l_transport_harmonic_mean = transport_harmonic_mean;
+        const bool l_use_mc = use_multicomponent_diffusion;
+        const bool l_use_soret = use_soret;
+        const bool l_use_dufour = use_dufour;
         for (int dir = 0; dir < AMREX_SPACEDIM; dir++) {
           if (
             (typ == amrex::FabType::singlevalued) ||
@@ -253,7 +314,11 @@ PeleC::getMOLSrcTerm(
                 if (
                   flag_arr(i, j, k).isRegular() ||
                   flag_arr(i, j, k).isSingleValued()) {
-                  for (int n = 0; n < static_cast<int>(cf.size()); n++) {
+                  // With multicomponent diffusion the mixture-averaged
+                  // coefficients stay zero so that the standard species
+                  // flux functor contributes nothing
+                  const int n0 = l_use_mc ? dComp_mu : 0;
+                  for (int n = n0; n < static_cast<int>(cf.size()); n++) {
                     pc_move_transcoefs_to_ec(
                       AMREX_D_DECL(i, j, k), n, coe_cc, cf.data(), dir,
                       l_transport_harmonic_mean);
@@ -267,6 +332,15 @@ PeleC::getMOLSrcTerm(
                   pc_diffusion_flux(
                     i, j, k, qar, cf, area_arr[dir], flx[dir], dxinv, dir);
                 }
+#ifdef PELEC_MULTICOMPONENT_DIFFUSION
+                if (l_use_mc) {
+                  pc_mc_species_energy_flux(
+                    i, j, k, qar, coe_cc, flag_arr, area_arr[dir], flx[dir],
+                    dxinv[dir], dir, l_use_soret, l_use_dufour);
+                }
+#else
+                amrex::ignore_unused(l_use_soret, l_use_dufour);
+#endif
               });
           } else if (typ == amrex::FabType::multivalued) {
             amrex::Abort("multi-valued cells are not supported");
