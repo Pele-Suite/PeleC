@@ -66,7 +66,7 @@ jobs:
           echo "::add-matcher::.github/problem-matchers/gcc.json"
           set -eu -o pipefail
           ccache -z
-          make -j ${{env.NPROCS}} KEEP_BUILDINFO_CPP=TRUE USE_CCACHE=TRUE COMP=gnu USE_MPI=FALSE DEBUG=TRUE 2>&1 | tee -a build-output.txt
+          make -j ${{env.NPROCS}} KEEP_BUILDINFO_CPP=TRUE USE_CCACHE=TRUE COMP=gnu USE_MPI=FALSE DEBUG=TRUE USE_LCT_TRANSPORT=TRUE 2>&1 | tee -a build-output.txt
       - name: PMF ccache report
         working-directory: ./Exec/RegTests/PMF
         run: |
@@ -75,6 +75,9 @@ jobs:
       - name: PMF debug test
         working-directory: ./Exec/RegTests/PMF
         run: ./PeleC3d.gnu.DEBUG.ex pmf-lidryer-arkode.inp max_step=2 amr.plot_files_output=0 amr.checkpoint_files_output=0
+      - name: PMF multicomponent diffusion debug test
+        working-directory: ./Exec/RegTests/PMF
+        run: ./PeleC3d.gnu.DEBUG.ex pmf-lidryer-multicomp.inp max_step=2 amr.plot_files_output=0 amr.checkpoint_files_output=0
       - name: PMF debug report
         working-directory: ./Exec/RegTests/PMF
         run: |
