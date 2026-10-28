@@ -796,6 +796,9 @@ jobs:
           restore-keys: |
                ccache-${{github.workflow}}-${{github.job}}-git-
       - name: Configure
+        # No FPE trapping here: this job only compiles for the analysis, and
+        # clang 18's optimizer crashes on AMReX_EB_STL_utils.cpp when built
+        # with -ffp-exception-behavior=maytrap
         run: |
           cmake -B${{runner.workspace}}/build-clang-tidy \
           -DCMAKE_BUILD_TYPE:STRING=Release \
@@ -807,6 +810,7 @@ jobs:
           -DPELE_ENABLE_MASA:BOOL=OFF \
           -DPELE_ENABLE_CLANG_TIDY:BOOL=ON \
           -DPELE_EXCLUDE_BUILD_IN_CI:BOOL=ON \
+          -DPELE_ENABLE_FPE_TRAP_FOR_TESTS:BOOL=OFF \
           -DCMAKE_CXX_COMPILER_LAUNCHER:STRING=ccache \
           ${{github.workspace}}
       - name: Check
