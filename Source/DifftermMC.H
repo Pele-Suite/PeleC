@@ -43,6 +43,7 @@ pc_mc_species_energy_flux(
   const bool do_soret,
   const bool do_dufour)
 {
+  amrex::ignore_unused(k); // not part of the IntVect in 2D
   const amrex::IntVect iv{AMREX_D_DECL(i, j, k)};
   const amrex::IntVect ivm(iv - amrex::IntVect::TheDimensionVector(dir));
   if (!(flags(iv).isRegular() || flags(iv).isSingleValued())) {
