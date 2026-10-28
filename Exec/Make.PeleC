@@ -16,6 +16,9 @@ endif
 
 USE_EB = TRUE
 USE_SUNDIALS = TRUE
+# Multicomponent (LCT) conductivity models of PelePhysics' Simple transport,
+# needed by pelec.use_soret; handled by PelePhysics' Transport Make.package
+USE_LCT_TRANSPORT ?= FALSE
 CXXSTD = c++20
 
 include $(AMREX_HOME)/Tools/GNUMake/Make.defs

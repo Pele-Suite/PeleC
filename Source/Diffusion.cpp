@@ -1,6 +1,8 @@
 #include "Diffusion.H"
 #include "prob.H"
 #include "DifftermMC.H"
+#include "Timestep.H"
+#include <AMReX_Reduce.H>
 
 void
 PeleC::getMOLSrcTerm(
@@ -80,6 +82,9 @@ PeleC::getMOLSrcTerm(
     cost = &(get_new_data(Work_Estimate_Type));
   }
 
+  // Multicomponent diffusion: largest Gershgorin diffusivity bound over the
+  // level, for the species-diffusion time-step limit of the next step
+  amrex::Real mc_dmax_local = 0.0;
 #ifdef AMREX_USE_OMP
 #pragma omp parallel if (amrex::Gpu::notInLaunchRegion())
 #endif
@@ -243,10 +248,38 @@ PeleC::getMOLSrcTerm(
               for (int n = 0; n < NUM_SPECIES * NUM_SPECIES; ++n) {
                 coe_cc(i, j, k, dComp_Dmat + n) = Dmat[n];
               }
+              coe_cc(i, j, k, dComp_mcDgersh) =
+                pc_mc_gershgorin_diffusivity(rho, Y, Dmat);
               coe_mu(i, j, k) = muloc;
               coe_xi(i, j, k) = xiloc;
               coe_lambda(i, j, k) = lamloc;
             });
+
+          // Largest diffusivity bound of this box (valid cells, covered
+          // cells excluded), reused by estTimeStep instead of a second
+          // evaluation of the matrix
+          {
+            auto const& flag_cc = flags.const_array(mfi);
+            amrex::ReduceOps<amrex::ReduceOpMax> reduce_op;
+            amrex::ReduceData<amrex::Real> reduce_data(reduce_op);
+            reduce_op.eval(
+              vbox, reduce_data,
+              [=] AMREX_GPU_DEVICE(
+                int i, int j, int k) -> amrex::GpuTuple<amrex::Real> {
+                return {
+                  flag_cc(i, j, k).isCovered()
+                    ? 0.0
+                    : coe_cc(i, j, k, dComp_mcDgersh)};
+              });
+            const amrex::Real dmax_fab =
+              amrex::get<0>(reduce_data.value(reduce_op));
+#ifdef AMREX_USE_OMP
+#pragma omp critical(pelec_mc_dmax)
+#endif
+            {
+              mc_dmax_local = amrex::max(mc_dmax_local, dmax_fab);
+            }
+          }
         } else
 #endif
         {
@@ -754,4 +787,13 @@ PeleC::getMOLSrcTerm(
       }
     }
   }
+
+#ifdef PELEC_MULTICOMPONENT_DIFFUSION
+  if (use_multicomponent_diffusion) {
+    amrex::ParallelDescriptor::ReduceRealMax(mc_dmax_local);
+    mc_specdif_dmax = mc_dmax_local;
+  }
+#else
+  amrex::ignore_unused(mc_dmax_local);
+#endif
 }

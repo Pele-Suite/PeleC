@@ -71,7 +71,8 @@ pelec.do_mol=0
 
 # MULTICOMPONENT TRANSPORT (requires Fuego EOS, Simple transport, no spray/soot,
 # explicit species and energy diffusion). Needs PelePhysics with the
-# multicomponent transport extension.
+# multicomponent transport extension, built with the LCT conductivity models:
+#   make USE_LCT_TRANSPORT=TRUE   (CMake: PELE_PHYSICS_ENABLE_LCT_TRANSPORT=ON)
 pelec.use_multicomponent_diffusion = 1   # full Ern-Giovangigli diffusion matrix
 pelec.use_soret  = 1                     # thermal diffusion (needs an LCT conductivity model)
 pelec.use_dufour = 1                     # Dufour heat flux

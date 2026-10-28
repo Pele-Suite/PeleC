@@ -144,6 +144,12 @@ PeleC::check_params()
     AMREX_ALWAYS_ASSERT_WITH_MESSAGE(
       !do_les, "pelec.use_multicomponent_diffusion is not compatible with LES");
     if (use_soret) {
+#ifndef PELE_TRANSPORT_LCT
+      amrex::Abort(
+        "pelec.use_soret needs the LCT conductivity models of PelePhysics: "
+        "build with USE_LCT_TRANSPORT = TRUE (GNU make) or "
+        "PELE_PHYSICS_ENABLE_LCT_TRANSPORT=ON (CMake)");
+#endif
       AMREX_ALWAYS_ASSERT_WITH_MESSAGE(
         trans_parms.host_parm().conductivity_model !=
           pele::physics::transport::ConductivityModel::Mixture,

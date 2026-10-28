@@ -690,6 +690,11 @@ protected:
   // Source term representing hydrodynamics update.
   amrex::MultiFab hydro_source;
 
+  // Multicomponent diffusion: largest Gershgorin diffusivity bound of the
+  // multicomponent operator on this level, taken from the coefficients of
+  // the last diffusion evaluation (negative until one has happened)
+  amrex::Real mc_specdif_dmax = -1.0;
+
   // Non-hydro source terms.
   amrex::Vector<std::unique_ptr<amrex::MultiFab>> old_sources;
   amrex::Vector<std::unique_ptr<amrex::MultiFab>> new_sources;
