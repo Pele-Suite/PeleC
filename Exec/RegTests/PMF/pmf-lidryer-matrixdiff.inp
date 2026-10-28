@@ -72,11 +72,3 @@ pelec.do_mol=0
 # MULTICOMPONENT DIFFUSION MATRIX ONLY (mixture-rule conductivity, no Soret/Dufour)
 pelec.use_multicomponent_diffusion = 1
 transport.matrix_diffusion_niter = 2
-
-pelec.diagnostics = xNormPlane
-pelec.xNormPlane.type = DiagFramePlane
-pelec.xNormPlane.file = xNormCent
-pelec.xNormPlane.normal = 0
-pelec.xNormPlane.center = 0.15625
-pelec.xNormPlane.int = 5
-pelec.xNormPlane.field_names = density zmom xmom Temp heatRelease z_velocity x_velocity Y(H2) Y(HO2) pressure

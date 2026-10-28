@@ -79,11 +79,3 @@ pelec.use_dufour = 1                     # Dufour heat flux
 transport.conductivity_model     = lct1  # EGlib LCT1 conductivity + thermal diffusion ratios
 transport.conductivity_niter     = 3
 transport.matrix_diffusion_niter = 2
-
-pelec.diagnostics = xNormPlane
-pelec.xNormPlane.type = DiagFramePlane
-pelec.xNormPlane.file = xNormCent
-pelec.xNormPlane.normal = 0
-pelec.xNormPlane.center = 0.15625
-pelec.xNormPlane.int = 5
-pelec.xNormPlane.field_names = density zmom xmom Temp heatRelease z_velocity x_velocity Y(H2) Y(HO2) pressure
