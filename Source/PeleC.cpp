@@ -890,7 +890,6 @@ PeleC::estTimeStep(amrex::Real /*dt_old*/)
 
 #ifdef PELEC_MULTICOMPONENT_DIFFUSION
     if (use_multicomponent_diffusion && diffuse_spec) {
-      amrex::Real dt = max_dt_over_cfl;
       if (mc_specdif_dmax >= 0.0) {
         // Reuse the Gershgorin bound evaluated with the coefficients of the
         // last diffusion evaluation on this level (one step old at most)
@@ -900,13 +899,14 @@ PeleC::estTimeStep(amrex::Real /*dt_old*/)
         for (int d = 1; d < AMREX_SPACEDIM; ++d) {
           dxmin = amrex::min(dxmin, geom.CellSize(d));
         }
-        dt = 0.5 * dxmin * dxmin / (AMREX_SPACEDIM * D);
+        const amrex::Real dt = 0.5 * dxmin * dxmin / (AMREX_SPACEDIM * D);
+        estdt_sdif = amrex::min<amrex::Real>(estdt_sdif, dt);
       } else {
         // No diffusion evaluation on this level yet (initial step, restart,
         // regrid): evaluate the matrix directly
         auto const& geomdata = geom.data();
         auto const* ltransparm = trans_parms.device_parm();
-        dt = amrex::ReduceMin(
+        const amrex::Real dt = amrex::ReduceMin(
           stateMF, flags, 0,
           [=] AMREX_GPU_HOST_DEVICE(
             amrex::Box const& bx,
@@ -916,8 +916,8 @@ PeleC::estTimeStep(amrex::Real /*dt_old*/)
             return pc_estdt_specdif_mc(
               bx, fab_arr, flag_arr, geomdata, ltransparm);
           });
+        estdt_sdif = amrex::min<amrex::Real>(estdt_sdif, dt);
       }
-      estdt_sdif = amrex::min<amrex::Real>(estdt_sdif, dt);
     }
 #endif
 
