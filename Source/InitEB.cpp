@@ -89,7 +89,7 @@ PeleC::initialize_eb2_structs()
       auto const& flag_arr = flags.const_array(mfi);
 
       const auto nallcells = static_cast<int>(tbox.numPts());
-      amrex::Gpu::DeviceVector<int> cutcell_offset(nallcells, 0);
+      amrex::Gpu::AsyncVector<int> cutcell_offset(nallcells, 0);
       auto* d_cutcell_offset = cutcell_offset.data();
       const auto ncutcells = amrex::Scan::PrefixSum<int>(
         nallcells,
@@ -245,7 +245,7 @@ PeleC::initialize_eb2_structs()
         const auto facecent_arr = (*facecent[dir])[mfi].const_array();
         const auto fbox = amrex::surroundingNodes(tbox, dir);
         const auto nallfaces = static_cast<int>(fbox.numPts());
-        amrex::Gpu::DeviceVector<int> cutfaces_offset(nallfaces, 0);
+        amrex::Gpu::AsyncVector<int> cutfaces_offset(nallfaces, 0);
         auto* d_cutface_offset = cutfaces_offset.data();
         const auto ncutfaces = amrex::Scan::PrefixSum<int>(
           nallfaces,
