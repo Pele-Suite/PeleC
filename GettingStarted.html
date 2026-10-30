@@ -1,0 +1,177 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Getting Started &mdash; PeleC 0.1 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=03e43079" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=9edc463e" />
+
+  
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=2709fde1"></script>
+      <script src="_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Building" href="Building.html" />
+    <link rel="prev" title="Numerical Treatment and Algorithms" href="Algorithms.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            PeleC
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="Introduction.html">Introduction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="Equations.html">Equations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="Algorithms.html">Numerical Treatment and Algorithms</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Getting Started</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#navigation">Navigation</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="Building.html">Building</a></li>
+<li class="toctree-l3"><a class="reference internal" href="InputFiles.html">Input Files and Controls</a></li>
+<li class="toctree-l3"><a class="reference internal" href="Tutorials.html">Tutorials</a></li>
+<li class="toctree-l3"><a class="reference internal" href="Testing.html">Testing and Verification</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="BoundaryConditions.html">Boundary Conditions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="geometry/EB.html">Geometry treatment in PeleC</a></li>
+<li class="toctree-l1"><a class="reference internal" href="LES.html">LES and Hybrid LES/DNS Support</a></li>
+<li class="toctree-l1"><a class="reference internal" href="VandV.html">Correctness - Verification and Validation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="PelePhysics.html">PelePhysics</a></li>
+<li class="toctree-l1"><a class="reference internal" href="BoxlibBits.html">Development Reference</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">PeleC</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Getting Started</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/GettingStarted.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="getting-started">
+<span id="gettingstarted"></span><h1>Getting Started<a class="headerlink" href="#getting-started" title="Link to this heading"></a></h1>
+<section id="navigation">
+<h2>Navigation<a class="headerlink" href="#navigation" title="Link to this heading"></a></h2>
+<p>The PeleC directory structure is as shown below:</p>
+<ul class="simple">
+<li><p><strong>Source</strong> - C++ source code</p></li>
+<li><p><strong>Docs</strong>   - PeleC documentation</p></li>
+<li><p><strong>Exec</strong> - <cite>regression tests&lt;VandV&gt;</cite> and various capability demonstrations</p></li>
+</ul>
+<p>Setting up a problem to run with PeleC involves writing an input file and problem specific code in the run directory.
+PeleC is built using the AMReX build system which supports out-of-source builds but as configured in Pele requires a specific directory structure.
+Within each case directory in Exec, are the source files that specify the setup of that particular case.
+The user has to build each case by compiling source files using a GNUMakefile which also compiles and links together AMReX and PeleC sources.
+The source files contained in the case directory are treated preferentially and can override PeleC/AMReX source files. A few key files that need to be supplied for (most) cases are:</p>
+<ul class="simple">
+<li><p><strong>inputs,inp</strong> – a text file containing parameters that are ready by the ParmParse capability in AMReX. These include things like number of time steps, grid size, output file frequency, which physics to include, etc. A list of available data in the Pele group can be found in PeleC/Source/param_includes/pelec_params.H.</p></li>
+<li><p><strong>prob.cpp</strong> – Routines called at:</p>
+<ul>
+<li><p>Initialization (<code class="docutils literal notranslate"><span class="pre">amrex_probinit</span></code>)</p></li>
+<li><p>Problem teardown (<code class="docutils literal notranslate"><span class="pre">pc_prob_close</span></code>)</p></li>
+</ul>
+</li>
+<li><p><strong>prob.H</strong> – prob.H header file is normally used to define the user-defined embedded boundary class, if any. It is also used to define the solution initialisation and boundary condition implementation functions. User-defined functions defined in this header file include:</p>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">pc_initdata</span></code>: GPU kernel that sets initial conditions at every cell individually. Must always be defined by user.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">bcnormal</span></code>: GPU kernel that sets values in ghost cells at domain boundaries. At least a dummy version must be provided. This function is called for any boundaries specified as <code class="docutils literal notranslate"><span class="pre">UserBC</span></code> or <code class="docutils literal notranslate"><span class="pre">Hard</span></code>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">ProblemSpecificFunctions</span></code>: a set of problem specific capabilities that can optionally be specified by the user. To simply use the defaults,
+point this to the default class defined in <code class="docutils literal notranslate"><span class="pre">PeleC/Source/ProblemSpecificFunctions.H</span></code> with
+<code class="docutils literal notranslate"><span class="pre">using</span> <span class="pre">ProblemSpecificFunctions</span> <span class="pre">=</span> <span class="pre">DefaultProblemSpecificFunctions;</span></code>, otherwise create a new class that inherits from the default class and
+provides implementations for the desired functions (see the TG RegTest for example). The functions and call signatures that can be defined
+are found in <code class="docutils literal notranslate"><span class="pre">PeleC/Source/ProblemSpecificFunctions.H</span></code> and summarized below:
+* <code class="docutils literal notranslate"><span class="pre">add_problem_derive</span></code>: Create custom derived variables
+* <code class="docutils literal notranslate"><span class="pre">set_problem_tags</span></code>: Create custom tagging criteria
+* <code class="docutils literal notranslate"><span class="pre">set_aux_names</span></code>: Name the auxiliary variables if being used
+* <code class="docutils literal notranslate"><span class="pre">set_adv_names</span></code>: Name the advected variables if being used
+* <code class="docutils literal notranslate"><span class="pre">set_isothermal_wall_temp</span></code>: Set a spacially varying temperature for domain boundary walls (if relevant and desired)
+* <code class="docutils literal notranslate"><span class="pre">problem_modify_ext_sources</span></code>: Add custom source terms
+* <code class="docutils literal notranslate"><span class="pre">problem_modify_transport_coeffs</span></code>: Modify the transport coefficients (viscosity, thermal conductivity, diffusivity)</p></li>
+</ul>
+</li>
+<li><p><strong>prob_parm.H</strong> – Used to define problem specific parameters and their values.</p></li>
+<li><p><strong>GNUMakefile</strong> – In addition to setting options to build profiling, debugging, MPI, OpenMP, Compiler toolchain options, the chemical mechanism, transport model, equation of state model, and use of EB are set here for compile time selection. The GNUMakefile includes the <code class="docutils literal notranslate"><span class="pre">Make.PeleC</span></code> file from the <cite>Exec</cite> directory that contains build configuration common across the examples.</p></li>
+</ul>
+<div class="toctree-wrapper compound">
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="Building.html">Building</a></li>
+<li class="toctree-l1"><a class="reference internal" href="InputFiles.html">Input Files and Controls</a></li>
+<li class="toctree-l1"><a class="reference internal" href="Tutorials.html">Tutorials</a></li>
+<li class="toctree-l1"><a class="reference internal" href="Testing.html">Testing and Verification</a></li>
+</ul>
+</div>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="Algorithms.html" class="btn btn-neutral float-left" title="Numerical Treatment and Algorithms" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="Building.html" class="btn btn-neutral float-right" title="Building" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright AMReX Copyright (c) 2021, The Regents of the University of California, through Lawrence Berkeley National Laboratory, the Alliance for Sustainable Energy, LLC., through National Renewable Energy Laboratory, National Technology and Engineering Solutions of Sandia, LLC, and UT-Battelle, LLC (subject to receipt of any required approvals from the U.S. Dept. of Energy).  All rights reserved..</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

@@ -1,0 +1,346 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Verification of EB PeleC &mdash; PeleC 0.1 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=03e43079" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=9edc463e" />
+
+  
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=2709fde1"></script>
+      <script src="../_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
+      <script defer="defer" src="https://cdn.jsdelivr.net/npm/mathjax@4/tex-mml-chtml.js"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="C1. Method of manufactured solutions for EB" href="C1/README.html" />
+    <link rel="prev" title="Verification of PeleC" href="../verification/verification.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            PeleC
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../Introduction.html">Introduction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../Equations.html">Equations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../Algorithms.html">Numerical Treatment and Algorithms</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../GettingStarted.html">Getting Started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../BoundaryConditions.html">Boundary Conditions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../geometry/EB.html">Geometry treatment in PeleC</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../LES.html">LES and Hybrid LES/DNS Support</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="../VandV.html">Correctness - Verification and Validation</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="../verification/verification.html">Verification of PeleC</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Verification of EB PeleC</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="C1/README.html">C1. Method of manufactured solutions for EB</a></li>
+<li class="toctree-l3"><a class="reference internal" href="C3/README.html">C3. Zero dimensional ignition with embedded boundaries</a></li>
+<li class="toctree-l3"><a class="reference internal" href="C7/README.html">C7. Sod shock tube in rotated channel with AMR</a></li>
+<li class="toctree-l3"><a class="reference internal" href="C8/README.html">C8. Multi-species shock tube in a rotated channel with AMR</a></li>
+<li class="toctree-l3"><a class="reference internal" href="C9/README.html">C9. Acoustic wave in cylindrical channel</a></li>
+<li class="toctree-l3"><a class="reference internal" href="C10/README.html">C10. Hagen–Poiseuille flow</a></li>
+<li class="toctree-l3"><a class="reference internal" href="C12/README.html">C12. Smooth periodic problem</a></li>
+<li class="toctree-l3"><a class="reference internal" href="C13/README.html">C13. Supersonic vortex study</a></li>
+<li class="toctree-l3"><a class="reference internal" href="C14/README.html">C14. Shock interacting with a ramp</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ConvergingNozzle/README.html">Converging Nozzle Case</a></li>
+<li class="toctree-l3"><a class="reference internal" href="FlowPastCylinder/README.html">Flow Past a Cylinder</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../validation/validation.html">Validation of PeleC</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../PelePhysics.html">PelePhysics</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../BoxlibBits.html">Development Reference</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">PeleC</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../VandV.html">Correctness - Verification and Validation</a></li>
+      <li class="breadcrumb-item active">Verification of EB PeleC</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/ebverification/ebverification.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="verification-of-eb-pelec">
+<h1>Verification of EB PeleC<a class="headerlink" href="#verification-of-eb-pelec" title="Link to this heading"></a></h1>
+<p>Verification of the EB capability in PeleC follows several different
+paths in order to ensure the widest coverage of scenarios. A short
+description and the source code for these test cases are included below.</p>
+<table class="docutils align-default" id="id1">
+<caption><span class="caption-number">2 </span><span class="caption-text">Summary of EB cases (H=hydro, D=diffusion, S=species transport, R=reactions)</span><a class="headerlink" href="#id1" title="Link to this table"></a></caption>
+<thead>
+<tr class="row-odd"><th class="head"><p>Description</p></th>
+<th class="head"><p>Type</p></th>
+<th class="head"><p>H</p></th>
+<th class="head"><p>D</p></th>
+<th class="head"><p>S</p></th>
+<th class="head"><p>R</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><a class="reference internal" href="C1/README.html#eb-c1"><span class="std std-ref">C1. Method of manufactured solutions for EB</span></a></p></td>
+<td><p>convergence</p></td>
+<td><p>x</p></td>
+<td><p>x</p></td>
+<td></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>TODOC Quiescent flow on EB cylinder intersect with sphere</p></td>
+<td><p>maintain zero flow</p></td>
+<td><p>x</p></td>
+<td><p>x</p></td>
+<td><p>x</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="C3/README.html#eb-c3"><span class="std std-ref">C3. Zero dimensional ignition with embedded boundaries</span></a></p></td>
+<td><p>ignition delay</p></td>
+<td><p>x</p></td>
+<td></td>
+<td></td>
+<td><p>x</p></td>
+</tr>
+<tr class="row-odd"><td><p>TODOC Case 2 but isothermal EB at 310K, flow at 300K outflow BC</p></td>
+<td><p>steady-state should be 310K</p></td>
+<td><p>x</p></td>
+<td><p>x</p></td>
+<td><p>x</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>TODOC Quiescent flow on EB tilted plane but with case 4 BC</p></td>
+<td><p>examine transient</p></td>
+<td><p>x</p></td>
+<td><p>x</p></td>
+<td><p>x</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>TODOC 3 orthogonal planes, not centered on grid, species diffusion with different BC</p></td>
+<td><p>testing homog. neu. at the species EB</p></td>
+<td><p>x</p></td>
+<td><p>x</p></td>
+<td><p>x</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="C7/README.html#eb-c7"><span class="std std-ref">C7. Sod shock tube in rotated channel with AMR</span></a></p></td>
+<td><p>analytic left/right states</p></td>
+<td><p>x</p></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="C8/README.html#eb-c8"><span class="std std-ref">C8. Multi-species shock tube in a rotated channel with AMR</span></a></p></td>
+<td><p>literature</p></td>
+<td><p>x</p></td>
+<td></td>
+<td><p>x</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="C9/README.html#eb-c9"><span class="std std-ref">C9. Acoustic wave in cylindrical channel</span></a></p></td>
+<td><p>analytical</p></td>
+<td><p>x</p></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="C10/README.html#eb-c10"><span class="std std-ref">C10. Hagen–Poiseuille flow</span></a></p></td>
+<td><p>analytical</p></td>
+<td><p>x</p></td>
+<td><p>x</p></td>
+<td></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>TODOC Multi-species shock tube with end box</p></td>
+<td><p>literature</p></td>
+<td><p>x</p></td>
+<td><p>x</p></td>
+<td><p>x</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="C12/README.html#eb-c12"><span class="std std-ref">C12. Smooth periodic problem</span></a></p></td>
+<td><p>analytical</p></td>
+<td><p>x</p></td>
+<td><p>x</p></td>
+<td></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="C13/README.html#eb-c13"><span class="std std-ref">C13. Supersonic vortex study</span></a></p></td>
+<td><p>analytical</p></td>
+<td><p>x</p></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="C14/README.html#eb-c14"><span class="std std-ref">C14. Shock interacting with a ramp</span></a></p></td>
+<td><p>literature</p></td>
+<td><p>x</p></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="ConvergingNozzle/README.html#eb-convergingnozzle"><span class="std std-ref">Converging Nozzle Case</span></a></p></td>
+<td><p>analytical</p></td>
+<td><p>x</p></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="FlowPastCylinder/README.html#eb-flowpastcylinder"><span class="std std-ref">Flow Past a Cylinder</span></a></p></td>
+<td><p>vortex shedding for high Re</p></td>
+<td><p>x</p></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<div class="toctree-wrapper compound">
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="C1/README.html">C1. Method of manufactured solutions for EB</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="C1/README.html#case-description">Case description</a></li>
+<li class="toctree-l2"><a class="reference internal" href="C1/README.html#l-2-error-norm-of-fields"><span class="math notranslate nohighlight">\(L_2\)</span> error norm of fields</a></li>
+<li class="toctree-l2"><a class="reference internal" href="C1/README.html#running-study">Running study</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="C3/README.html">C3. Zero dimensional ignition with embedded boundaries</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="C3/README.html#case-description">Case description</a></li>
+<li class="toctree-l2"><a class="reference internal" href="C3/README.html#the-embedded-boundary-used-in-the-zero-dimensional-ignition-case">The embedded boundary used in the zero dimensional ignition case</a></li>
+<li class="toctree-l2"><a class="reference internal" href="C3/README.html#comparison-of-temperature-transients-between-cantera-and-pelec">Comparison of temperature transients between Cantera and PeleC</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="C7/README.html">C7. Sod shock tube in rotated channel with AMR</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="C7/README.html#case-description">Case description</a></li>
+<li class="toctree-l2"><a class="reference internal" href="C7/README.html#density-at-t-0-1s">Density at t=0.1s</a></li>
+<li class="toctree-l2"><a class="reference internal" href="C7/README.html#field-profiles-in-the-centerline-at-t-0-1s">Field profiles in the centerline at t=0.1s</a></li>
+<li class="toctree-l2"><a class="reference internal" href="C7/README.html#running-study">Running study</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="C8/README.html">C8. Multi-species shock tube in a rotated channel with AMR</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="C8/README.html#case-description">Case description</a></li>
+<li class="toctree-l2"><a class="reference internal" href="C8/README.html#amr-mesh-indicating-refinement-at-embedded-boundary-contact-and-shock-discontinuities">AMR mesh indicating refinement at embedded boundary, contact and shock discontinuities</a></li>
+<li class="toctree-l2"><a class="reference internal" href="C8/README.html#field-profiles-in-the-centerline-at-t-0-2-l-sqrt-rhol-pl">Field profiles in the centerline at t=0.2 L sqrt(rhoL/pL)</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="C9/README.html">C9. Acoustic wave in cylindrical channel</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="C9/README.html#case-description">Case description</a></li>
+<li class="toctree-l2"><a class="reference internal" href="C9/README.html#acoustic-pulse-at-t-0-000625s">Acoustic pulse at <span class="math notranslate nohighlight">\(t=0.000625s\)</span></a></li>
+<li class="toctree-l2"><a class="reference internal" href="C9/README.html#density-profiles-in-the-centerline-at-t-0-000625s">Density profiles in the centerline at <span class="math notranslate nohighlight">\(t=0.000625s\)</span></a></li>
+<li class="toctree-l2"><a class="reference internal" href="C9/README.html#l-2-error-norm-of-density"><span class="math notranslate nohighlight">\(L_2\)</span> error norm of density</a></li>
+<li class="toctree-l2"><a class="reference internal" href="C9/README.html#running-study">Running study</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="C10/README.html">C10. Hagen–Poiseuille flow</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="C10/README.html#case-description">Case description</a></li>
+<li class="toctree-l2"><a class="reference internal" href="C10/README.html#velocity-profiles-at-x-6-cm-channel-center">Velocity profiles at <span class="math notranslate nohighlight">\(x=6\)</span> cm (channel center)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="C10/README.html#l-2-error-norm-of-velocity"><span class="math notranslate nohighlight">\(L_2\)</span> error norm of velocity</a></li>
+<li class="toctree-l2"><a class="reference internal" href="C10/README.html#time-convergence-of-kinetic-energy">Time convergence of kinetic energy</a></li>
+<li class="toctree-l2"><a class="reference internal" href="C10/README.html#running-study">Running study</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="C12/README.html">C12. Smooth periodic problem</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="C12/README.html#case-description">Case description</a></li>
+<li class="toctree-l2"><a class="reference internal" href="C12/README.html#density-profiles-in-centerline">Density profiles in centerline</a></li>
+<li class="toctree-l2"><a class="reference internal" href="C12/README.html#l-2-error-norm-of-density"><span class="math notranslate nohighlight">\(L_2\)</span> error norm of density</a></li>
+<li class="toctree-l2"><a class="reference internal" href="C12/README.html#running-study">Running study</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="C13/README.html">C13. Supersonic vortex study</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="C13/README.html#case-description">Case description</a></li>
+<li class="toctree-l2"><a class="reference internal" href="C13/README.html#density">Density</a></li>
+<li class="toctree-l2"><a class="reference internal" href="C13/README.html#magnitude-of-velocity">Magnitude of velocity</a></li>
+<li class="toctree-l2"><a class="reference internal" href="C13/README.html#pressure">Pressure</a></li>
+<li class="toctree-l2"><a class="reference internal" href="C13/README.html#running-study">Running study</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="C14/README.html">C14. Shock interacting with a ramp</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="C14/README.html#case-description">Case description</a></li>
+<li class="toctree-l2"><a class="reference internal" href="C14/README.html#pressure">Pressure</a></li>
+<li class="toctree-l2"><a class="reference internal" href="C14/README.html#running-study">Running study</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="ConvergingNozzle/README.html">Converging Nozzle Case</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="ConvergingNozzle/README.html#case-description">Case description</a></li>
+<li class="toctree-l2"><a class="reference internal" href="ConvergingNozzle/README.html#property-comparisons-to-quasi-1d-flow">Property Comparisons to Quasi-1D Flow</a></li>
+<li class="toctree-l2"><a class="reference internal" href="ConvergingNozzle/README.html#effect-of-boundary-conditions">Effect of Boundary Conditions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="ConvergingNozzle/README.html#running-study">Running study</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="FlowPastCylinder/README.html">Flow Past a Cylinder</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="FlowPastCylinder/README.html#case-description">Case description</a></li>
+<li class="toctree-l2"><a class="reference internal" href="FlowPastCylinder/README.html#domain-definition">Domain definition</a></li>
+<li class="toctree-l2"><a class="reference internal" href="FlowPastCylinder/README.html#results-re-10">Results: Re = 10</a></li>
+<li class="toctree-l2"><a class="reference internal" href="FlowPastCylinder/README.html#results-re-500">Results: Re = 500</a></li>
+</ul>
+</li>
+</ul>
+</div>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="../verification/verification.html" class="btn btn-neutral float-left" title="Verification of PeleC" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="C1/README.html" class="btn btn-neutral float-right" title="C1. Method of manufactured solutions for EB" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright AMReX Copyright (c) 2021, The Regents of the University of California, through Lawrence Berkeley National Laboratory, the Alliance for Sustainable Energy, LLC., through National Renewable Energy Laboratory, National Technology and Engineering Solutions of Sandia, LLC, and UT-Battelle, LLC (subject to receipt of any required approvals from the U.S. Dept. of Energy).  All rights reserved..</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

@@ -1,0 +1,246 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Geometry initialization &mdash; PeleC 0.1 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=03e43079" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=9edc463e" />
+
+  
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=2709fde1"></script>
+      <script src="../_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
+      <script defer="defer" src="https://cdn.jsdelivr.net/npm/mathjax@4/tex-mml-chtml.js"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            PeleC
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../Introduction.html">Introduction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../Equations.html">Equations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../Algorithms.html">Numerical Treatment and Algorithms</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../GettingStarted.html">Getting Started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../BoundaryConditions.html">Boundary Conditions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="EB.html">Geometry treatment in PeleC</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../LES.html">LES and Hybrid LES/DNS Support</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../VandV.html">Correctness - Verification and Validation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../PelePhysics.html">PelePhysics</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../BoxlibBits.html">Development Reference</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">PeleC</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Geometry initialization</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/geometry/geometry_init.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="geometry-initialization">
+<h1>Geometry initialization<a class="headerlink" href="#geometry-initialization" title="Link to this heading"></a></h1>
+<p>Creating an EB geometry also requires knowledge of the finest level that will be used so that geometries that ‘telescope’,
+i.e., coarser volume fractions are consistent with applying the coarsening operator to the finer volumes, can be created.
+To that end there is a global geometry creation step, facilitated by the <cite>initialize_EB2</cite> function, as well as a step that
+happens when a new AMRLevel is created. The latter happens by a call to  <cite>PeleC::initialize_eb2_structs</cite>  through <cite>PeleC::init_eb</cite>
+called from the PeleC constructor. Following construction of the geometry, the geometric information is
+copied into the structures described in the previous section and the various interpolation stencils are populated.</p>
+<p>Cartesian grid, embedded boundary (EB) methods are methods where the geometric description is formed by cutting a Cartesian
+mesh with surface of the geometry.  AMReX’s methods to handle EB geometry information, and PeleC’s treatment of the
+EB aware update could use many possible sources for geometric description. The necessary information is, on a per-cell basis:</p>
+<ul class="simple">
+<li><p>Apertures for faces intersected by cut cells,</p></li>
+<li><p>cut cell volumes that ‘telescope’, that is, volumes at a coarser level are consistent with averaging the volumes from finer levels,</p></li>
+<li><p>connectivity indicating which neighbor cells are connected to a given cell, and</p></li>
+<li><p>coordinates of cell and face centroids.</p></li>
+</ul>
+<p>Additionally, the algorithms ultimately require surface normals, but these can be trivially recomputed from the aperture.</p>
+<section id="geometryshop-and-implicit-functions">
+<h2>GeometryShop and Implicit Functions<a class="headerlink" href="#geometryshop-and-implicit-functions" title="Link to this heading"></a></h2>
+<p>One of the greatest advantages of EB technology is that grid generation is robust and fast and can be done to any accuracy
+as described by <a class="reference external" href="http://dx.doi.org/10.2140/camcos.2015.10.83">Schwartz et al.</a> The foundation class that AMReX uses for
+geometry generation is called <cite>GeometryShop</cite>. This class is used to initialize geometric information
+and associated connectivity graph stored in a distributed database class <cite>EBIndexSpace</cite>.
+Historically, the <cite>EBIndexSpace</cite> database was developed to be used throughout a calculation.
+Here, we use it only to populate datastructures that can be accessed efficiently in the patterns
+representative of the Pele motivating problem space.</p>
+<blockquote>
+<div><p>Given an implicit function <span class="math notranslate nohighlight">\(I\)</span>, <code class="docutils literal notranslate"><span class="pre">GeometryShop</span></code> interprets the surface upon which
+<span class="math notranslate nohighlight">\(I(\mathbf{x}) = 0\)</span> as the surface with which to cut the grid cells.
+<code class="docutils literal notranslate"><span class="pre">GeometryShop</span></code> interprets the positive regions of the implicit function (<span class="math notranslate nohighlight">\(\mathbf{x}: I(\mathbf{x}) &gt; 0\)</span>)
+as covered by the geometry and negative regions (<span class="math notranslate nohighlight">\(\mathbf{x}: I(\mathbf{x}) &lt; 0\)</span>) as part of  the solution domain.
+For example, if one defines her implicit function <span class="math notranslate nohighlight">\(S\)</span> as</p>
+</div></blockquote>
+<p>the solution domain would be the interior of a sphere of radius <span class="math notranslate nohighlight">\(R\)</span>. Reverse the sign of <span class="math notranslate nohighlight">\(S\)</span> and the solution domain would be the exterior of the sphere. More details are available <a class="reference external" href="https://amrex-codes.github.io/amrex/docs_html/EB.html?highlight=geometryshop#initializing-the-geometric-database">here</a>.</p>
+</section>
+<section id="specifying-basic-geometries-in-input-files">
+<h2>Specifying basic geometries in input files<a class="headerlink" href="#specifying-basic-geometries-in-input-files" title="Link to this heading"></a></h2>
+<p>There are several basic geometries that are available in AMReX that can be easily specified in the input file, some of which are shown below:</p>
+<ul class="simple">
+<li><p><em>Plane</em>    - needs a point (plane_point) and normal (plane_normal).</p></li>
+<li><p><em>Sphere</em>   - needs center (sphere_center), radius (sphere_radius) and fluid inside/outside flag (sphere_has_fluid_inside).</p></li>
+<li><p><em>Cylinder</em> - needs center (cylinder_center), radius (cylinder_radius), height (cylinder_height), direction (cylinder_direction) and fluid inside/outside flag (cylinder_has_fluid_inside).</p></li>
+<li><p><em>Box</em>      - needs the lower corner (box_lo), upper corner (box_hi) and fluid inside/outside flag (box_has_fluid_inside). The box is aligned along coordinate directions.</p></li>
+<li><p><em>Spline</em>   - needs a vector of points to create a 2D function that is a combination of spline and line elements. Currently, this geometry does not have a user interface
+from the inputs file, but can be used within Pelec_init_eb.cpp with hard coded points. see example in section <a class="reference internal" href="#complexgeom"><span class="std std-ref">Complicated geometries`</span></a>/</p></li>
+</ul>
+<div class="highlight-rst notranslate"><div class="highlight"><pre><span></span>eb2.geom_type = box
+eb2.box_lo =  -2.0  -2.0 -2.0
+eb2.box_hi =   2.0   2.0  2.0
+eb2.box_has_fluid_inside = 0
+</pre></div>
+</div>
+<p>To specify an external flow sphere geometry, add the following lines to the inputs file:</p>
+<div class="highlight-rst notranslate"><div class="highlight"><pre><span></span>eb2.geom_type = sphere
+eb2.sphere_radius = 0.5
+eb2.sphere_center = 2.0 2.0  2.0
+eb2.sphere_has_fluid_inside = 0
+</pre></div>
+</div>
+</section>
+<section id="adding-complicated-geometries">
+<h2>Adding complicated geometries<a class="headerlink" href="#adding-complicated-geometries" title="Link to this heading"></a></h2>
+<p id="complexgeom">Geometries beyond the set described above can be built using a combination of basic geometries and EB transformation functions in AMReX.
+It should be noted that building a generic geometry from a user-defined discretized surface (like STL files)  is currently being developed. An example of this capability is available in <code class="docutils literal notranslate"><span class="pre">Exec/Regtests/EB-C9</span></code>, but it should be considered to be in beta and
+potentially unstable. Nonetheless,
+engineering relevant geometries can be achieved with the fundamental geometries and transformations.</p>
+<p>Some of the relevant transformation handles in AMReX are:</p>
+<ul class="simple">
+<li><p><em>Intersection</em> - find the common region between implicit functions (see AMReX_EB2_IF_Intersection.cpp)</p></li>
+<li><p><em>Union</em>        - find the union of implicit functions (see AMReX_EB2_IF_Union.cpp)</p></li>
+<li><p><em>Complement</em>   - invert an implicit function, i.e. make fluid that is inside to outside. (see AMReX_EB2_IF_Complement.cpp)</p></li>
+<li><p><em>Translation</em> - translate an implicit function (see AMReX_EB2_IF_Translation.cpp)</p></li>
+<li><p><em>Lathe</em>       - creates a 3D implicit function from a 2D function by revolving about the z axis (see AMReX_EB2_IF_Lathe.cpp)</p></li>
+<li><p><em>Extrusion</em>   - creates a 3D implicit function from a 2D function by translating along the z axis (see AMReX_EB2_IF_Extrusion.cpp)</p></li>
+</ul>
+<p>The user can copy the file “PeleC_init_eb.cpp” from the Source and add it to his/her test case after which a new geometry can be added in initialize_EB2
+function. An example of adding a piston-bowl geometry
+that uses splines, cylinder, lathe and union transform, is shown below.</p>
+<div class="highlight-c notranslate"><div class="highlight"><pre><span></span><span class="k">else</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">geom_type</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="s">"Piston-Cylinder"</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+
+<span class="c1">//spline IF object</span>
+<span class="n">EB2</span><span class="o">::</span><span class="n">SplineIF</span><span class="w"> </span><span class="n">Piston</span><span class="p">;</span>
+
+<span class="c1">// array of points</span>
+<span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">amrex</span><span class="o">::</span><span class="n">RealVect</span><span class="o">&gt;</span><span class="w"> </span><span class="n">splpts</span><span class="p">;</span>
+
+<span class="n">amrex</span><span class="o">::</span><span class="n">RealVect</span><span class="w"> </span><span class="n">p</span><span class="p">;</span>
+<span class="c1">// fill array of points</span>
+<span class="n">p</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">amrex</span><span class="o">::</span><span class="n">RealVect</span><span class="p">(</span><span class="n">D_DECL</span><span class="p">(</span><span class="mf">36.193</span><span class="o">*</span><span class="mf">0.1</span><span class="p">,</span><span class="w"> </span><span class="mf">7.8583</span><span class="o">*</span><span class="mf">0.1</span><span class="p">,</span><span class="w"> </span><span class="mf">0.0</span><span class="p">));</span>
+<span class="n">spltpts</span><span class="p">.</span><span class="n">push_back</span><span class="p">(</span><span class="n">p</span><span class="p">);</span>
+<span class="n">p</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">amrex</span><span class="o">::</span><span class="n">RealVect</span><span class="p">(</span><span class="n">D_DECL</span><span class="p">(</span><span class="mf">35.924</span><span class="o">*</span><span class="mf">0.1</span><span class="p">,</span><span class="w"> </span><span class="mf">7.7881</span><span class="o">*</span><span class="mf">0.1</span><span class="p">,</span><span class="w"> </span><span class="mf">0.0</span><span class="p">));</span>
+<span class="n">splpts</span><span class="p">.</span><span class="n">push_back</span><span class="p">(</span><span class="n">p</span><span class="p">);</span>
+<span class="p">.</span>
+<span class="p">.</span>
+<span class="p">.</span>
+<span class="p">.</span>
+
+<span class="c1">//add to spline elements in splineIF</span>
+<span class="n">Piston</span><span class="p">.</span><span class="n">addSplineElement</span><span class="p">(</span><span class="n">splpts</span><span class="p">);</span>
+
+<span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">amrex</span><span class="o">::</span><span class="n">RealVect</span><span class="o">&gt;</span><span class="w"> </span><span class="n">lnpts</span><span class="p">;</span>
+
+<span class="n">p</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">amrex</span><span class="o">::</span><span class="n">RealVect</span><span class="p">(</span><span class="n">D_DECL</span><span class="p">(</span><span class="mf">22.358</span><span class="o">*</span><span class="mf">0.1</span><span class="p">,</span><span class="w"> </span><span class="mf">-7.6902</span><span class="o">*</span><span class="mf">0.1</span><span class="p">,</span><span class="w"> </span><span class="mf">0.0</span><span class="p">));</span>
+<span class="n">lnpts</span><span class="p">.</span><span class="n">push_back</span><span class="p">(</span><span class="n">p</span><span class="p">);</span>
+<span class="n">p</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">amrex</span><span class="o">::</span><span class="n">RealVect</span><span class="p">(</span><span class="n">D_DECL</span><span class="p">(</span><span class="mf">1.9934</span><span class="o">*</span><span class="mf">0.1</span><span class="p">,</span><span class="w"> </span><span class="mf">3.464</span><span class="o">*</span><span class="mf">0.1</span><span class="p">,</span><span class="w"> </span><span class="mf">0.0</span><span class="p">));</span>
+<span class="n">lnpts</span><span class="p">.</span><span class="n">push_back</span><span class="p">(</span><span class="n">p</span><span class="p">);</span>
+<span class="p">.</span>
+<span class="p">.</span>
+<span class="p">.</span>
+<span class="p">.</span>
+
+<span class="c1">//add to straight line elements in splineIF</span>
+<span class="n">Piston</span><span class="p">.</span><span class="n">addLineElement</span><span class="p">(</span><span class="n">lnpts</span><span class="p">);</span>
+
+<span class="c1">//create a cylinder</span>
+<span class="n">EB2</span><span class="o">::</span><span class="n">CylinderIF</span><span class="w"> </span><span class="nf">cylinder</span><span class="p">(</span><span class="mf">48.0</span><span class="o">*</span><span class="mf">0.1</span><span class="p">,</span><span class="w"> </span><span class="mf">70.0</span><span class="o">*</span><span class="mf">0.1</span><span class="p">,</span><span class="w"> </span><span class="mi">2</span><span class="p">,</span><span class="w"> </span><span class="p">{</span><span class="mf">0.0</span><span class="p">,</span><span class="w"> </span><span class="mf">0.0</span><span class="p">,</span><span class="w"> </span><span class="mf">-10.0</span><span class="o">*</span><span class="mf">0.1</span><span class="p">},</span><span class="w"> </span><span class="nb">true</span><span class="p">);</span>
+
+<span class="c1">//revolve the spline IF</span>
+<span class="k">auto</span><span class="w"> </span><span class="n">revolvePiston</span><span class="w">  </span><span class="o">=</span><span class="w"> </span><span class="n">EB2</span><span class="o">::</span><span class="n">lathe</span><span class="p">(</span><span class="n">Piston</span><span class="p">);</span>
+
+<span class="c1">//make a union</span>
+<span class="k">auto</span><span class="w"> </span><span class="n">PistonCylinder</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">EB2</span><span class="o">::</span><span class="n">makeUnion</span><span class="p">(</span><span class="n">revolvePiston</span><span class="p">,</span><span class="w"> </span><span class="n">cylinder</span><span class="p">);</span>
+<span class="k">auto</span><span class="w"> </span><span class="n">gshop</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">EB2</span><span class="o">::</span><span class="n">makeShop</span><span class="p">(</span><span class="n">PistonCylinder</span><span class="p">);</span>
+</pre></div>
+</div>
+<p>#.. _EB_pistonbowl:</p>
+<figure class="align-default" id="id1">
+<a class="reference internal image-reference" href="../_images/EB_PistonBowl.png"><img alt="EB Cell" src="../_images/EB_PistonBowl.png" width="400" />
+</a>
+<figcaption>
+<p><span class="caption-text">An example geometry of piston-bowl created using basic geometries.</span><a class="headerlink" href="#id1" title="Link to this image"></a></p>
+</figcaption>
+</figure>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright AMReX Copyright (c) 2021, The Regents of the University of California, through Lawrence Berkeley National Laboratory, the Alliance for Sustainable Energy, LLC., through National Renewable Energy Laboratory, National Technology and Engineering Solutions of Sandia, LLC, and UT-Battelle, LLC (subject to receipt of any required approvals from the U.S. Dept. of Energy).  All rights reserved..</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

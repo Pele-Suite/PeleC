@@ -1,0 +1,178 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Introduction &mdash; PeleC 0.1 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=03e43079" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=9edc463e" />
+
+  
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=2709fde1"></script>
+      <script src="_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Equations" href="Equations.html" />
+    <link rel="prev" title="PeleC" href="index.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            PeleC
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul class="current">
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Introduction</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#the-pele-project">The Pele Project</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#dependencies">Dependencies</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#development">Development</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="Equations.html">Equations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="Algorithms.html">Numerical Treatment and Algorithms</a></li>
+<li class="toctree-l1"><a class="reference internal" href="GettingStarted.html">Getting Started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="BoundaryConditions.html">Boundary Conditions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="geometry/EB.html">Geometry treatment in PeleC</a></li>
+<li class="toctree-l1"><a class="reference internal" href="LES.html">LES and Hybrid LES/DNS Support</a></li>
+<li class="toctree-l1"><a class="reference internal" href="VandV.html">Correctness - Verification and Validation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="PelePhysics.html">PelePhysics</a></li>
+<li class="toctree-l1"><a class="reference internal" href="BoxlibBits.html">Development Reference</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">PeleC</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Introduction</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/Introduction.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>This documentation is a work in progress. It is reasonably complete and hopefully useful but is likely error prone and in places misleading.</p>
+</div>
+<section id="introduction">
+<h1>Introduction<a class="headerlink" href="#introduction" title="Link to this heading"></a></h1>
+<p>Pele solves the reacting compressible Navier-Stokes on a structured grid with, optionally, embedded boundary geometry treatment and non-ideal gas equations of state. A variety of time advance schemes are implemented, notably an operator-split (Strang) approach and an SDC based approach. A variety of examples are included to provide a model setup for the various options. These are discussed further in the <a class="reference internal" href="GettingStarted.html#gettingstarted"><span class="std std-ref">Getting Started</span></a> section.</p>
+<section id="the-pele-project">
+<h2>The Pele Project<a class="headerlink" href="#the-pele-project" title="Link to this heading"></a></h2>
+<p>The origin of PeleC is in the context of <em>The Pele Project</em>, with the goal of providing a platform for combustion research in the ExaScale computing era. Specifically, to enable research grade simulation (DNS, or near DNS hybrid LES/DNS) of turbulence-chemistry interaction under conditions motivated by internal combustion engine research as well as establish a path for development of scalable design codes suitable for exascale hardware.</p>
+<table class="docutils align-default" id="id1">
+<caption><span class="caption-number">1 </span><span class="caption-text">Design approach for Pele</span><a class="headerlink" href="#id1" title="Link to this table"></a></caption>
+<colgroup>
+<col style="width: 50.0%" />
+<col style="width: 50.0%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Characteristic / Need</p></th>
+<th class="head"><p>Approach</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Impulsively started jets with disparate scale between fronts and turbulence; localized flames</p></td>
+<td><p>Dynamic adaptive mesh refinement</p></td>
+</tr>
+<tr class="row-odd"><td><p>High speed injection followed by subsonic conditions downstream</p></td>
+<td><p>Compressible and low-Mach capabilities</p></td>
+</tr>
+<tr class="row-even"><td><p>Long time horizons to set up turbulence for studying fundamental TCI</p></td>
+<td><p>Hybrid DNS/LES [Non-reacting LES, DNS for flame]</p></td>
+</tr>
+<tr class="row-odd"><td><p>Lean, rich, and low temperature chemistry critical in multi-stage ignition and formation of soot precursors</p></td>
+<td><p>Accurate and detailed thermochemistry</p></td>
+</tr>
+<tr class="row-even"><td><p>Liquid fuel injection</p></td>
+<td><p>Lagrangian spray model</p></td>
+</tr>
+<tr class="row-odd"><td><p>Coupling between mixture preparation and emissions</p></td>
+<td><p>Detailed kinetics including emissions, sectional model for soot with radiation</p></td>
+</tr>
+<tr class="row-even"><td><p>Mixture preparation dependent on re-entrainment of combustion products</p></td>
+<td><p>Realistic piston dish and cylinder wall geometry</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="dependencies">
+<h2>Dependencies<a class="headerlink" href="#dependencies" title="Link to this heading"></a></h2>
+<p>Pele is built on AMReX (available at <a class="reference external" href="https://github.com/AMReX-Codes/amrex">https://github.com/AMReX-Codes/amrex</a>), an adaptive mesh refinement software framework, which provides the underlying software infrastructure for block structured AMR operations. The full AMReX documentation can be found <a class="reference external" href="https://amrex-codes.github.io/amrex">here</a>.</p>
+<p>Modules for describing the equation of state, diffusion transport model, and reaction kinetics are localized to the <code class="docutils literal notranslate"><span class="pre">PelePhysics</span></code> repository. For the purpose of this Users’ Guide  <code class="docutils literal notranslate"><span class="pre">PelePhysics</span></code> is considered part of <code class="docutils literal notranslate"><span class="pre">PeleC</span></code> but it needs to be obtained through a separate checkout as described in the <a class="reference internal" href="index.html#id1"><span class="std std-ref">readme</span></a>.</p>
+</section>
+<section id="development">
+<h2>Development<a class="headerlink" href="#development" title="Link to this heading"></a></h2>
+<p>A separate developers guide does not yet exist; along with the algorithmic description in this Users’ Guide, doxygen documentation exists in place and an input file exists in <cite>PeleC/Docs</cite> that can be build using:</p>
+<div class="highlight-rst notranslate"><div class="highlight"><pre><span></span>doxygen Doxyfile
+</pre></div>
+</div>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="index.html" class="btn btn-neutral float-left" title="PeleC" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="Equations.html" class="btn btn-neutral float-right" title="Equations" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright AMReX Copyright (c) 2021, The Regents of the University of California, through Lawrence Berkeley National Laboratory, the Alliance for Sustainable Energy, LLC., through National Renewable Energy Laboratory, National Technology and Engineering Solutions of Sandia, LLC, and UT-Battelle, LLC (subject to receipt of any required approvals from the U.S. Dept. of Energy).  All rights reserved..</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
