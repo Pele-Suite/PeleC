@@ -1045,6 +1045,7 @@ PeleC::nscbc_params(const int idir)
   p.relax_t = bc_nscbc_relax_t;
   p.order = bc_nscbc_order;
   p.beta = bc_nscbc_beta;
+  p.beta_s = bc_nscbc_beta_s;
   p.pin_farfield = bc_nscbc_pin_farfield;
   // Only the ratio sigma/L_ref is physical.  L_ref is fixed to the domain
   // extent along the boundary normal so that sigma keeps the meaning it has
@@ -1053,6 +1054,9 @@ PeleC::nscbc_params(const int idir)
   // probhi(idir) and was therefore silently wrong for any domain not
   // anchored at the origin.
   const auto& geom = amrex::DefaultGeometry();
+  p.extrap_temperature = bc_nscbc_extrap_temperature;
+  p.extrap_material = bc_nscbc_extrap_material;
+  p.backflow_material = bc_nscbc_backflow_material;
   p.L_ref = geom.ProbHi(idir) - geom.ProbLo(idir);
   return p;
 }
@@ -1237,21 +1241,41 @@ PeleC::nscbc_report_diagnostics(const int step)
   const amrex::Long total =
     h[pc_nscbc::Diag::reversed] + h[pc_nscbc::Diag::body_state] +
     h[pc_nscbc::Diag::eos_failure] + h[pc_nscbc::Diag::floored] +
-    h[pc_nscbc::Diag::transverse_drop] + h[pc_nscbc::Diag::stencil_short] +
-    h[pc_nscbc::Diag::target_incomplete] + h[pc_nscbc::Diag::passive_unset];
-  if (amrex::ParallelDescriptor::IOProcessor() && (total > 0 || verbose > 1)) {
+    h[pc_nscbc::Diag::transverse_drop] + h[pc_nscbc::Diag::source_drop] +
+    h[pc_nscbc::Diag::stencil_short] + h[pc_nscbc::Diag::target_incomplete] +
+    h[pc_nscbc::Diag::passive_unset];
+  const amrex::Long structure = h[pc_nscbc::Diag::structure];
+  if (
+    amrex::ParallelDescriptor::IOProcessor() &&
+    (total > 0 || structure > 0 || verbose > 1)) {
     amrex::Print() << "  NSCBC fallbacks since last report:" << "  supersonic "
                    << h[pc_nscbc::Diag::supersonic] << ",  flow reversal "
                    << h[pc_nscbc::Diag::reversed] << ",  EB covered stencil "
                    << h[pc_nscbc::Diag::body_state] << ",  EOS failure "
                    << h[pc_nscbc::Diag::eos_failure] << ",  floored "
                    << h[pc_nscbc::Diag::floored] << ",  transverse dropped "
-                   << h[pc_nscbc::Diag::transverse_drop] << ",  short stencil "
+                   << h[pc_nscbc::Diag::transverse_drop] << ",  source dropped "
+                   << h[pc_nscbc::Diag::source_drop] << ",  short stencil "
                    << h[pc_nscbc::Diag::stencil_short]
                    << ",  target incomplete "
                    << h[pc_nscbc::Diag::target_incomplete]
                    << ",  inflow passives unset "
                    << h[pc_nscbc::Diag::passive_unset] << "\n";
+    if (structure > 0) {
+      // Advisory, not a fallback: a front is in the outflow boundary cells.
+      // A flame there is what the flame closures exist for; a front without
+      // heat release is not (NSCBC-FlameOutflow/README.md, the exit test).
+      amrex::Print()
+        << "  NSCBC: material structure (|dS| > 5% of rho per cell) sat in "
+        << structure << " outflow boundary-cell fills since the last report.\n"
+        << "         A front is on this outflow.  If it burns, set "
+           "bc_nscbc_extrap_temperature = 1 and bc_nscbc_beta_s = 0\n"
+        << "         before it crosses; if it does not, raise bc_nscbc_sigma "
+           "toward 16 instead (extrap_temperature alone\n"
+        << "         over-vents an inert front at low sigma).  Keep "
+           "bc_nscbc_extrap_material off during a transit.\n"
+        << "         See the BCs chapter and NSCBC-FlameOutflow/README.md.\n";
+    }
   }
   nscbc_diag().assign(nscbc_ncounters, 0);
   // The reset itself is a device fill on the current stream; the next
