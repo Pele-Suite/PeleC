@@ -386,16 +386,26 @@ PeleC::read_params()
       amrex::Print()
         << "\n  NSCBC: characteristic boundary treatment ENABLED (advective "
            "ghost fill).\n";
-      if (bc_nscbc_beta >= 1.0) {
+      if ((bc_nscbc_beta >= 1.0) && (bc_nscbc_beta_s >= 1.0)) {
         amrex::Print()
-          << "    1-D-normal LODI limit (beta = 1): no transverse terms and "
-             "no\n"
+          << "    1-D-normal LODI limit (beta = beta_s = 1): no transverse "
+             "terms and no\n"
           << "    reaction-source correction. Place outflows away from "
              "flames,\n"
           << "    shear layers and composition fronts. See Source/NSCBC.H.\n";
       } else {
         amrex::Print() << "    beta = " << bc_nscbc_beta
-                       << " (transverse terms); 1 = off\n";
+                       << " (transverse terms),  beta_s = " << bc_nscbc_beta_s
+                       << " (reaction source); 1 = off\n";
+      }
+      if (
+        bc_nscbc_extrap_temperature || bc_nscbc_extrap_material ||
+        bc_nscbc_backflow_material) {
+        amrex::Print() << "    outflow closures: extrap_temperature = "
+                       << bc_nscbc_extrap_temperature
+                       << ",  extrap_material = " << bc_nscbc_extrap_material
+                       << ",  backflow_material = "
+                       << bc_nscbc_backflow_material << "\n";
       }
       if (bc_nscbc_pin_farfield) {
         amrex::Print()
