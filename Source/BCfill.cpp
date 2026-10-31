@@ -40,9 +40,9 @@ nscbc_diag()
 //  Boundary registers (Docs/NSCBC-boundary-registers-design.md).
 //
 //  Per-point state on the LEVEL-0 boundary-adjacent band of every domain
-//  face: the learned reference means (EMAs of the outgoing acoustic
-//  invariant and of the pressure, tau = 3 t_a) and the ready-to-add
-//  composition terms derived from them once per advance.  The band of a
+//  face: the learned reference mean (an EMA of the outgoing acoustic
+//  invariant, tau = 3 t_a) and the ready-to-add composition terms derived
+//  from it once per advance.  The band of a
 //  face is a structured (SPACEDIM-1)-dimensional strip over the domain's
 //  tangential extent, so the whole store is one small flat device array
 //  indexed by face and flattened tangential index -- no MultiFab, no
@@ -61,7 +61,6 @@ nscbc_diag()
 namespace reg {
 enum : int {
   ema_Rout = 0, // EMA of the outgoing invariant u_out + p/(rho c)
-  ema_p,        // EMA of the boundary-cell pressure
   u_minus,      // ready-to-add LAB-frame velocity correction (NRI inflow)
   dp_ac,        // ready-to-add pressure correction (NDNR outflow)
   trend_dS,     // EMA of |dS|/rho: the slow material-structure trend
@@ -975,21 +974,26 @@ PeleC::nscbc_update_registers(const amrex::Real dt)
 
             if (rp[ridx + reg::init] == 0.0) {
               rp[ridx + reg::ema_Rout] = R_out;
-              rp[ridx + reg::ema_p] = p;
               rp[ridx + reg::trend_dS] = dS_abs;
               rp[ridx + reg::ema_rhoc] = rhoc;
               rp[ridx + reg::init] = 1.0;
             } else {
               rp[ridx + reg::ema_Rout] +=
                 w * (R_out - rp[ridx + reg::ema_Rout]);
-              rp[ridx + reg::ema_p] += w * (p - rp[ridx + reg::ema_p]);
               rp[ridx + reg::trend_dS] +=
                 w * (dS_abs - rp[ridx + reg::trend_dS]);
               rp[ridx + reg::ema_rhoc] += w * (rhoc - rp[ridx + reg::ema_rhoc]);
             }
             rp[ridx + reg::u_minus] =
               n_sgn * 0.5 * (R_out - rp[ridx + reg::ema_Rout]);
-            rp[ridx + reg::dp_ac] = p - rp[ridx + reg::ema_p];
+            // NDNR: the outgoing-wave pressure p'_+ = 1/2 rho c (R_out - mean),
+            // so the relaxation K (p - p_tgt - p'_+) ignores the waves leaving
+            // the domain but still acts, unlagged, on the mean and on the
+            // incoming wave.  Relaxing on the EMA of p itself instead is a
+            // lagged integral loop around the domain's pressure: it grew
+            // without bound in a vented duct (NSCBC-Acoustic, sigma >= 4).
+            rp[ridx + reg::dp_ac] =
+              0.5 * rc_ref * (R_out - rp[ridx + reg::ema_Rout]);
           });
       }
     }

@@ -135,9 +135,12 @@ index, component)` — not a face-band MultiFab. The band is a 2-D skin of
 the domain; a MultiFab would buy distributed ownership at the price of
 FillPatch-adjacent machinery, and the skin is small enough (≲1 MB at
 chamber resolution) to replicate. Components:
-`{ema_Rout, ema_p, u_minus, dp_ac, trend_dS, ema_rhoc, init}`.
+`{ema_Rout, u_minus, dp_ac, trend_dS, ema_rhoc, init}`. One EMA serves both
+consumers: NRI's `u_minus = ½(R_out − R̄_out)` and NDNR's
+`dp_ac = ½ρc_ref(R_out − R̄_out)` are the velocity and pressure of the same
+outgoing wave, so phase B needed no `ema_pplus` of its own.
 
-Two lessons were paid for in measurement:
+Three lessons were paid for in measurement:
 
 * **The invariant needs a time-frozen impedance** (`ema_rhoc`). With the
   instantaneous local `rho c`, the mean `p/(ρc)` (~10⁴ cm/s) times the
@@ -152,11 +155,22 @@ Two lessons were paid for in measurement:
   feed-forward-only). The store now records the domain it was sized for
   and `nscbc_registers_peek(dom)` returns null for any other box — the
   level test and the staleness test are the same comparison.
+* **NDNR must exclude the outgoing wave, not low-pass the pressure.** The
+  first phase-B form composed `dp_ac = p − EMA(p)`, so the relaxation acted
+  on `K(p̄ − p_t)` with p̄ lagging by τ = 6 L/c. That is a lagged integral
+  loop around the domain's pressure, and it is unstable: in the vented
+  NSCBC-Acoustic duct at σ = 16 the mean pressure grew from 7e-5 to −72% of
+  ambient by 40 L/c (σ = 4 grew as well; the driver shows the same for
+  σ ≥ 1 with a wall or a characteristic inflow at the far end). Every gate
+  had stopped at 1.6 L/c, a quarter of one register time constant, where it
+  looked better than classical. Subtracting only `p'_+` keeps the relaxation
+  proportional on everything but the departing wave, which is Dupuy's
+  formulation and the `ema_pplus` this note had proposed.
 
 Gates, all green: driver t3 register+FF I_in ∈ [0.85, 1.15] across the
-matrix; driver ndnr σ = 16 reflection 28.14% → 3.56%; PeleC duct NRI point
-I_in = 0.970 (driver 1.031); PeleC planar σ = 16 NDNR 30.10% → 3.66% with
-the mean held to 37 ppm; restart bit-identity with `NSCBCRegisters` in the
+matrix; PeleC duct NRI point I_in = 0.970 (driver 1.031); PeleC planar
+σ = 16 NDNR 30.10% → 1.24% with the mean held to 12 ppm, and settled to
+1.2e-7 of ambient over 40 L/c; restart bit-identity with `NSCBCRegisters` in the
 checkpoint. Measured tables: `Exec/RegTests/NSCBC-Acoustic/README.md`.
 
 Determinism, measured not assumed: n1 vs n6 of the same MPI binary is
