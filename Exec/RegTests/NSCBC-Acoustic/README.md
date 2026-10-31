@@ -165,7 +165,7 @@ correct physics, not a bug: the rarefaction behind an outgoing spherical wave
 pulls the pressure below ambient and draws gas back in through faces configured
 as outflows. Under the unified reversal closure (no dedicated branch:
 counted, then the same restoring relaxation as forward flow with the
-material slopes upwinded off — `Docs/NSCBC-reversal-branch-defect.md`,
+material slopes upwinded off — `NSCBC-Chamber/README.md`,
 driver gate C13) the run is stable through it. Before this case, that path
 had only ever been exercised by a synthetic state in check C6.
 
@@ -250,18 +250,31 @@ with the hook's feed-forward (`prob.force_feedforward=1`):
 | feed-forward alone | 2.419 | 1.493 | 2.40 |
 | feed-forward + register (`bc_nscbc_nri=1`) | **0.970** | 0.593 | 1.031 / 0.660 |
 
-**NDNR** (EMA-mean relaxation at outlets), the planar σ = 16 pulse of the
-main table:
+**NDNR** (outgoing-wave-excluded relaxation at outlets), the planar pulse of
+the main table:
 
 | treatment | R [%] | mean p at end |
 |---|---|---|
+| σ = 0.25, classical | 0.75 | 1013241.8 |
+| σ = 0.25 + `bc_nscbc_ndnr=1` | **0.087** | 1013249.1 |
 | σ = 16, classical | 30.10 | 1013178.2 |
-| σ = 16 + `bc_nscbc_ndnr=1` | **3.66** | 1013212.8 |
+| σ = 16 + `bc_nscbc_ndnr=1` | **1.24** | 1013237.4 |
 
-The driver's collapse is 28.14% → 3.56%; PeleC reproduces the 8× reduction
-while holding the mean to 37 ppm of the 1013250 target (the classical row
-holds 71 ppm — NDNR anchors *better*, because the relaxation no longer
-spends its authority fighting the acoustic wave).
+The register strips the outgoing wave, `p'_+ = ½ρc_ref(R_out − R̄_out)`, from
+the relaxation's deviation, so σ never acts on the pulse leaving the domain
+(a 24× reduction at σ = 16) while the mean and the incoming wave are still
+relaxed without lag. The mean is held to 12 ppm of the 1013250 target at
+σ = 16 (classical: 71 ppm), and it settles: run on to 40 L/c
+(`stop_time=0.0116`), the σ = 16 NDNR mean stays within 1.2e-7 of ambient
+after 20 L/c, where the classical σ = 16 boundary is still ringing at ±7e-5.
+
+**Relax on the outgoing wave, not on a filtered pressure.** The first NDNR
+form relaxed on `p − EMA(p)`, i.e. on the EMA-lagged mean pressure. That is a
+lagged integral loop around the domain's pressure, and this vented duct (wall
+at x-lo) is exactly the configuration that exposes it: at σ = 16 the mean grew
+from the pulse's 7e-5 to +15% at 35 L/c and −72% at 40 L/c, and σ = 4 grew too.
+It passed every short test because they stop at 1.6 L/c, where it read 37 ppm.
+Any NDNR gate has to run for many register time constants (τ = 6 L/c).
 
 **A measured implementation lesson.** The register invariant must be
 referenced to a *time-frozen* impedance (the store carries a slow-EMA
@@ -278,7 +291,10 @@ differences across time.
 at step 400 of 800) is bit-identical; the registers ride in the checkpoint
 as `NSCBCRegisters`. Decomposition: n1 vs n6 of the same MPI binary is
 bit-identical on every state field, including a 400×64 grid whose
-`max_grid_size=32` splits the register faces tangentially across ranks.
+`max_grid_size=32` splits the register faces tangentially across ranks, and
+so is a 2-D radial pulse on 16 boxes with every face characteristic (n1 vs
+n4, inviscid and viscous) — the case that exposed, and now gates, the
+cross-rank register reads described in the design note.
 (Note the case GNUmakefile defaults to `USE_MPI=FALSE`; build with
 `USE_MPI=TRUE` before believing any `mpiexec` result, and compare
 plotfiles field-by-field — a multi-rank run shards `Cell_D`.)

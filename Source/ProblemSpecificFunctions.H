@@ -178,6 +178,11 @@ struct DefaultProblemSpecificFunctions
   // s_int is the state in the first interior cell along the boundary normal,
   // for problems whose target depends on the interior state (a back-pressure
   // that tracks a measured plenum, say).  Most problems will not need it.
+  //
+  // turb_fluc carries the TurbInflow velocities at this boundary point, as
+  // bcnormal receives them (zero without TurbInflow): add them to an inflow
+  // Target's u, or use them as the total velocity.  An inflow Target must
+  // also set its passive scalars (Target::passives) when the build has any.
   AMREX_GPU_DEVICE
   AMREX_FORCE_INLINE
   static pc_nscbc::Target bcnormal_nscbc(
@@ -187,7 +192,8 @@ struct DefaultProblemSpecificFunctions
     const int /*sgn*/,
     const amrex::Real /*time*/,
     amrex::GeometryData const& /*geomdata*/,
-    ProbParmDevice const& /*prob_parm*/)
+    ProbParmDevice const& /*prob_parm*/,
+    const amrex::GpuArray<amrex::Real, AMREX_SPACEDIM>& /*turb_fluc*/)
   {
     return pc_nscbc::Target{};
   }

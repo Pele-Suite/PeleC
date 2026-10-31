@@ -69,7 +69,7 @@ acoustic reflection at the same σ from `Verification/NSCBC1D`. All
 characteristic rows: β = 0.5, order 2, hard-Dirichlet inlet. `eT` is
 `bc_nscbc_extrap_temperature`. Measured after the Phase-0 reaction-source sign
 fix (`NSCBC.H`, `L_in += (1−β_s) S_p`) and the unified reversal closure
-(`Docs/NSCBC-reversal-branch-defect.md`; gate: driver C13); the earlier
+(`NSCBC-Chamber/README.md`; gate: driver C13); the earlier
 tables are in the git history. The recipe rows reproduce to the digit
 (−506.5/568.3/638.1 and −521.9/581.5/646.2 against the soft-closure era's
 −507/568/638 and −522/582/646) — never-reversing histories are bit-identical

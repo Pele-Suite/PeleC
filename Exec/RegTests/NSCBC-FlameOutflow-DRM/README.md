@@ -84,7 +84,7 @@ reverses the boundary (in the H₂ sitting case, run with counters on, the
 ENTIRE outflow face is in reversal essentially every fill), so their
 absolute values have moved with each generation of the reversal closure —
 pin, soft, and now the C13-gated unified closure
-(`Docs/NSCBC-reversal-branch-defect.md`) — while the H₂/CH₄ RATIO, which is
+(`NSCBC-Chamber/README.md`, driver C13) — while the H₂/CH₄ RATIO, which is
 the check, has stayed within 2%: 1.65 (pin), 1.64 (soft), 1.62 (unified).
 The pre-fix CH₄ β = 0.5 value (+2253) had been reproduced to the digit
 (+2253.3) across a different machine, toolchain and build system, so the

@@ -385,10 +385,32 @@ PeleC::read_params()
     if (amrex::ParallelDescriptor::IOProcessor()) {
       amrex::Print()
         << "\n  NSCBC: characteristic boundary treatment ENABLED (advective "
-           "ghost fill).\n"
-        << "    This is the 1-D-normal LODI limit: no transverse terms and no\n"
-        << "    reaction-source correction. Place outflows away from flames,\n"
-        << "    shear layers and composition fronts. See Source/NSCBC.H.\n";
+           "ghost fill).\n";
+      if ((bc_nscbc_beta >= 1.0) && (bc_nscbc_beta_s >= 1.0)) {
+        amrex::Print()
+          << "    1-D-normal LODI limit (beta = beta_s = 1): no transverse "
+             "terms and no\n"
+          << "    reaction-source correction. Place outflows away from "
+             "flames,\n"
+          << "    shear layers and composition fronts. See Source/NSCBC.H.\n";
+      } else {
+        amrex::Print() << "    beta = " << bc_nscbc_beta
+                       << " (transverse terms),  beta_s = " << bc_nscbc_beta_s
+                       << " (reaction source); 1 = off\n";
+      }
+      if (
+        bc_nscbc_extrap_temperature || bc_nscbc_extrap_material ||
+        bc_nscbc_backflow_material) {
+        amrex::Print() << "    outflow closures: extrap_temperature = "
+                       << bc_nscbc_extrap_temperature
+                       << ",  extrap_material = " << bc_nscbc_extrap_material
+                       << ",  backflow_material = "
+                       << bc_nscbc_backflow_material << "\n";
+      }
+      if (bc_nscbc_nri || bc_nscbc_ndnr) {
+        amrex::Print() << "    boundary registers (level 0): NRI = "
+                       << bc_nscbc_nri << ",  NDNR = " << bc_nscbc_ndnr << "\n";
+      }
       if (bc_nscbc_pin_farfield) {
         amrex::Print()
           << "    incoming acoustic PINNED to the far field; bc_nscbc_sigma "
@@ -1258,8 +1280,8 @@ PeleC::postCoarseTimeStep(amrex::Real cumtime)
   // NSCBC counters must never be silent: without this, a run with the
   // default sum_interval = -1 never calls nscbc_report_diagnostics() and a
   // boundary counting millions of reversal fills looks identical to one
-  // counting none (that misread happened; see
-  // Docs/NSCBC-reversal-branch-defect.md).  When the user has not opted
+  // counting none (that misread happened in NSCBC-Chamber; see its
+  // README).  When the user has not opted
   // into periodic reporting, report on a fixed cadence -- the report only
   // prints when something actually counted, so healthy runs stay quiet.
   if (bc_nscbc && verbose > 0 && sum_interval <= 0 && sum_per <= 0.0) {

@@ -94,7 +94,9 @@ obliqueness error works out to :math:`(1-\beta) = \cos\theta / (1 + \cos\theta)`
    \beta_{\rm opt} = 1 - \frac{\cos\theta}{1 + \cos\theta}
 
 which is **0.5 at normal incidence** and rises toward 1 as the wave becomes grazing (0.67 at 60°, 0.79 at 75°).
-Both measured optima in ``Exec/RegTests/NSCBC-COVO`` land on that curve.
+The derivation assumes a plane acoustic wave in gas at rest. The circular-pulse optimum measured in
+``Exec/RegTests/NSCBC-COVO`` (0.8) is consistent with mostly oblique incidence; a convected vortex is outside
+the derivation's assumptions, and its optimum (0.5) is empirical.
 
 .. table::
 
@@ -228,6 +230,10 @@ material content to the reservoir state the problem's outflow Target supplies (T
 outward-Mach band :math:`[10^{-3}, 10^{-2}]`; without it the domain draws on its own exhaust (driver check C14,
 the flush test). Breathing reversals never leave the frozen closure either way. A supersonic *inflow* whose
 Target carries no pressure is counted (``target incomplete``) rather than silently completed from the interior.
+A reversed *inflow* (a chamber pushing back out through its inlet) is handled the same way, mirrored: the
+velocity relaxation keeps acting on both sides of :math:`u = 0`, and the material content of the ghost hands
+over from the Target's to the interior's values across a narrow band of outward Mach number (:math:`10^{-3}`)
+instead of switching (driver check C15).
 
 The diagnostic counters report through ``pelec.sum_interval``; when that is left at its default (off), the
 counters are reported every 100 coarse steps anyway — the report prints only when something actually counted,
@@ -255,6 +261,8 @@ needs to be changed.
    ``pelec.bc_nscbc_extrap_temperature``  0          Give the outflow face a controlled conductive flux.
    ``pelec.bc_nscbc_extrap_material``     0          Continue material structure through the outflow.
    ``pelec.bc_nscbc_backflow_material``   0          Sustained backflow enters with the Target's reservoir state.
+   ``pelec.bc_nscbc_nri``                 0          Inlet register: relaxation ignores the outgoing wave.
+   ``pelec.bc_nscbc_ndnr``                0          Outlet register: relaxation ignores the outgoing wave.
    =====================================  =========  ============================================================
 
 **All of these are positive.** The legacy Fortran implementation required ``relax_T`` to be negative and its
@@ -369,6 +377,43 @@ boundary cells — and the closures are what carry it:
   transit. ``pin_farfield`` anchors a through-flow duct to :math:`p + \rho c u` — the operating point shifts and
   stays shifted; reservoir boundaries only.
 
+Inlets: passive scalars, turbulence and forcing
+"""""""""""""""""""""""""""""""""""""""""""""""
+
+Every :math:`\lambda_0` characteristic enters at a subsonic inflow, so everything carried by the stream must be
+specified there, not only :math:`u`, :math:`T` and :math:`Y`:
+
+* **Passive scalars.** In a build with advected, auxiliary or linear (soot) scalars, set ``t.passives = true``
+  and fill ``t.adv`` (per unit mass), ``t.aux`` and ``t.lin`` (as stored). Left unset, the ghost keeps the
+  interior values, so nothing about them enters, and the fill counts it (``inflow passives unset``).
+* **Turbulent inflow.** With PelePhysics' TurbInflow configured on the face, ``bcnormal_nscbc`` receives the
+  fluctuating velocities in ``turb_fluc``, exactly as ``bcnormal`` does; add them to ``t.u`` (or use them as the
+  total velocity). Across a periodic tangential direction the fill reads them at the periodic image, so the
+  inflow stays periodic. The normal component is then imposed through ``relax_u`` and the tangential ones
+  through ``relax_t``, both of which low-pass filter the injected spectrum (see *Diagnosing*).
+* **Acoustic forcing.** A relaxation holds a mean; it does not inject a signal faithfully. For a harmonically
+  forced inlet, also return the analytic rate of the normal-velocity target in ``t.dudt``: it enters the
+  incoming wave directly (as :math:`2\rho c\,\partial u^t/\partial t`) and leaves the relaxation to hold the
+  mean. With ``bc_nscbc_nri = 1`` beside it the injected amplitude is right at any ``relax_u`` and frequency,
+  duct resonances included (``Exec/RegTests/NSCBC-Acoustic``, duct mode).
+
+Boundary registers
+""""""""""""""""""
+
+Two opt-in, per-point registers remove what a stateless relaxation cannot. Each keeps an exponential moving
+average of the outgoing characteristic at the boundary point (time constant three acoustic round trips, from
+the domain length normal to the face), and the relaxation then ignores the wave currently leaving:
+
+* ``bc_nscbc_nri = 1`` (inlets): the velocity relaxation ignores the outgoing wave's velocity, so an inlet
+  stops reflecting the domain's acoustics back at it. Pair it with ``t.dudt`` for forced inlets.
+* ``bc_nscbc_ndnr = 1`` (outlets): the pressure relaxation ignores the outgoing wave's pressure. A strong
+  anchor then no longer reflects: at :math:`\sigma = 16` the planar-pulse reflection falls from 30% to 1.2%,
+  and at :math:`\sigma = 0.25` from 0.75% to 0.09%, while the mean still settles on the target.
+
+Registers live on level 0 only (keep refinement off characteristic faces anyway), ride in checkpoints, and
+give results independent of the MPI decomposition. Their reference means need a few register time constants to
+form, so judge a register-enabled run over many acoustic transits, not one.
+
 Providing a target
 """"""""""""""""""
 
@@ -386,7 +431,8 @@ Override ``bcnormal_nscbc`` in the problem's ``ProblemSpecificFunctions``. The d
         const int sgn,
         const amrex::Real /*time*/,
         amrex::GeometryData const& /*geomdata*/,
-        ProbParmDevice const& prob_parm)
+        ProbParmDevice const& prob_parm,
+        const amrex::GpuArray<amrex::Real, AMREX_SPACEDIM>& turb_fluc)
       {
         pc_nscbc::Target t;
         if (idir == 0 && sgn == -1) {          // x-hi: non-reflecting outflow
@@ -395,7 +441,10 @@ Override ``bcnormal_nscbc`` in the problem's ``ProblemSpecificFunctions``. The d
         } else if (idir == 0 && sgn == +1) {   // x-lo: jet inlet in a wall
           if (std::abs(x[1]) < prob_parm.jet_radius) {
             t.type = pc_nscbc::Type::inflow;
-            t.u[0] = prob_parm.u_jet;
+            for (int d = 0; d < AMREX_SPACEDIM; d++) {
+              t.u[d] = turb_fluc[d];            // zero without TurbInflow
+            }
+            t.u[0] += prob_parm.u_jet;
             t.T = prob_parm.T_jet;
             for (int n = 0; n < NUM_SPECIES; n++) {
               t.Y[n] = prob_parm.Y_jet[n];
@@ -468,9 +517,13 @@ when ``pelec.v > 0``. A silent fallback is a bug that will not be found.
                                                     Dirichlet condition in disguise, which is ill-posed for
                                                     the number of incoming characteristics.
    Inlet temperature sags below target              Increase ``relax_t``.
-   Turbulent inlet :math:`u'` below the prescribed   ``relax_u`` low-pass filters the injected spectrum.
-   intensity                                        Increase it, or rescale the prescribed intensity to hit
-                                                    the realised one.
+   Turbulent inlet :math:`u'` below the prescribed   ``relax_u`` (normal) and ``relax_t`` (tangential)
+   intensity                                        low-pass filter the injected spectrum. Increase them,
+                                                    or rescale the prescribed intensity to hit the realised
+                                                    one. No :math:`u'` at all: the hook is not adding
+                                                    ``turb_fluc`` to its Target.
+   ``inflow passives unset`` count above zero       The inflow Target leaves the passive scalars unset; set
+                                                    ``t.passives`` and their values in the hook.
    ``flow reversal`` count sustained above zero     The outflow is misplaced, or the face should be an
                                                     inflow. Transient counts are benign.
    ``material structure`` advisory printed          A front, flame or density gradient is sitting in the

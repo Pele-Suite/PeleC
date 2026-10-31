@@ -186,10 +186,11 @@ bc_nscbc_backflow_material  bool          false
 # (driver t3; Docs/NSCBC-boundary-registers-design.md).  Level 0 only.
 bc_nscbc_nri                bool          false
 
-# Boundary registers, phase B (outlets): the relaxation acts on the
-# EMA-mean pressure rather than the instantaneous one, so acoustics never
-# reach sigma -- measured in the driver to collapse the sigma = 16
-# reflection 28% -> 3.6% while the anchoring improves.  Level 0 only.
+# Boundary registers, phase B (outlets): the relaxation deviation excludes
+# the outgoing acoustic wave, p'_+ = 1/2 rho c (R_out - EMA(R_out)), so the
+# waves leaving the domain never reach sigma while the mean and the incoming
+# wave are still relaxed.  Measured in NSCBC-Acoustic: the sigma = 16
+# reflection 30.1% -> 1.2%, and the mean pressure settles.  Level 0 only.
 bc_nscbc_ndnr               bool          false
 
 

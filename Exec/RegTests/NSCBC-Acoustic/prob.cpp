@@ -93,10 +93,13 @@ amrex_probinit(
     // Distances the front has to travel to reach a face, an edge and a corner.
     // Quoted because they are what the isotropy metric is measured against:
     // the front is a sphere only if all three arrive on the same clock.
-    amrex::Real dmin = L[0];
-    AMREX_D_TERM(
-      dmin = 0.5 * L[0];, dmin = amrex::min<amrex::Real>(dmin, 0.5 * L[1]);
-      , dmin = amrex::min<amrex::Real>(dmin, 0.5 * L[2]);)
+    amrex::Real dmin = 0.5 * L[0];
+#if AMREX_SPACEDIM > 1
+    dmin = amrex::min<amrex::Real>(dmin, 0.5 * L[1]);
+#endif
+#if AMREX_SPACEDIM > 2
+    dmin = amrex::min<amrex::Real>(dmin, 0.5 * L[2]);
+#endif
     amrex::Print() << "     RADIAL pulse at ("
                    << AMREX_D_TERM(
                         pp_d->xc[0], << ", " << pp_d->xc[1],

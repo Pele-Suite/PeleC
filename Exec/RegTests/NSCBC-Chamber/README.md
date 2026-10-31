@@ -87,8 +87,7 @@ the soft pressure-only replacement survived but manufactured a spurious
 +0.3 atm adverse gradient (dropped `S_p`/`dR₊`/`T_in`, frozen ghost
 velocity); and the first unification of the closure NaN'd again at 4.05 ms
 by extrapolating material content into the backflow (the cold runaway,
-385 → 89 K in 42 µs). Full forensics:
-`Docs/NSCBC-reversal-branch-defect.md`; static gate: driver C13 a/b/c. The
+385 → 89 K in 42 µs). Static gate: driver C13 a/b/c. The
 shipped closure — unified acoustics, `w_mat`-upwinded material slopes —
 completes all three variants to 8 ms.
 

@@ -1,11 +1,11 @@
-# The ghost-cell NSCBC: formulation from the ground up, its relation to the Poinsot–Lele flux form, and a test program drawn from the PAPERS folder
+# The ghost-cell NSCBC: formulation from the ground up, its relation to the Poinsot–Lele flux form, and a test program drawn from the literature
 
 This document does three things. Part I describes the ghost-cell (GC) characteristic
 boundary treatment adopted in `Source/NSCBC.H` from first principles — what is
 computed, from which cells, with which differences — and sets it against the original
 Poinsot & Lele (1992) flux-based specification, including the weaknesses this choice
 creates, both the ones measured in this repository and the ones the literature
-identifies. Parts II–IV review the papers in `PAPERS/` (Dupuy, Meziat Ramirez,
+identifies. Parts II–IV review five papers (Dupuy, Meziat Ramirez,
 Douasbin & Poinsot, *JCP* 2026 — the NDNR method; Daviller, Oztarlik & Poinsot,
 *Comput. Fluids* 2019 — the NRI-NSCBC inlet; Quillâtre *et al.* MCS7 2011,
 Quillâtre *et al.* *IECR* 2013 and Vermorel, Quillâtre & Poinsot *Comb. Flame* 2017 —
@@ -13,11 +13,20 @@ the Sydney/SydGex vented-explosion program) for settings and concerns that bear 
 this implementation, a catalogue of test problems we can set up, and a catalogue of
 tests in those papers that we deliberately cannot set up, with the reasons.
 
+*Status.* Parts II–V were written while the fill was still stateless. Since then the
+boundary registers (`bc_nscbc_nri`, `bc_nscbc_ndnr`;
+`Docs/NSCBC-boundary-registers-design.md`) and the `Target::dudt` injection slot have
+landed, and tests T1, T3, T5 (driver modes `t1`/`t3`/`t5`, the `NSCBC-Acoustic` duct)
+and T7 (`NSCBC-Chamber`) exist. The analysis is kept as written; notes in the text
+say where it has been overtaken.
+
 Throughout, "our σ" is `pelec.bc_nscbc_sigma` with rate `K = σ(1−M²)c/L`; the CERFACS
 papers use the reduced coefficient σ = KL/c. The two conventions coincide up to the
 (1−M²) factor, which is 1 to a few parts in 10⁴ in every case discussed here, so
-literature σ values transfer directly. This was a design goal (`Params::L_ref` exists
-only so σ keeps its literature meaning) and the papers confirm it was the right one.
+Dupuy et al.'s σ values transfer directly. This was a design goal (`Params::L_ref`
+exists only so σ keeps its literature meaning). Daviller et al. normalise the wave
+amplitude with a factor 2 that ours does not carry, so their relaxation coefficients are
+half of the equivalent setting here (see the BCs chapter).
 
 ---
 
@@ -114,7 +123,8 @@ cell uses the same ρc.
 * **No time differences anywhere.** The fill has no state, no history, no ∂/∂t. It is
   idempotent under the repeated `FillPatch` calls of an SDC iteration — and, measured
   in this repository, bit-identical under box re-decomposition, MPI rank count, and
-  checkpoint/restart.
+  checkpoint/restart. (With the opt-in registers on, it also reads per-point values
+  that change once per advance and are frozen during it; it stays algebraic in them.)
 
 ### I.3 The fundamental differences, and what each one buys and costs
 
@@ -131,12 +141,15 @@ that the outgoing slopes do not. Balancing the two gives the equilibrium offset
 ```
 
 which is the ghost-pressure bias of check C9(a), measured exactly in the driver and
-confirmed (σ⁻¹ trend, grid-converged) in `NSCBC-FlameOutflow`. **This bias has no
-analogue in the flux form** — there, a dilatational normal gradient enters the
-*outgoing* amplitudes, which are measured, not extrapolated. It is the one structural
-error the GC form adds, and this repository's measurements bound its importance: it is
-real, exactly reproducible, and *not* the dominant term in a reacting front-crossing
-outflow (removing it exactly, via `extrap_material`, buys 5% at σ=1).
+confirmed (σ⁻¹ trend, grid-converged) in `NSCBC-FlameOutflow`. **The flux form has
+the same offset.** It is the steady state of LODI relaxation itself: at steady state
+the modelled `L1 = K(p − p_t)` must equal the incoming amplitude the flow actually
+carries, and with a dilatational normal gradient (heat release, conduction) that is
+`L1 ≈ ρc² ∂u/∂n ≠ 0`, so `p − p_t ≈ ρcL(∂u/∂n)/σ` there too. It is what Sutherland &
+Kennedy's source term was introduced to remove. The GC form reproduces it per ghost
+layer rather than adding a new error; this repository's measurements bound its
+importance: it is real, exactly reproducible, and *not* the dominant term in a
+reacting front-crossing outflow (removing it, via `extrap_material`, buys 5% at σ=1).
 
 **(b) Who computes the boundary flux.** In the flux form the modeler assembles it; in
 the GC form the interior scheme does, from reconstructed face states. We get nonlinear
@@ -156,8 +169,10 @@ time integral or filter at the boundary point: NRI's outgoing-velocity integral
 `u− = (1/2ρc)∫L1 dt` (Daviller 2019, Eq. 23/37) and NDNR's exponential-moving-average
 separation of mean-flow transients from acoustics (Dupuy 2026, Eq. 12/A.1) are both
 *states*. This is the single most consequential architectural difference exposed by
-the papers in `PAPERS/`, and Part II returns to it, because NDNR solves precisely the
-σ trade-off this repository has measured most painfully.
+these papers, and Part II returns to it, because NDNR solves precisely the
+σ trade-off this repository has measured most painfully. (Now addressed by the
+boundary registers, which keep the fill algebraic given registers frozen during an
+advance.)
 
 **(d) Viscous conditions become ghost closures.** The flux form must specify viscous
 conditions separately; the GC form cannot avoid specifying them — PeleC's diffusion
@@ -184,7 +199,10 @@ at acoustic frequencies (flame transfer functions, acoustic response studies) th
 injected amplitude will be wrong by a frequency-dependent factor set by `relax_u` —
 the measured inflow curve (R = 2.3/4.8/19/57% at relax_u = 0.5/2/10/50) is the
 zero-injection limit of this transfer function, but the injection side has never been
-measured. Tests T3 and T5 below are designed to measure it.
+measured. Tests T3 and T5 below are designed to measure it. (Since measured, and the
+slot now exists: `Target::dudt` adds `2ρc ∂u^t/∂t` to the incoming amplitude; with
+the NRI register beside it the injection index stays within 15% of 1 across the t3
+matrix.)
 
 **(f) Multi-dimensional composition.** The GC form composes across faces, edges and
 corners by per-point ownership plus clamped stencils, and the 3-D radial test shows
@@ -240,7 +258,10 @@ time-integrated `p+`/`u−` and their EMA, updated exactly once per level advanc
 algebraic given the registers; only the once-per-step register update carries state.
 Restart requires checkpointing the registers. This is the single highest-leverage
 capability the papers point at, and it is *additive*: CLR remains the registers-off
-limit.
+limit. (Implemented: `Docs/NSCBC-boundary-registers-design.md`. One correction to the
+sketch above, paid for in measurement: the NDNR deviation must exclude the *outgoing
+wave* `p'_+`, not low-pass the pressure; relaxing on an EMA of `p` is a lagged integral
+loop that grows without bound in a vented duct.)
 
 ### II.2 Daviller, Oztarlik, Poinsot (Comput. Fluids 190:503, 2019) — NRI-NSCBC
 
@@ -265,8 +286,7 @@ turbulence is gentler than for acoustics — worth measuring (T6) before anyone 
 
 ### II.3 Quillâtre et al. (MCS7 2011; IECR 2013) and Vermorel, Quillâtre, Poinsot (C&F 183:207, 2017) — the Sydney/SydGex vented-explosion program
 
-These are the application the boundary condition ultimately serves (the accompanying
-press piece in `PAPERS/` makes the program's stakes explicit). The settled numerical
+These are the application the boundary condition ultimately serves. The settled numerical
 practice, in all three papers: **the NSCBC never sits at the vent.** The domain is
 extended by a plenum "mimicking the atmosphere," the mesh coarsens toward its far
 side, and NSCBC is applied on the plenum borders — so the flame, and the violent
@@ -359,6 +379,11 @@ the overpressure.
 
 ## Part IV — Tests in these papers that do **not** apply to our implementation
 
+(Written before the registers and `Target::dudt` existed. The NDNR and NRI rows are now
+implementable with `bc_nscbc_ndnr`/`bc_nscbc_nri`, and the forcing-slot row is
+addressed by `Target::dudt`; the table is kept as the record of what statelessness
+excluded.)
+
 | Test (paper) | What it tests there | Why it cannot apply here |
 |---|---|---|
 | NDNR parameter maps and convergence surfaces over (σ, τ∞/t_a) (Dupuy Figs 7–10, Table 2) | The EMA-filtered relaxation: convergence time and reflection of a boundary condition with a per-point low-pass state | Our fill is stateless by design (I.3c): there is no τ∞, no EMA register, no `p+`/`u−` integral to filter. Applicable only after a boundary-registers architecture exists; until then only the CLR halves of their figures apply (= T1/T2). |
@@ -394,3 +419,11 @@ otherwise-unchanged algebraic fill) converts the entire first column from
    (σ > 10, τ∞ = 3 t_a) that our flame-exit table independently corroborates.
 4. **T1/T2/T4/T8** as the verification bed fills out; **T6** when TurbInflow-through-
    NSCBC first meets a real user.
+
+Status: 1 (driver `t3`/`t5`, the `NSCBC-Acoustic` duct), 2 (`NSCBC-Chamber`) and 3
+(the registers) are done, as is T1. TurbInflow now reaches a characteristic inlet
+(`bcnormal_nscbc` receives `turb_fluc`), so T6 can be built. After these PRs merge, the
+next item is a user tutorial: a ladder of preconfigured, plottable cases covering
+subsonic outflow and inflow (including a turbulent inlet), how each control moves the
+result, when a longer domain is the right answer, and what can and cannot cross an
+outflow, with the best available settings when it must.

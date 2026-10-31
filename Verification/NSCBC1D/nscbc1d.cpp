@@ -621,6 +621,35 @@ check_species()
   check(resid < 1e-14, "UEDEN == UEINT + KE exactly", buf);
 }
 
+// The NDNR outlet register exactly as PeleC::nscbc_update_registers keeps
+// it: seeded on the first update, updated once per step after the advance,
+// tau = 6 L / c, the outgoing invariant referenced to an EMA'd impedance,
+// and the composed correction the outgoing-wave pressure
+// p'_+ = 1/2 rho c_ref (R_out - EMA(R_out)).  hi face: u_out = u.
+struct NdnrRegister
+{
+  bool seeded = false;
+  Real ema_R = 0.0, ema_rc = 0.0, dp = 0.0;
+  void update(const Prim& qb, Real L, Real dt)
+  {
+    const Real cb = sound_speed(qb);
+    const Real rhoc = qb.rho * cb;
+    const Real rc_ref = seeded ? ema_rc : rhoc;
+    const Real R_out = qb.u + qb.p / rc_ref;
+    const Real w = dt / (6.0 * L / cb + dt);
+    if (!seeded) {
+      ema_R = R_out;
+      ema_rc = rhoc;
+      seeded = true;
+    } else {
+      ema_R += w * (R_out - ema_R);
+      ema_rc += w * (rhoc - ema_rc);
+    }
+    dp = 0.5 * rc_ref * (R_out - ema_R);
+  }
+  Real target(Real p_t) const { return seeded ? p_t + dp : p_t; }
+};
+
 // C4: acoustic reflection.  Launch a Gaussian pressure pulse at an outflow and
 //     measure the amplitude that comes back.  Reports the sigma sweep, which
 //     is the curve the AMReX regression test is checked against.
@@ -689,13 +718,9 @@ reflection_coefficient(
   // measurement window: the left half, after the pulse has left
   const Real t_measure = 0.9 * cs.L / c0;
 
-  // NDNR register (queue item 4, phase B): a driver-held EMA of the
-  // boundary-cell pressure, tau = 3 t_a, updated once per step outside the
-  // stages.  The kernel sees a composed target p_eff = p_b - EMA + p0, so
-  // its relaxation K (p_b - p_eff) = K (EMA - p0) acts on the slow mean
-  // only -- the acoustic fluctuation is stripped before sigma touches it.
-  Real ema_p = cs.p0;
-  const Real tau_ema = 3.0 * (2.0 * cs.L / c0);
+  // NDNR register (phase B): the outgoing wave is stripped from the
+  // relaxation's deviation before sigma touches it (NdnrRegister).
+  NdnrRegister ndnr_reg;
 
   while (t < t_end) {
     Real cmax = 0.0;
@@ -711,10 +736,7 @@ reflection_coefficient(
 
     pc_nscbc::Target out_eff = out;
     if (ndnr) {
-      const Prim qb = get_prim(f.at(cs.n - 1));
-      const Real w = dt / (tau_ema + dt);
-      ema_p += w * (qb.p - ema_p);
-      out_eff.p = qb.p - ema_p + cs.p0;
+      out_eff.p = ndnr_reg.target(out.p);
     }
 
     fill_bcs(f, off, out_eff, prm, dx);
@@ -727,6 +749,9 @@ reflection_coefficient(
       }
     }
     t += dt;
+    if (ndnr) {
+      ndnr_reg.update(get_prim(f.at(cs.n - 1)), cs.L, dt);
+    }
 
     if (t > t_measure) {
       // Measure the wave content only: the deviation from the instantaneous
@@ -791,11 +816,10 @@ inflow_reflection(Real relax_u, int n)
   const Real c0 = sound_speed(qref);
 
   // A base INFLOW is required: with a quiescent target the incident pulse
-  // pushes gas out through the inflow face, the kernel's reversal guard
-  // (correctly) drops to a zero-gradient copy, and the "inflow" being
-  // measured is not the inflow model at all -- every relax_u then returns
-  // R = 0.  The pulse's velocity perturbation (~24 cm/s) rides on u0 = 2000
-  // cm/s, so the face stays an inflow throughout.
+  // pushes gas out through the inflow face, the material content changes
+  // hands across the reversal band, and the "inflow" being measured is not
+  // the inflow model alone.  The pulse's velocity perturbation (~24 cm/s) rides
+  // on u0 = 2000 cm/s, so the face stays an inflow throughout.
   const Real u0 = 2.0e3;
   for (int i = -NG; i < cs.n + NG; i++) {
     const Real x = (i + 0.5) * dx;
@@ -1171,8 +1195,8 @@ check_fallbacks()
 //      has to respond outward when the interior is over-pressured, because
 //      that response is the only feedback resisting counter-gradient inflow.
 //
-//      This is the NSCBC-Chamber defect gate
-//      (Docs/NSCBC-reversal-branch-defect.md): the dedicated reversal branch
+//      This is the NSCBC-Chamber defect gate (that case's README):
+//      the dedicated reversal branch
 //      produced a ghost state that dropped dR+, S_p and T_in relative to the
 //      forward branch -- an O(1) discontinuity at u_out = 0 exactly where a
 //      flame finishes its transit -- and froze the ghost velocity, so a
@@ -3574,6 +3598,259 @@ run_ndnr()
     "NDNR keeps the anchoring (drift comparable)", buf);
 }
 
+// C15: reversal at an INFLOW.  A chamber pushing back through its inlet
+//      drives u_out > 0 at an inflow-typed point.  (a) The ghost is a
+//      continuous function of the interior normal velocity through
+//      u_out = 0 -- the material content hands over from the Target to the
+//      interior across a narrow band instead of switching.  (b) Firmly
+//      reversed, the acoustic side is still restoring: the ghost normal
+//      velocity is pulled back toward the inflow target.
+void
+check_inflow_reversal()
+{
+  Case cs;
+  auto eos = pele::physics::PhysicsType::eos();
+  const Real dx = cs.L / cs.n;
+  Real Y[NUM_SPECIES];
+  for (int k = 0; k < NUM_SPECIES; k++) {
+    Y[k] = air_Y(k);
+  }
+  pc_nscbc::Params prm;
+  prm.L_ref = cs.L;
+  pc_nscbc::Target in;
+  in.type = pc_nscbc::Type::inflow;
+  in.u[0] = 1.0e3; // into the domain through the lo face
+  in.T = 300.0;
+  for (int k = 0; k < NUM_SPECIES; k++) {
+    in.Y[k] = Y[k];
+  }
+  // Hot, over-pressured interior: the material jump the hand-over has to
+  // carry is 600 K.
+  const Real T_int = 900.0, p_int = 1.02 * cs.p0;
+  auto fill = [&](Real u_face, Real* sg, amrex::Long* diag) {
+    Real rho = 0.0, e = 0.0, sN[NVAR];
+    eos.PYT2RE(p_int, Y, T_int, rho, e);
+    set_state(sN, rho, u_face, T_int, Y);
+    pc_nscbc::apply(sN, sN, sN, 3, dx, 0, +1, 1, in, prm, sg, diag);
+  };
+
+  // (a) lo face: u_out = -u.  1 cm/s steps across [-100, 100] cm/s resolve
+  // the 1e-3 c band (~35 cm/s).
+  const int ns = 201;
+  std::vector<Real> pg(ns), ug(ns), tg(ns), uo(ns);
+  for (int i = 0; i < ns; i++) {
+    uo[i] = -100.0 + static_cast<Real>(i);
+    Real sg[NVAR];
+    fill(-uo[i], sg, nullptr);
+    const pc_nscbc::CellPrim qg = pc_nscbc::cell_primitives(sg);
+    pg[i] = qg.p;
+    ug[i] = qg.u[0];
+    tg[i] = qg.T;
+  }
+  Real jp_c = 0.0, ju_c = 0.0, jt_c = 0.0, jp_o = 0.0, ju_o = 0.0, jt_o = 0.0;
+  for (int i = 0; i + 1 < ns; i++) {
+    const Real jp = std::abs(pg[i + 1] - pg[i]);
+    const Real ju = std::abs(ug[i + 1] - ug[i]);
+    const Real jt = std::abs(tg[i + 1] - tg[i]);
+    if ((uo[i] <= 0.0) && (uo[i + 1] > 0.0)) {
+      jp_c = jp;
+      ju_c = ju;
+      jt_c = jt;
+    } else {
+      jp_o = std::max(jp_o, jp);
+      ju_o = std::max(ju_o, ju);
+      jt_o = std::max(jt_o, jt);
+    }
+  }
+  char buf[240];
+  std::snprintf(
+    buf, sizeof(buf),
+    "crossing jump: p %.3e (<= %.3e elsewhere), u %.3e (<= %.3e), T %.3e "
+    "(<= %.3e); T across the band %.1f -> %.1f",
+    jp_c, jp_o, ju_c, ju_o, jt_c, jt_o, tg[0], tg[ns - 1]);
+  check(
+    (jp_c <= 3.0 * jp_o + 1.0e-9 * cs.p0) &&
+      (ju_c <= 3.0 * ju_o + 1.0e-9 * 1.0e5) &&
+      (jt_c <= 3.0 * jt_o + 1.0e-6 * cs.T0) &&
+      (std::abs(tg[ns - 1] - T_int) < 1.0e-6 * T_int),
+    "inflow ghost is continuous through u_out = 0", buf);
+
+  // (b) firmly reversed (u_out = +200 cm/s), the relaxation still pulls the
+  // ghost normal velocity toward the target (-1000 cm/s outward frame), and
+  // the reversal is counted.
+  {
+    amrex::Long diag[pc_nscbc::Diag::count] = {0};
+    Real sg[NVAR];
+    fill(-200.0, sg, diag);
+    const pc_nscbc::CellPrim qg = pc_nscbc::cell_primitives(sg);
+    std::snprintf(
+      buf, sizeof(buf),
+      "ghost u %.3f vs interior -200 (target +1000); counted %lld", qg.u[0],
+      static_cast<long long>(diag[pc_nscbc::Diag::reversed]));
+    check(
+      (qg.u[0] > -200.0) && (diag[pc_nscbc::Diag::reversed] == 1),
+      "reversed inflow still relaxes u toward the target", buf);
+  }
+}
+
+#if NUM_ADV > 0
+// C16: passive scalars at an inflow are incoming characteristics.  With
+//      Target::passives set the ghost carries the Target's values exactly;
+//      unset, it keeps the interior's and the fill counts passive_unset.
+void
+check_inflow_passives()
+{
+  Case cs;
+  auto eos = pele::physics::PhysicsType::eos();
+  const Real dx = cs.L / cs.n;
+  Real Y[NUM_SPECIES];
+  for (int k = 0; k < NUM_SPECIES; k++) {
+    Y[k] = air_Y(k);
+  }
+  pc_nscbc::Params prm;
+  prm.L_ref = cs.L;
+  pc_nscbc::Target in;
+  in.type = pc_nscbc::Type::inflow;
+  in.u[0] = 1.0e3;
+  in.T = 300.0;
+  for (int k = 0; k < NUM_SPECIES; k++) {
+    in.Y[k] = Y[k];
+  }
+  Real rho = 0.0, e = 0.0, sN[NVAR], sg[NVAR];
+  eos.PYT2RE(cs.p0, Y, 300.0, rho, e);
+  set_state(sN, rho, 1.0e3, 300.0, Y);
+  for (int k = 0; k < NUM_ADV; k++) {
+    sN[UFA + k] = rho * 0.7;
+  }
+
+  amrex::Long diag[pc_nscbc::Diag::count] = {0};
+  pc_nscbc::apply(sN, sN, sN, 3, dx, 0, +1, 1, in, prm, sg, diag);
+  const Real kept = sg[UFA] / sg[URHO];
+  in.passives = true;
+  for (int k = 0; k < NUM_ADV; k++) {
+    in.adv[k] = 0.1 * static_cast<Real>(k + 1);
+  }
+  amrex::Long diag2[pc_nscbc::Diag::count] = {0};
+  pc_nscbc::apply(sN, sN, sN, 3, dx, 0, +1, 1, in, prm, sg, diag2);
+  Real err = 0.0;
+  for (int k = 0; k < NUM_ADV; k++) {
+    err = std::max(err, std::abs(sg[UFA + k] / sg[URHO] - in.adv[k]));
+  }
+  char buf[220];
+  std::snprintf(
+    buf, sizeof(buf),
+    "unset: kept %.3f, counted %lld; set: max |phi - target| %.1e, counted "
+    "%lld",
+    kept, static_cast<long long>(diag[pc_nscbc::Diag::passive_unset]), err,
+    static_cast<long long>(diag2[pc_nscbc::Diag::passive_unset]));
+  check(
+    (std::abs(kept - 0.7) < 1e-14) &&
+      (diag[pc_nscbc::Diag::passive_unset] == 1) && (err < 1e-14) &&
+      (diag2[pc_nscbc::Diag::passive_unset] == 0),
+    "inflow imposes the Target's passive scalars; unset is counted", buf);
+}
+#endif
+
+// C17: NDNR over many register time constants.  A vented closed duct (wall
+//      at lo, characteristic outflow at hi) holding a uniform 1e-3
+//      overpressure must return to the target and stay there.  The register
+//      time constant is 6 L/c, so a gate that stops after a transit or two
+//      cannot see a lagged loop growing: the first NDNR form (relaxing on
+//      p - EMA(p)) passed every short test and here reached 1.5 (sigma 1)
+//      and ~2e3 (sigma 16) times the initial offset; the p'_+ form decays.
+Real
+vented_duct_late_dev(Real sigma, bool ndnr, int n, Real t_end_Lc)
+{
+  Case cs;
+  cs.n = n;
+  Field f(cs.n), g(cs.n), h(cs.n);
+  Real Y[NUM_SPECIES];
+  for (int k = 0; k < NUM_SPECIES; k++) {
+    Y[k] = air_Y(k);
+  }
+  auto eos = pele::physics::PhysicsType::eos();
+  const Real dx = cs.L / cs.n;
+  const Real eps = 1.0e-3;
+  Real rho = 0.0, e = 0.0;
+  eos.PYT2RE(cs.p0 * (1.0 + eps), Y, cs.T0, rho, e);
+  for (int i = -NG; i < cs.n + NG; i++) {
+    set_state(f.at(i), rho, 0.0, cs.T0, Y);
+  }
+  const Real Lc = cs.L / sound_speed(get_prim(f.at(0)));
+  pc_nscbc::Params prm;
+  prm.L_ref = cs.L;
+  prm.sigma = sigma;
+  pc_nscbc::Target off, out;
+  out.type = pc_nscbc::Type::outflow;
+  out.p = cs.p0;
+  NdnrRegister reg;
+  auto wall_lo = [&](Field& fl) {
+    for (int layer = 1; layer <= NG; layer++) {
+      for (int v = 0; v < NVAR; v++) {
+        fl.at(-layer)[v] = fl.at(layer - 1)[v];
+      }
+      fl.at(-layer)[UMX] = -fl.at(layer - 1)[UMX];
+    }
+  };
+  Real t = 0.0, late = 0.0;
+  const Real t_end = t_end_Lc * Lc;
+  while (t < t_end) {
+    Real cmax = 0.0;
+    for (int i = 0; i < cs.n; i++) {
+      const Prim q = get_prim(f.at(i));
+      cmax = std::max(cmax, std::abs(q.u) + sound_speed(q));
+    }
+    const Real dt = std::min(cs.cfl * dx / cmax, t_end - t);
+    if (dt <= 0.0) {
+      break;
+    }
+    pc_nscbc::Target out_eff = out;
+    if (ndnr) {
+      out_eff.p = reg.target(out.p);
+    }
+    fill_bcs(f, off, out_eff, prm, dx);
+    wall_lo(f);
+    stage(f, g, dx, dt);
+    fill_bcs(g, off, out_eff, prm, dx);
+    wall_lo(g);
+    stage(g, h, dx, dt);
+    for (int i = 0; i < cs.n; i++) {
+      for (int v = 0; v < NVAR; v++) {
+        f.at(i)[v] = 0.5 * (f.at(i)[v] + h.at(i)[v]);
+      }
+    }
+    t += dt;
+    if (ndnr) {
+      reg.update(get_prim(f.at(cs.n - 1)), cs.L, dt);
+    }
+    if (t > 0.5 * t_end) {
+      Real pm = 0.0;
+      for (int i = 0; i < cs.n; i++) {
+        pm += get_prim(f.at(i)).p;
+      }
+      late = std::max(late, std::abs(pm / cs.n - cs.p0) / (eps * cs.p0));
+    }
+  }
+  return late;
+}
+
+void
+check_ndnr_long_time()
+{
+  const Real nd16 = vented_duct_late_dev(16.0, true, 100, 60.0);
+  const Real nd1 = vented_duct_late_dev(1.0, true, 100, 60.0);
+  const Real cl16 = vented_duct_late_dev(16.0, false, 100, 60.0);
+  char buf[220];
+  std::snprintf(
+    buf, sizeof(buf),
+    "max |<p> - p_t| over 30-60 L/c, / initial offset: NDNR sigma 16 %.2e, "
+    "sigma 1 %.2e (classical sigma 16 %.2e)",
+    nd16, nd1, cl16);
+  check(
+    (nd16 < 5.0e-2) && (nd1 < 5.0e-2),
+    "NDNR settles in a vented duct over 60 L/c", buf);
+}
+
 int
 main(int argc, char* argv[])
 {
@@ -3655,6 +3932,16 @@ main(int argc, char* argv[])
     std::printf(
       "\nC14 sustained recirculation: dynamic halves SKIPPED under SRK "
       "(EOS-independent; gated under Fuego)\n");
+#endif
+    std::printf("\nC15 reversal at an inflow: continuity and relaxation\n");
+    check_inflow_reversal();
+#if NUM_ADV > 0
+    std::printf("\nC16 passive scalars at an inflow\n");
+    check_inflow_passives();
+#endif
+#ifndef USE_SRK_EOS
+    std::printf("\nC17 NDNR over many register time constants\n");
+    check_ndnr_long_time();
 #endif
     std::printf("\nC7  reaction source term\n");
     check_reaction_source();

@@ -198,7 +198,8 @@ struct MyProblemSpecificFunctions : public DefaultProblemSpecificFunctions
     const int sgn,
     const amrex::Real time,
     amrex::GeometryData const& /*geomdata*/,
-    ProbParmDevice const& prob_parm)
+    ProbParmDevice const& prob_parm,
+    const amrex::GpuArray<amrex::Real, AMREX_SPACEDIM>& turb_fluc)
   {
     pc_nscbc::Target t;
     if (prob_parm.pulse_type == 2) {
@@ -217,6 +218,11 @@ struct MyProblemSpecificFunctions : public DefaultProblemSpecificFunctions
         // reproducible.
         if (prob_parm.force_feedforward != 0) {
           t.dudt = prob_parm.force_amp * om * std::cos(om * time);
+        }
+        // TurbInflow fluctuations (zero unless turbinflows is configured)
+        // ride on the mean target, as in a bcnormal-based inlet.
+        for (int d = 0; d < AMREX_SPACEDIM; d++) {
+          t.u[d] += turb_fluc[d];
         }
         t.T = prob_parm.T_amb;
         for (amrex::Real& yv : t.Y) {

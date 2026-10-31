@@ -97,9 +97,10 @@ struct Params
   //   them is an opt-in change), 0 includes them fully, < 0 selects the
   //   pointwise local Mach number (the legacy Fortran convention).
   //
-  // Exact blend for a plane wave at angle theta:
+  // Exact blend for a plane acoustic wave at angle theta in gas at rest:
   // beta_opt = 1 - cos(theta)/(1+cos(theta)) -- 0.5 head-on, toward 1 at
-  // grazing; both measured optima land on it (NSCBC-COVO/README.md).  The
+  // grazing.  The circular-pulse optimum (0.8) agrees; the convected vortex
+  // is outside that derivation and its 0.5 is empirical (NSCBC-COVO).  The
   // response is asymmetric: beta = 0 is near-unstable and pointwise
   // local-Mach is worse than no correction.  A wrong beta is more dangerous
   // than an absent one: start at 0.5, raise toward 1 for grazing incidence.
@@ -248,6 +249,22 @@ struct Target
   // holding the mean.  Zero (default) recovers the classical inlet
   // identically.
   amrex::Real dudt = 0.0; // d(u_normal target)/dt, LAB frame [cm/s^2]
+
+  // Inflow: passive scalars entering with the stream.  Their characteristics
+  // are incoming at an inflow, so like Y they must be specified: set
+  // `passives = true` and fill adv (per unit mass, UFA/rho), aux and lin (as
+  // stored in UFX and ULIN).  Left unset, the ghost keeps the interior values
+  // and the fill counts passive_unset.  Ignored at an outflow.
+  bool passives = false;
+#if NUM_ADV > 0
+  amrex::Real adv[NUM_ADV] = {0.0};
+#endif
+#if NUM_AUX > 0
+  amrex::Real aux[NUM_AUX] = {0.0};
+#endif
+#if NUM_LIN > 0
+  amrex::Real lin[NUM_LIN] = {0.0};
+#endif
 };
 
 // ---------------------------------------------------------------------------
@@ -286,6 +303,9 @@ enum : int {
                      // required; the interior pressure was substituted, which
                      // makes the ghost depend on a domain it should be
                      // causally upstream of.  Set Target.p in bcnormal_nscbc.
+  passive_unset,     // an inflow Target left its passive scalars unset
+                     // (Target::passives): the interior values were kept, so
+                     // nothing about them enters through the inflow.
   structure,         // ADVISORY, not a fallback: material structure sat in an
                      // outflow boundary cell (|dS| > 5% of rho).  A front at
                      // the boundary wants the flame closures --
@@ -441,14 +461,22 @@ reaction_dpdt(CellPrim const& q, bool& ok) noexcept
   for (amrex::Real& yp : Yp) {
     yp /= sum;
   }
-  amrex::Real Tp = q.T, pp = 0.0;
+  // Difference two evaluations made the same way: q.p comes from the
+  // maintained UTEMP, which need not agree with REY2T to the ~1e-6 relative
+  // that a perturbation of this size has to resolve.
+  amrex::Real T0 = q.T, p0 = 0.0;
+  eos.REY2T(q.rho, q.e, q.Y, T0);
+  eos.RTY2P(q.rho, T0, q.Y, p0);
+  amrex::Real Tp = T0, pp = 0.0;
   eos.REY2T(q.rho, q.e, Yp, Tp);
   eos.RTY2P(q.rho, Tp, Yp, pp);
-  if (!amrex::Math::isfinite(pp) || !amrex::Math::isfinite(Tp) || !(Tp > 0.0)) {
+  if (
+    !amrex::Math::isfinite(pp) || !amrex::Math::isfinite(p0) ||
+    !amrex::Math::isfinite(Tp) || !(Tp > 0.0)) {
     ok = false;
     return 0.0;
   }
-  return (pp - q.p) / tau;
+  return (pp - p0) / tau;
 #else
   amrex::Real imw[NUM_SPECIES], ei[NUM_SPECIES], cv = 0.0;
   eos.inv_molecular_weight(imw);
@@ -507,8 +535,8 @@ pack_ghost(
   for (int n = 0; n < NUM_SPECIES; n++) {
     s_ghost[UFS + n] = rho * Y[n];
   }
-  // Passive families default to a mass-scaled zero-gradient; the caller
-  // overwrites them where a target applies.
+  // Passive families default to a mass-scaled zero-gradient; at an inflow
+  // apply() then blends them toward the Target's (inflow_passives).
 #if NUM_ADV > 0
   const amrex::Real ratio =
     (s_N[URHO] > constants::very_small_num()) ? rho / s_N[URHO] : 1.0;
@@ -524,6 +552,33 @@ pack_ghost(
 #if NUM_LIN > 0
   for (int n = 0; n < NUM_LIN; n++) {
     s_ghost[ULIN + n] = s_N[ULIN + n]; // NOT per unit mass in ctoprim
+  }
+#endif
+}
+
+// ---------------------------------------------------------------------------
+//  Passive scalars at an inflow: blend the packed (interior) values toward the
+//  Target's with weight w (1 = full inflow; less across the reversal band).
+// ---------------------------------------------------------------------------
+AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE void
+inflow_passives(
+  Target const& tgt, const amrex::Real w, amrex::Real s_ghost[NVAR]) noexcept
+{
+  amrex::ignore_unused(tgt, w, s_ghost);
+#if NUM_ADV > 0
+  for (int n = 0; n < NUM_ADV; n++) {
+    s_ghost[UFA + n] =
+      (1.0 - w) * s_ghost[UFA + n] + w * s_ghost[URHO] * tgt.adv[n];
+  }
+#endif
+#if NUM_AUX > 0
+  for (int n = 0; n < NUM_AUX; n++) {
+    s_ghost[UFX + n] = (1.0 - w) * s_ghost[UFX + n] + w * tgt.aux[n];
+  }
+#endif
+#if NUM_LIN > 0
+  for (int n = 0; n < NUM_LIN; n++) {
+    s_ghost[ULIN + n] = (1.0 - w) * s_ghost[ULIN + n] + w * tgt.lin[n];
   }
 #endif
 }
@@ -624,6 +679,11 @@ apply(
         amrex::Math::isfinite(e_g)) {
         amrex::Real u_g[3] = {tgt.u[0], tgt.u[1], tgt.u[2]};
         pack_ghost(rho_g, u_g, e_g, tgt.T, tgt.Y, s_N, s_ghost);
+        if (tgt.passives) {
+          inflow_passives(tgt, 1.0, s_ghost);
+        } else if (NUM_ADV + NUM_AUX + NUM_LIN > 0) {
+          bump(Diag::passive_unset);
+        }
         bump(Diag::supersonic);
         return;
       }
@@ -652,7 +712,7 @@ apply(
     // branch and froze the ghost velocity -- an O(1) discontinuity at
     // u_out = 0 that a flame finishing its transit turned into a growing
     // dither and a spurious 0.3 atm chamber spike
-    // (Docs/NSCBC-reversal-branch-defect.md; gates: driver C13 a/b/c).
+    // (NSCBC-Chamber/README.md; gates: driver C13 a/b/c).
     // Sustained recirculation as a local inflow is Params::backflow_material.
     //
     // The COUNTER carries a roundoff deadband (the closure itself has no
@@ -668,12 +728,20 @@ apply(
       bump(Diag::reversed);
     }
   }
-  if (!outflow_face && (u_out_N > 0.0)) {
-    // Outflow through a configured inflow would impose D+NUM_SPECIES+1
-    // conditions where one is admitted; zero-gradient and count it.
+  // Reversal at an INFLOW (a chamber pushing back through its inlet) runs
+  // the same closure, mirrored: the acoustic side keeps relaxing u toward
+  // the target -- restoring on both sides of u_out = 0, as at an outflow --
+  // and only the lambda_0 content changes hands, from the Target's (entering)
+  // to the interior's values (leaving) across a narrow band of outward Mach
+  // (1e-3, the width of w_mat's band below).  w_tgt is the Target's share;
+  // a hard switch here would be the O(1) discontinuity at u_out = 0 that the
+  // outflow side had to remove.  Counted with the same roundoff deadband.
+  const amrex::Real w_tgt =
+    (u_out_N <= 0.0)
+      ? 1.0
+      : amrex::max<amrex::Real>(0.0, 1.0 - u_out_N / (1.0e-3 * c_N));
+  if (!outflow_face && (u_out_N > 1.0e-9 * c_N)) {
     bump(Diag::reversed);
-    copy_state(s_N, s_ghost);
-    return;
   }
 
   // ---- 4. Outgoing acoustic invariant, R_+ ------------------------------
@@ -711,7 +779,7 @@ apply(
   // the chamber's cold runaway: the outward-cooling T ramp refrigerates the
   // boundary cell, the steepened ramp extrapolates colder still, and
   // 1/(rho c) amplifies the relaxation as T falls -- 385 -> 241 -> 89 K in
-  // 42 us, then NaN (Docs/NSCBC-reversal-branch-defect.md).  So the material
+  // 42 us, then NaN (NSCBC-Chamber/README.md, driver C13).  So the material
   // SLOPES are used only where their upwind justification holds: full for
   // u_out >= 0 (every forward-flow result is untouched to the bit), ramped
   // off across a narrow band below zero (1e-3 c -- a continuity
@@ -1012,16 +1080,20 @@ apply(
         (prm.L_ref * u_mag),
       1.0);
 
-    T_g = qN.T - nu * (qN.T - tgt.T);
+    // Across the reversal band the Target's share w_tgt falls to zero and
+    // the interior values take over (w_tgt = 1 for any true inflow).
+    const amrex::Real wt = w_tgt * nu;
+    T_g = qN.T - wt * (qN.T - tgt.T);
     for (int d = 0; d < 3; d++) {
       if (d != idir) {
-        u_g[d] = qN.u[d] - nu * (qN.u[d] - tgt.u[d]);
+        u_g[d] = qN.u[d] - wt * (qN.u[d] - tgt.u[d]);
       }
     }
     // Composition: hard.  Every species characteristic is incoming.
     amrex::Real Ysum = 0.0;
     for (int n = 0; n < NUM_SPECIES; n++) {
-      Y_g[n] = amrex::max<amrex::Real>(tgt.Y[n], 0.0);
+      Y_g[n] = (1.0 - w_tgt) * qN.Y[n] +
+               w_tgt * amrex::max<amrex::Real>(tgt.Y[n], 0.0);
       Ysum += Y_g[n];
     }
     if (Ysum > constants::very_small_num()) {
@@ -1054,6 +1126,13 @@ apply(
 
   // ---- 8. Pack and sanitise ---------------------------------------------
   pack_ghost(rho_g, u_g, e_g, T_g, Y_g, s_N, s_ghost);
+  if (!outflow_face) {
+    if (tgt.passives) {
+      inflow_passives(tgt, w_tgt, s_ghost);
+    } else if ((NUM_ADV + NUM_AUX + NUM_LIN > 0) && (w_tgt > 0.0)) {
+      bump(Diag::passive_unset);
+    }
+  }
 
   for (int n = 0; n < NVAR; n++) {
     if (!amrex::Math::isfinite(s_ghost[n])) {
