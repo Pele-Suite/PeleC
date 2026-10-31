@@ -224,7 +224,7 @@ PeleC::construct_hydro_source(
 
           const amrex::StateDescriptor* desc = state[State_Type].descriptor();
           const auto& bcs = desc->getBCs();
-          amrex::Gpu::DeviceVector<amrex::BCRec> bcs_d(desc->nComp());
+          amrex::Gpu::AsyncVector<amrex::BCRec> bcs_d(desc->nComp());
           amrex::Gpu::copy(
             amrex::Gpu::hostToDevice, bcs.begin(), bcs.end(), bcs_d.begin());
 
