@@ -103,7 +103,7 @@ This is the test that shows the current implementation's limit honestly.
 | NSCBC, β = 0.35 | 0.0187 | 4.0× |
 | NSCBC, β = 0.2 (constant) | 0.0325 | 6.9× |
 | NSCBC, β < 0 (pointwise local Mach) | 0.0754 | 16.1× |
-| NSCBC, β = 0 (full transverse) | 0.6184 | 132× |
+| NSCBC, β = 0 (full transverse) | 3.51 | unstable (772×) |
 
 (The Phase-0 re-sweep, run after the reaction-source and periodic-seam fixes,
 reproduces every β row above to the digit — the inert 2-D baselines did not
@@ -136,23 +136,27 @@ residual to 3.8× the floor: 2.7× better than β = 1 and 3.7× better than a ha
 boundary. That is the term the dial sweep was pointing at.
 
 **But the response to β is sharply asymmetric.** Too little correction costs a
-factor of a few; too much is catastrophic — β = 0 is close to unstable, at
-132× the floor — and a *pointwise-varying* β (the local-Mach convention) is
+factor of a few; too much is catastrophic — β = 0 goes unstable: the
+boundary turns supersonic and the pressure swings by 70% of ambient, 772× the
+floor (an earlier code state measured 132×) — and a *pointwise-varying* β (the
+local-Mach convention) is
 worse than no transverse terms at all. That asymmetry is why the shipped
 default is β = 1 rather than the optimum. A wrong β is far more dangerous than
 an absent one.
 
-**The optimum is predictable, not empirical.** For a plane wave meeting the
-boundary at angle θ, the correction that exactly cancels the obliqueness error
-in the 1-D characteristic decomposition is `(1−β) = cos θ / (1 + cos θ)`, so
+**Where the optimum comes from.** For a plane acoustic wave meeting the
+boundary at angle θ in gas at rest, the correction that exactly cancels the
+obliqueness error in the 1-D characteristic decomposition is
+`(1−β) = cos θ / (1 + cos θ)`, so
 
     β_opt = 1 − cos θ / (1 + cos θ)
 
 which is 0.5 at normal incidence and rises toward 1 at grazing incidence (0.67
-at 60°, 0.79 at 75°). Both measured optima land on that curve: the vortex — a
-broad, near-normal-incidence structure — optimises at **0.5**, and the circular
-pulse, whose surviving arc crossed the faces near-tangentially, optimises at
-**0.8**. Two independent problems, one formula, no fitting.
+at 60°, 0.79 at 75°). The circular pulse, whose surviving arc crossed the faces
+obliquely, optimises at **0.8**, consistent with it. The vortex is not an
+acoustic wave and lies outside that derivation; its optimum, **0.5**, is
+measured, not predicted (it happens to match the formula's normal-incidence
+value). Both optima come from coarse β sweeps (steps of 0.15–0.3).
 
 **The outflow was never the reflecting part.** Switching only the outflow to
 the characteristic treatment cuts the upstream residual (mean |δp| over

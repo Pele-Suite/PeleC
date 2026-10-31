@@ -191,6 +191,18 @@ plotfile; and a multi-rank plotfile shards `Cell_D` across files, so
 file-level `cmp` against a serial run is meaningless — compare fields, not
 files.)
 
+## Known limitation: NRI and a turbulent inlet
+
+The NRI register takes the outgoing wave's velocity from `u + p/ρc` at the
+boundary cell, which is exact for acoustics but cannot tell a convected
+eddy from an outgoing wave: an eddy's velocity fluctuation at the inlet, with
+no pressure of its own, reads as half an outgoing wave, and half of it is fed
+back into the target. Measured on a 5% TurbInflow inlet (3-D duct,
+`relax_u = relax_t = 20`): the streamwise intensity at the inlet rises from
+0.93 to 1.40 of the prescribed value. NRI is therefore for injecting acoustic
+signals; PeleC warns when it is enabled together with TurbInflow. Separating
+the two would need the transverse terms in the outgoing-wave estimate.
+
 ## Not proposed
 
 Raw time integrals without EMA (unbounded state, drift); any state inside

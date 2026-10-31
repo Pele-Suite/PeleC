@@ -109,12 +109,12 @@ the derivation's assumptions, and its optimum (0.5) is empirical.
    0.8                         7.3×                         **0.066%**
    0.5                         **3.8×**                     1.08%
    0.2                         6.9×                         2.21%
-   0.0 (full)                  132×                         2.95%
+   0.0 (full)                  unstable (772×)              2.95%
    local Mach (pointwise)      16.1×                        —
    ==========================  ==========================  =============================
 
 Note the shape of that curve: too little correction costs a factor of a few, **too much is catastrophic** —
-:math:`\beta = 0` is close to unstable. That asymmetry is why the default is 1 rather than the optimum: a wrong
+:math:`\beta = 0` goes unstable on the vortex. That asymmetry is why the default is 1 rather than the optimum: a wrong
 :math:`\beta` is far more dangerous than an absent one. Start at 0.5 and raise it toward 1 if the boundary is
 mostly met at grazing incidence.
 
@@ -390,7 +390,9 @@ specified there, not only :math:`u`, :math:`T` and :math:`Y`:
   fluctuating velocities in ``turb_fluc``, exactly as ``bcnormal`` does; add them to ``t.u`` (or use them as the
   total velocity). Across a periodic tangential direction the fill reads them at the periodic image, so the
   inflow stays periodic. The normal component is then imposed through ``relax_u`` and the tangential ones
-  through ``relax_t``, both of which low-pass filter the injected spectrum (see *Diagnosing*).
+  through ``relax_t``, both of which low-pass filter the injected spectrum (see *Diagnosing*). Do not enable
+  ``bc_nscbc_nri`` on a turbulent inlet: the register reads each convected eddy as an outgoing wave and
+  amplifies the fluctuation (PeleC warns).
 * **Acoustic forcing.** A relaxation holds a mean; it does not inject a signal faithfully. For a harmonically
   forced inlet, also return the analytic rate of the normal-velocity target in ``t.dudt``: it enters the
   incoming wave directly (as :math:`2\rho c\,\partial u^t/\partial t`) and leaves the relaxation to hold the
@@ -405,7 +407,9 @@ average of the outgoing characteristic at the boundary point (time constant thre
 the domain length normal to the face), and the relaxation then ignores the wave currently leaving:
 
 * ``bc_nscbc_nri = 1`` (inlets): the velocity relaxation ignores the outgoing wave's velocity, so an inlet
-  stops reflecting the domain's acoustics back at it. Pair it with ``t.dudt`` for forced inlets.
+  stops reflecting the domain's acoustics back at it. Pair it with ``t.dudt`` for forced inlets. It is for
+  acoustic signals only: with TurbInflow it takes convected eddies for outgoing waves and amplifies the
+  turbulence (1.4× on the streamwise intensity of a 5% inlet).
 * ``bc_nscbc_ndnr = 1`` (outlets): the pressure relaxation ignores the outgoing wave's pressure. A strong
   anchor then no longer reflects: at :math:`\sigma = 16` the planar-pulse reflection falls from 30% to 1.2%,
   and at :math:`\sigma = 0.25` from 0.75% to 0.09%, while the mean still settles on the target.

@@ -101,7 +101,7 @@ struct Params
   // beta_opt = 1 - cos(theta)/(1+cos(theta)) -- 0.5 head-on, toward 1 at
   // grazing.  The circular-pulse optimum (0.8) agrees; the convected vortex
   // is outside that derivation and its 0.5 is empirical (NSCBC-COVO).  The
-  // response is asymmetric: beta = 0 is near-unstable and pointwise
+  // response is asymmetric: beta = 0 goes unstable on a vortex and pointwise
   // local-Mach is worse than no correction.  A wrong beta is more dangerous
   // than an absent one: start at 0.5, raise toward 1 for grazing incidence.
   amrex::Real beta = 1.0;

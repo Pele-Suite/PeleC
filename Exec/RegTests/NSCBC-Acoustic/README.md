@@ -26,9 +26,11 @@ quantity that may be specified, so it is the only quantity it sets.
 `L = 10 cm`, `c = 34719 cm/s`, so one acoustic transit is `2.88e-4 s`. Run to
 `t = 4.6e-4 s` (1.6 transit times), by which point the pulse has crossed the
 outflow. `R` is the peak residual pressure disturbance in the upstream half,
-measured against the instantaneous domain mean so the σ-driven anchoring
-adjustment is not miscounted as a reflected wave, divided by the incident
-amplitude.
+measured from that half's median (so the σ-driven anchoring adjustment is not
+miscounted as a reflected wave, and a strong reflected pulse does not drag the
+baseline), divided by the incident amplitude. The sections below measure
+against the instantaneous domain mean instead, as the 1-D driver does; on that
+measure σ = 0.25 reads 0.752%.
 
 | boundary treatment | R [%] | mean p at end [dyn/cm²] |
 |---|---|---|
@@ -40,10 +42,11 @@ pulse; the characteristic treatment reduces the reflection by a factor of 120
 and holds the mean pressure to 8 parts per million of the target.
 
 **Cross-check.** The standalone 1-D driver predicts `R = 0.758%` at σ = 0.25
-(`Verification/NSCBC1D/README.md`). PeleC's 2-D Godunov solve gives 0.810%.
-Two independent solvers, two independent implementations of the surrounding
-machinery, agreeing to 7% on a quantity that spans two orders of magnitude
-between the good and bad boundary conditions. That agreement is the point of
+(`Verification/NSCBC1D/README.md`), measured against the domain mean. PeleC's
+2-D Godunov solve gives 0.752% on the same measure. Two independent solvers,
+two independent implementations of the surrounding machinery, agreeing to 1%
+on a quantity that spans two orders of magnitude between the good and bad
+boundary conditions. That agreement is the point of
 having both.
 
 ## Things worth trying
@@ -243,7 +246,10 @@ outlets; registers update once per level-0 advance in
 the kernel stays a pure function).
 
 **NRI** (inlet reflection cancellation), duct point relax_u = 2, f = 0.8 f0,
-with the hook's feed-forward (`prob.force_feedforward=1`):
+with the hook's feed-forward (`prob.force_feedforward=1`). NRI is for
+acoustic signals: with a turbulent inflow it reads each convected eddy as an
+outgoing wave and amplifies the streamwise fluctuation (1.4× for a 5%
+TurbInflow inlet), so PeleC warns when both are on.
 
 | treatment | I_in | I_u | driver |
 |---|---|---|---|
@@ -251,7 +257,8 @@ with the hook's feed-forward (`prob.force_feedforward=1`):
 | feed-forward + register (`bc_nscbc_nri=1`) | **0.970** | 0.593 | 1.031 / 0.660 |
 
 **NDNR** (outgoing-wave-excluded relaxation at outlets), the planar pulse of
-the main table:
+the main table, with R measured against the instantaneous domain mean as in
+the driver:
 
 | treatment | R [%] | mean p at end |
 |---|---|---|

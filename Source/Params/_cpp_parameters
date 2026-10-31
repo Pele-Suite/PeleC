@@ -105,14 +105,15 @@ bc_nscbc_relax_t            Real          0.2
 # Exec/RegTests/NSCBC-COVO, against a periodic no-boundary reference:
 #
 #   convected vortex, rms residual:  hard 14.0x floor,  beta=1 10.0x,
-#                                    beta=0.5 3.8x,  beta=0.2 16.1x, beta=0 132x
+#                                    beta=0.5 3.8x,  beta=0.2 6.9x,  beta=0 unstable,
+#                                    pointwise local Mach (beta < 0) 16.1x
 #   circular pulse, front amplitude spread:  hard 21.4%,  beta=1 0.90%,
 #                                    beta=0.8 0.066%,  beta=0 2.9%
 #
-# The optimum follows beta = 1 - cos(theta)/(1 + cos(theta)) for a wave meeting
-# the boundary at angle theta: 0.5 at normal incidence, rising toward 1 at
-# grazing incidence.  Too little correction costs a factor of a few; too much
-# is catastrophic.  RECOMMENDED STARTING VALUE 0.5.  The default is 1 only
+# For a plane acoustic wave meeting the boundary at angle theta the optimum is
+# beta = 1 - cos(theta)/(1 + cos(theta)): 0.5 at normal incidence, rising toward
+# 1 at grazing incidence (the vortex's 0.5 is measured, not derived).  Too
+# little correction costs a factor of a few; too much is catastrophic.  RECOMMENDED STARTING VALUE 0.5.  The default is 1 only
 # because a wrong beta is far more dangerous than an absent one.  Must be <= 1.
 bc_nscbc_beta               Real          1.0
 
@@ -184,6 +185,9 @@ bc_nscbc_backflow_material  bool          false
 # the domain sends back.  With Target::dudt supplied by the problem hook,
 # the measured injection index I_in is ~1 at any relax_u and any frequency
 # (driver t3; Docs/NSCBC-boundary-registers-design.md).  Level 0 only.
+# For acoustic forcing, not for a turbulent inlet: a convected eddy's
+# velocity looks like an outgoing wave to the register, which then amplifies
+# the turbulence (PeleC warns when both are on).
 bc_nscbc_nri                bool          false
 
 # Boundary registers, phase B (outlets): the relaxation deviation excludes

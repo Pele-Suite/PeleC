@@ -939,6 +939,17 @@ PeleC::nscbc_update_registers(const amrex::Real dt)
     announced = true;
     amrex::Print() << "NSCBC boundary registers active (NRI=" << bc_nscbc_nri
                    << ", NDNR=" << bc_nscbc_ndnr << ")\n";
+    if (bc_nscbc_nri && turb_inflow.is_initialized()) {
+      // The register takes the outgoing wave from u + p/(rho c) at the
+      // inlet, and a convected eddy's velocity looks like one to it: half
+      // of each eddy is fed back into the target.
+      amrex::Warning(
+        "NSCBC: pelec.bc_nscbc_nri = 1 with a TurbInflow inlet. NRI is for "
+        "injecting acoustic signals; it reads convected velocity "
+        "fluctuations as outgoing waves and amplifies them (measured: the "
+        "streamwise intensity of a 5% turbulent inflow by 1.4x). Turn it off "
+        "for a turbulent inlet.");
+    }
   }
   const amrex::Box dom = geom.Domain();
   const amrex::MultiFab& S = get_new_data(State_Type);
