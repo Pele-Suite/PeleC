@@ -91,6 +91,21 @@ struct Params
   // Inflow temperature and tangential-velocity relaxation.
   amrex::Real relax_t = 0.2;
 
+  // Weight on the transverse terms in the modelled incoming acoustic:
+  //     L_in = K (phi - phi_target) - (1 - beta) * T_transverse
+  //   1 discards them (the 1-D-normal LODI limit, and the default: enabling
+  //   them is an opt-in change), 0 includes them fully, < 0 selects the
+  //   pointwise local Mach number (the legacy Fortran convention).
+  //
+  // Exact blend for a plane acoustic wave at angle theta in gas at rest:
+  // beta_opt = 1 - cos(theta)/(1+cos(theta)) -- 0.5 head-on, toward 1 at
+  // grazing.  The circular-pulse optimum (0.8) agrees; the convected vortex
+  // is outside that derivation and its 0.5 is empirical (NSCBC-COVO).  The
+  // response is asymmetric: beta = 0 goes unstable on a vortex and pointwise
+  // local-Mach is worse than no correction.  A wrong beta is more dangerous
+  // than an absent one: start at 0.5, raise toward 1 for grazing incidence.
+  amrex::Real beta = 1.0;
+
   // Boundary-normal reference length, probhi[idir] - problo[idir].  Filled per
   // face by the caller.  Only the ratio sigma/L_ref is physical, so this is
   // not a user knob; it exists so that sigma keeps its literature meaning.
@@ -123,6 +138,11 @@ struct Params
     }
     if (relax_t < 0.0) {
       why = "bc_nscbc_relax_t must be >= 0";
+      return false;
+    }
+    if (beta > 1.0) {
+      why = "bc_nscbc_beta must be <= 1 (1 discards the transverse terms, 0 "
+            "includes them fully, negative selects the local Mach number)";
       return false;
     }
     if ((order != 1) && (order != 2)) {
@@ -181,6 +201,22 @@ struct Target
 #if NUM_LIN > 0
   amrex::Real lin[NUM_LIN] = {0.0};
 #endif
+};
+
+// ---------------------------------------------------------------------------
+//  Tangential neighbours of the BOUNDARY CELL, for the transverse terms
+//      T_in = sum_t [ u_t (dp/dt - rho c du_out/dt) ] + gamma p sum_t du_t/dt
+//  (derivatives at the boundary cell; the outward frame absorbs the lo/hi
+//  sign flip).  Neighbour indexing is the caller's -- see tang_range() in
+//  BCfill.cpp -- and the spacing arrives as an explicit reciprocal, zero when
+//  a collapsed corner stencil leaves nothing to difference.
+// ---------------------------------------------------------------------------
+struct Transverse
+{
+  const amrex::Real* sm[AMREX_SPACEDIM] = {};
+  const amrex::Real* sp[AMREX_SPACEDIM] = {};
+  amrex::Real inv_dt[AMREX_SPACEDIM] = {};
+  bool valid = false;
 };
 
 // ---------------------------------------------------------------------------
@@ -420,7 +456,8 @@ apply(
   Target const& tgt,
   Params const& prm,
   amrex::Real s_ghost[NVAR],
-  amrex::Long* diag = nullptr) noexcept
+  amrex::Long* diag = nullptr,
+  Transverse const* tr = nullptr) noexcept
 {
   auto eos = pele::physics::PhysicsType::eos();
 
@@ -605,6 +642,55 @@ apply(
       ? 1.0
       : amrex::max<amrex::Real>(0.0, 1.0 + u_out_N / (1.0e-3 * c_N));
 
+  // Transverse contribution to the modelled incoming wave.  Additive on the
+  // amplitude, which is exactly why the relaxation is written as a gradient
+  // increment: there is a well-defined slot for it here, and none at all in a
+  // hard far-field pin of R_-.
+  amrex::Real beta = prm.beta;
+  if (beta < 0.0) {
+    beta = amrex::min<amrex::Real>(std::abs(mach), 1.0);
+  }
+  amrex::Real T_in = 0.0;
+  if ((tr != nullptr) && tr->valid && (beta < 1.0)) {
+    amrex::Real gam = 0.0;
+    eos.RTY2G(qN.rho, qN.T, qN.Y, gam);
+    amrex::Real div_ut = 0.0;
+    bool any = false;
+    for (int d = 0; d < AMREX_SPACEDIM; ++d) {
+      if (
+        (d == idir) || (tr->sm[d] == nullptr) || (tr->sp[d] == nullptr) ||
+        (tr->inv_dt[d] == 0.0)) {
+        continue;
+      }
+      const CellPrim qm = cell_primitives(tr->sm[d]);
+      const CellPrim qp = cell_primitives(tr->sp[d]);
+      if (!qm.ok || !qp.ok) {
+        bump(Diag::transverse_drop);
+        continue;
+      }
+      const amrex::Real dpdt = (qp.p - qm.p) * tr->inv_dt[d];
+      // du_out/dt: the normal velocity in the OUTWARD frame, differentiated
+      // along the tangential direction.  The n_sgn here is what turns the
+      // legacy hi-face T1 and lo-face T4 into one expression.
+      const amrex::Real duodt =
+        n_sgn * (qp.u[idir] - qm.u[idir]) * tr->inv_dt[d];
+      const amrex::Real dutdt = (qp.u[d] - qm.u[d]) * tr->inv_dt[d];
+      T_in += qN.u[d] * (dpdt - rho_c * duodt);
+      div_ut += dutdt;
+      any = true;
+    }
+    if (any && amrex::Math::isfinite(gam) && (gam > 0.0)) {
+      T_in += gam * qN.p * div_ut;
+    } else {
+      T_in = 0.0;
+      bump(Diag::transverse_drop);
+    }
+    if (!amrex::Math::isfinite(T_in)) {
+      T_in = 0.0;
+      bump(Diag::transverse_drop);
+    }
+  }
+
   const amrex::Real dRm = 0.0;
 
   amrex::Real Rm_g;
@@ -631,6 +717,7 @@ apply(
       // velocity rate through the incoming invariant alone needs twice it.
       L_in += 2.0 * rho_c * (n_sgn * tgt.dudt);
     }
+    L_in -= (1.0 - beta) * T_in;
     // There is deliberately NO diffusive source term on L_in.  The
     // ghost-cell form does not have the flux-form's viscous-condition gap:
     // the diffusion operator reads these ghost cells, so a correct ghost

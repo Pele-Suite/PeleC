@@ -119,6 +119,7 @@ public:
   // last bit, since they are built from the same data by the same arithmetic.
   // Runs once, from post_init, and only when a characteristic face has a
   // periodic tangential direction.
+  void nscbc_check_periodic_wrap();
 
   // Restart from a checkpoint file.
   void restart(

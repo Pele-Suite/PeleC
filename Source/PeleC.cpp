@@ -385,10 +385,18 @@ PeleC::read_params()
     if (amrex::ParallelDescriptor::IOProcessor()) {
       amrex::Print()
         << "\n  NSCBC: characteristic boundary treatment ENABLED (advective "
-           "ghost fill).\n"
-        << "    This is the 1-D-normal LODI limit: no transverse terms and no\n"
-        << "    reaction-source correction. Place outflows away from flames,\n"
-        << "    shear layers and composition fronts. See Source/NSCBC.H.\n";
+           "ghost fill).\n";
+      if (bc_nscbc_beta >= 1.0) {
+        amrex::Print()
+          << "    1-D-normal LODI limit (beta = 1): no transverse terms and "
+             "no\n"
+          << "    reaction-source correction. Place outflows away from "
+             "flames,\n"
+          << "    shear layers and composition fronts. See Source/NSCBC.H.\n";
+      } else {
+        amrex::Print() << "    beta = " << bc_nscbc_beta
+                       << " (transverse terms); 1 = off\n";
+      }
       if (bc_nscbc_pin_farfield) {
         amrex::Print()
           << "    incoming acoustic PINNED to the far field; bc_nscbc_sigma "
@@ -1300,6 +1308,7 @@ PeleC::post_init(amrex::Real /*stop_time*/)
     for (int lev = 1; lev <= finest; ++lev) {
       getLevel(lev).nscbc_check_fine_faces();
     }
+    nscbc_check_periodic_wrap();
   }
 
   amrex::Real dtlev = parent->dtLevel(level);
