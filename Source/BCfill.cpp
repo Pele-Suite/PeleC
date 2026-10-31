@@ -36,6 +36,154 @@ nscbc_diag()
   return *nscbc_diag_p;
 }
 
+// ---------------------------------------------------------------------------
+//  Boundary registers (Docs/NSCBC-boundary-registers-design.md).
+//
+//  Per-point state on the LEVEL-0 boundary-adjacent band of every domain
+//  face: the learned reference mean (an EMA of the outgoing acoustic
+//  invariant, tau = 3 t_a) and the ready-to-add composition terms derived
+//  from it once per advance.  The band of a
+//  face is a structured (SPACEDIM-1)-dimensional strip over the domain's
+//  tangential extent, so the whole store is one small flat device array
+//  indexed by face and flattened tangential index -- no MultiFab.  The EMA
+//  state is updated only by the rank that owns the band cell, and entries a
+//  rank does not own are EXACTLY ZERO there (which makes the checkpoint
+//  gather a sum).  The two corrections the fill reads, u_minus and dp_ac,
+//  are instead REPLICATED on every rank after each update: a fill does read
+//  band points other ranks own (the tangential clamp reaches into the FAB's
+//  tangential ghost cells, and coarse-patch and corner-strip FABs are built
+//  away from the owner), and a zero there would silently make the boundary
+//  classical at that point and the answer decomposition-dependent.
+//
+//  The fill reads the registers frozen (they change once per advance,
+//  outside every fill path), and the kernel in NSCBC.H never sees them at
+//  all: BCfill composes the effective Target -- u += u_minus at a
+//  registered inflow (NRI), p += dp_ac at a registered outflow (NDNR) --
+//  and hands the same pure function the same pure arguments.
+// ---------------------------------------------------------------------------
+namespace reg {
+enum : int {
+  ema_u = 0, // EMA of the outward normal velocity u_out
+  ema_p,     // EMA of the pressure.  The outgoing invariant's departure
+             // from its mean, R_out - mean = (u_out - ema_u)
+             // + (p - ema_p) / rho_c_ref, is formed from these two
+             // deviations -- never from p / rho c itself, whose mean
+             // (~1e4 cm/s) turns ANY change of the impedance into a
+             // spurious wave: a flame leaving through an NDNR outlet
+             // halves rho c there, which read as a 14% pressure wave
+             // (NSCBC-FlameOutflow, nscbc-flameexit.inp).  For a fixed
+             // impedance this is the single-EMA invariant exactly.
+  u_minus,   // ready-to-add LAB-frame velocity correction (NRI inflow)
+  dp_ac,     // ready-to-add pressure correction (NDNR outflow)
+  trend_dS,  // EMA of |dS|/rho: the slow material-structure trend
+             // (phase C, advisory: kept and checkpointed, not yet read)
+  ema_rhoc,  // slowly-EMA'd reference impedance, scaling the two
+             // deviations.  (Forming R_out = u_out + p / rho c with the
+             // local impedance was the first instance of the aliasing
+             // above: a coherent 0.1% impedance oscillation times the
+             // mean p / rho c degraded I_in from 1.03 to 1.6, in the
+             // driver and identically in PeleC.)
+  init,      // 1 once this entry has been seeded
+  ncomp
+};
+}
+
+amrex::Gpu::DeviceVector<amrex::Real>* nscbc_reg_p = nullptr;
+amrex::Box nscbc_reg_dom; // the domain the store was sized for
+
+long
+nscbc_reg_total(const amrex::Box& dom)
+{
+  long total = 0;
+  for (int idir = 0; idir < AMREX_SPACEDIM; ++idir) {
+    long ext = 1;
+    for (int d = 0; d < AMREX_SPACEDIM; ++d) {
+      if (d != idir) {
+        ext *= dom.length(d);
+      }
+    }
+    total += 2 * ext; // lo and hi face
+  }
+  return total;
+}
+
+// Allocation happens ONLY where the domain is authoritative -- the update
+// and the restart, which pass the level-0 geometry's Domain().  Everything
+// else peeks: a null peek simply means "no update has run yet", and the
+// pre-update registers are all-zero classical behaviour anyway.
+amrex::Gpu::DeviceVector<amrex::Real>&
+nscbc_registers(const amrex::Box& dom)
+{
+  const long want = nscbc_reg_total(dom) * reg::ncomp;
+  if (nscbc_reg_p == nullptr) {
+    nscbc_reg_p = new amrex::Gpu::DeviceVector<amrex::Real>(want, 0.0);
+    amrex::ExecOnFinalize([]() {
+      delete nscbc_reg_p;
+      nscbc_reg_p = nullptr;
+    });
+  } else if (static_cast<long>(nscbc_reg_p->size()) != want) {
+    nscbc_reg_p->clear();
+    nscbc_reg_p->resize(want, 0.0);
+  }
+  nscbc_reg_dom = dom;
+  return *nscbc_reg_p;
+}
+
+// The peek doubles as the level test: only the geometry the store was
+// sized for -- level 0, recorded at update/restart time -- gets a pointer.
+// (amrex::DefaultGeometry() proved unreliable for this comparison, which
+// is how both the zero-size allocation and a silently-classical fill
+// happened; matching the recorded domain is self-consistent.)
+const amrex::Real*
+nscbc_registers_peek(const amrex::Box& dom)
+{
+  return ((nscbc_reg_p != nullptr) && !nscbc_reg_p->empty() &&
+          (dom == nscbc_reg_dom))
+           ? nscbc_reg_p->data()
+           : nullptr;
+}
+
+// Offset of face (idir, side) into the flat register array, and the
+// flattened tangential index of a band cell.  Both host- and device-safe,
+// domain passed explicitly so the device never touches globals.
+AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE long
+nscbc_reg_face_offset(const int idir, const int side, const amrex::Box& dom)
+{
+  long off = 0;
+  for (int fd = 0; fd < AMREX_SPACEDIM; ++fd) {
+    long ext = 1;
+    for (int d = 0; d < AMREX_SPACEDIM; ++d) {
+      if (d != fd) {
+        ext *= dom.length(d);
+      }
+    }
+    for (int s = 0; s < 2; ++s) {
+      if ((fd == idir) && (s == side)) {
+        return off;
+      }
+      off += ext;
+    }
+  }
+  return off; // unreachable
+}
+
+AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE long
+nscbc_reg_index(
+  const int idir,
+  const int side,
+  const amrex::IntVect& iv,
+  const amrex::Box& dom)
+{
+  long idx = nscbc_reg_face_offset(idir, side, dom);
+  long stride = 1;
+  for (int d = 0; d < AMREX_SPACEDIM; ++d) {
+    if (d != idir) {
+      idx += (iv[d] - dom.smallEnd(d)) * stride;
+      stride *= dom.length(d);
+    }
+  }
+  return idx * reg::ncomp;
+}
 } // namespace
 
 struct PCHypFillExtDir
@@ -45,6 +193,11 @@ struct PCHypFillExtDir
   bool m_nscbc{false};
   amrex::GpuArray<pc_nscbc::Params, AMREX_SPACEDIM> m_nscbc_prm;
   amrex::Long* m_nscbc_diag{nullptr};
+  // Boundary registers: null when neither NRI nor NDNR is enabled; the
+  // mode bits say which composition applies (1 = NRI inflow, 2 = NDNR
+  // outflow).  Level-0 only -- see the register banner in this file.
+  const amrex::Real* m_nscbc_reg{nullptr};
+  int m_reg_mode{0};
   // TurbInflow fluctuations for the characteristic fill: a copy of the
   // layer-1 ghost velocities add_turb wrote, taken before the launch (the
   // fill overwrites those cells while other threads still need them).
@@ -58,6 +211,8 @@ struct PCHypFillExtDir
     const bool nscbc,
     const amrex::GpuArray<pc_nscbc::Params, AMREX_SPACEDIM>& nscbc_prm,
     amrex::Long* nscbc_diag,
+    const amrex::Real* nscbc_reg = nullptr,
+    const int reg_mode = 0,
     amrex::Array4<const amrex::Real> const& turb = {},
     const bool has_turb = false)
     : lprobparm(d_prob_parm),
@@ -65,6 +220,8 @@ struct PCHypFillExtDir
       m_nscbc(nscbc),
       m_nscbc_prm(nscbc_prm),
       m_nscbc_diag(nscbc_diag),
+      m_nscbc_reg(nscbc_reg),
+      m_reg_mode(reg_mode),
       m_turb(turb),
       m_has_turb(has_turb)
   {
@@ -222,6 +379,17 @@ struct PCHypFillExtDir
       // Boundary-register composition (level 0 only; the registers change
       // once per advance and are read frozen here).  The kernel below sees
       // only the composed Target -- it stays a pure function.
+      if (m_nscbc_reg != nullptr) {
+        const int side = (sgn > 0) ? 0 : 1;
+        const long ridx = nscbc_reg_index(idir, side, base, geom.Domain());
+        if ((tgt.type == pc_nscbc::Type::inflow) && ((m_reg_mode & 1) != 0)) {
+          tgt.u[idir] += m_nscbc_reg[ridx + reg::u_minus];
+        }
+        if ((tgt.type == pc_nscbc::Type::outflow) && ((m_reg_mode & 2) != 0)) {
+          tgt.p += m_nscbc_reg[ridx + reg::dp_ac];
+        }
+      }
+
       // Tangential neighbours of the boundary cell, for the transverse terms,
       // clamped into the domain: at a corner the clamp collapses the stencil
       // and inv_dt falls to a one-sided spacing, or to zero if both
@@ -460,6 +628,18 @@ pc_bcfill_hyp(
   }
   amrex::Long* diag = nscbc ? nscbc_diag().data() : nullptr;
 
+  // Boundary registers: the peek returns a pointer only for the geometry
+  // the store was sized for (level 0, recorded at update time), and only
+  // when a register consumer is enabled.
+  const amrex::Real* reg_ptr = nullptr;
+  int reg_mode = 0;
+  if (nscbc) {
+    reg_mode = PeleC::nscbc_register_mode();
+    if (reg_mode != 0) {
+      reg_ptr = nscbc_registers_peek(geom.Domain());
+    }
+  }
+
   // The characteristic fill reads the TurbInflow fluctuations from a copy
   // (see PCHypFillExtDir::m_turb).  Async arena: freed in stream order.
   amrex::FArrayBox turb_copy;
@@ -473,6 +653,7 @@ pc_bcfill_hyp(
   amrex::GpuBndryFuncFab<PCHypFillExtDir> hyp_bndry_func(
     PCHypFillExtDir{
       lprobparm, PeleC::turb_inflow.is_initialized(), nscbc, nscbc_prm, diag,
+      reg_ptr, reg_mode,
       has_turb ? turb_copy.const_array() : amrex::Array4<const amrex::Real>{},
       has_turb});
   hyp_bndry_func(bx, data, dcomp, numcomp, geom, time, bcr, bcomp, scomp);
@@ -741,6 +922,302 @@ PeleC::nscbc_check_periodic_wrap()
       }
     }
   }
+}
+
+// The once-per-advance register update (design note, phase A/B/C).  Runs on
+// level 0 after the new-time state exists, on the faces the characteristic
+// treatment can reach (Hard/UserBC).  The EMA state is per-point local and
+// written only by the owning rank (the zero-elsewhere invariant); the
+// composed corrections are then replicated by one sum per face, so every
+// rank's fills read the same values.
+void
+PeleC::nscbc_update_registers(const amrex::Real dt)
+{
+  if (
+    (level != 0) || !bc_nscbc || !(bc_nscbc_nri || bc_nscbc_ndnr) ||
+    (dt <= 0.0)) {
+    return;
+  }
+  // One-time announce: silent stateful machinery is unverifiable (the
+  // counters lesson) -- say once that the registers are live and for whom.
+  static bool announced = false;
+  if (!announced && amrex::ParallelDescriptor::IOProcessor()) {
+    announced = true;
+    amrex::Print() << "NSCBC boundary registers active (NRI=" << bc_nscbc_nri
+                   << ", NDNR=" << bc_nscbc_ndnr << ")\n";
+    if (bc_nscbc_nri && turb_inflow.is_initialized()) {
+      // The register takes the outgoing wave from u + p/(rho c) at the
+      // inlet, and a convected eddy's velocity looks like one to it: half
+      // of each eddy is fed back into the target.
+      amrex::Warning(
+        "NSCBC: pelec.bc_nscbc_nri = 1 with a TurbInflow inlet. NRI is for "
+        "injecting acoustic signals; it reads convected velocity "
+        "fluctuations as outgoing waves and amplifies them (measured: the "
+        "streamwise intensity of a 5% turbulent inflow by 1.4x). Turn it off "
+        "for a turbulent inlet.");
+    }
+  }
+  const amrex::Box dom = geom.Domain();
+  const amrex::MultiFab& S = get_new_data(State_Type);
+  amrex::Real* rp = nscbc_registers(dom).data();
+
+  for (int idir = 0; idir < AMREX_SPACEDIM; ++idir) {
+    const amrex::Real L_ref = geom.ProbHi(idir) - geom.ProbLo(idir);
+    for (int side = 0; side < 2; ++side) {
+      const int bct = (side == 0) ? phys_bc.lo(idir) : phys_bc.hi(idir);
+      if ((bct != PCPhysBCType::inflow) && (bct != PCPhysBCType::user_bc)) {
+        continue; // never read: the fill only reaches ext_dir faces
+      }
+      // This face's corrections, gathered here (owner entries, zero
+      // elsewhere) and replicated by the sum below: [t][u_minus, dp_ac].
+      const long off = nscbc_reg_face_offset(idir, side, dom);
+      long npts = 1;
+      for (int d = 0; d < AMREX_SPACEDIM; ++d) {
+        if (d != idir) {
+          npts *= dom.length(d);
+        }
+      }
+      amrex::Gpu::DeviceVector<amrex::Real> cmp(2 * npts, 0.0);
+      amrex::Real* cp = cmp.data();
+
+      amrex::Box band = dom;
+      if (side == 0) {
+        band.setBig(idir, dom.smallEnd(idir));
+      } else {
+        band.setSmall(idir, dom.bigEnd(idir));
+      }
+      const int sgn = (side == 0) ? +1 : -1;
+      const auto n_sgn = static_cast<amrex::Real>(-sgn);
+      const int e_int = sgn; // step toward the interior along idir
+
+      for (amrex::MFIter mfi(S, false); mfi.isValid(); ++mfi) {
+        const amrex::Box b = mfi.validbox() & band;
+        if (!b.ok()) {
+          continue;
+        }
+        auto const& s = S.const_array(mfi);
+        const amrex::Box sbox = mfi.validbox();
+        amrex::ParallelFor(
+          b, [=] AMREX_GPU_DEVICE(int i, int j, int k) noexcept {
+            amrex::ignore_unused(k); // 2-D: AMREX_D_DECL drops it
+            auto eos = pele::physics::PhysicsType::eos();
+            const amrex::IntVect iv(AMREX_D_DECL(i, j, k));
+            auto prims = [&](
+                           const amrex::IntVect& p_iv, amrex::Real& rho,
+                           amrex::Real& u_n, amrex::Real& p, amrex::Real& c) {
+              rho = s(p_iv, URHO);
+              u_n = s(p_iv, UMX + idir) / rho;
+              const amrex::Real T = s(p_iv, UTEMP);
+              amrex::Real Y[NUM_SPECIES];
+              for (int n = 0; n < NUM_SPECIES; ++n) {
+                Y[n] = s(p_iv, UFS + n) / rho;
+              }
+              eos.RTY2P(rho, T, Y, p);
+              eos.RTY2Cs(rho, T, Y, c);
+            };
+            const long ridx = nscbc_reg_index(idir, side, iv, dom);
+            const long t = ridx / reg::ncomp - off;
+            amrex::Real rho = 0.0, u_n = 0.0, p = 0.0, c = 0.0;
+            prims(iv, rho, u_n, p, c);
+            if (!amrex::Math::isfinite(p) || (c <= 0.0) || (rho <= 0.0)) {
+              // leave the register untouched on a sick state
+              cp[2 * t] = rp[ridx + reg::u_minus];
+              cp[2 * t + 1] = rp[ridx + reg::dp_ac];
+              return;
+            }
+            const amrex::Real rhoc = rho * c;
+            const amrex::Real rc_ref =
+              (rp == nullptr)
+                ? rhoc
+                : ((rp[nscbc_reg_index(idir, side, iv, dom) + reg::init] == 0.0)
+                     ? rhoc
+                     : rp
+                         [nscbc_reg_index(idir, side, iv, dom) +
+                          reg::ema_rhoc]);
+            const amrex::Real u_out = n_sgn * u_n;
+
+            const amrex::Real tau = 6.0 * L_ref / c; // 3 t_a = 6 L/c
+            const amrex::Real w = dt / (tau + dt);
+
+            // Phase C's advisory trend: the entropy-family slope at the
+            // band cell, frozen impedance, same limiter as the kernel.
+            amrex::Real dS_abs = 0.0;
+            {
+              amrex::IntVect iv1 = iv, iv2 = iv;
+              iv1[idir] += e_int;
+              iv2[idir] += 2 * e_int;
+              if (sbox.contains(iv1) && sbox.contains(iv2)) {
+                const amrex::Real inv_c2 = 1.0 / (c * c);
+                amrex::Real r1, u1, p1, c1, r2, u2, p2, c2;
+                prims(iv1, r1, u1, p1, c1);
+                prims(iv2, r2, u2, p2, c2);
+                const amrex::Real S0 = rho - p * inv_c2;
+                const amrex::Real S1 = r1 - p1 * inv_c2;
+                const amrex::Real S2 = r2 - p2 * inv_c2;
+                dS_abs = std::abs(pc_nscbc::minmod(S0 - S1, S1 - S2)) / rho;
+              }
+            }
+
+            if (rp[ridx + reg::init] == 0.0) {
+              rp[ridx + reg::ema_u] = u_out;
+              rp[ridx + reg::ema_p] = p;
+              rp[ridx + reg::trend_dS] = dS_abs;
+              rp[ridx + reg::ema_rhoc] = rhoc;
+              rp[ridx + reg::init] = 1.0;
+            } else {
+              rp[ridx + reg::ema_u] += w * (u_out - rp[ridx + reg::ema_u]);
+              rp[ridx + reg::ema_p] += w * (p - rp[ridx + reg::ema_p]);
+              rp[ridx + reg::trend_dS] +=
+                w * (dS_abs - rp[ridx + reg::trend_dS]);
+              rp[ridx + reg::ema_rhoc] += w * (rhoc - rp[ridx + reg::ema_rhoc]);
+            }
+            // The outgoing invariant's departure from its mean, from the
+            // two deviations (see reg::ema_p).
+            const amrex::Real dR_out = (u_out - rp[ridx + reg::ema_u]) +
+                                       (p - rp[ridx + reg::ema_p]) / rc_ref;
+            rp[ridx + reg::u_minus] = n_sgn * 0.5 * dR_out;
+            // NDNR: the outgoing-wave pressure p'_+ = 1/2 rho c (R_out - mean),
+            // so the relaxation K (p - p_tgt - p'_+) ignores the waves leaving
+            // the domain but still acts, unlagged, on the mean and on the
+            // incoming wave.  Relaxing on the EMA of p itself instead is a
+            // lagged integral loop around the domain's pressure: it grew
+            // without bound in a vented duct (NSCBC-Acoustic, sigma >= 4).
+            rp[ridx + reg::dp_ac] = 0.5 * rc_ref * dR_out;
+            cp[2 * t] = rp[ridx + reg::u_minus];
+            cp[2 * t + 1] = rp[ridx + reg::dp_ac];
+          });
+      }
+
+      // Replicate: exactly one rank contributes each entry, so the sum is
+      // exact and every rank ends with the owner's values.
+      amrex::Gpu::synchronize();
+      std::vector<amrex::Real> h(cmp.size());
+      amrex::Gpu::copy(
+        amrex::Gpu::deviceToHost, cmp.begin(), cmp.end(), h.begin());
+      amrex::ParallelDescriptor::ReduceRealSum(
+        h.data(), static_cast<int>(h.size()));
+      amrex::Gpu::copy(
+        amrex::Gpu::hostToDevice, h.begin(), h.end(), cmp.begin());
+      amrex::ParallelFor(npts, [=] AMREX_GPU_DEVICE(long t) noexcept {
+        rp[(off + t) * reg::ncomp + reg::u_minus] = cp[2 * t];
+        rp[(off + t) * reg::ncomp + reg::dp_ac] = cp[2 * t + 1];
+      });
+      amrex::Gpu::streamSynchronize(); // before cmp is freed
+    }
+  }
+}
+
+// Checkpoint the registers: gather (sum -- the zero-elsewhere invariant
+// makes it exact for the EMA state; the replicated corrections enter from
+// the IOProcessor's copy alone) and write one small file from it.
+void
+PeleC::nscbc_registers_checkpoint(const std::string& dir)
+{
+  if (!bc_nscbc || !(bc_nscbc_nri || bc_nscbc_ndnr)) {
+    return;
+  }
+  if ((nscbc_reg_p == nullptr) || nscbc_reg_p->empty()) {
+    return; // no update has run yet; nothing to checkpoint
+  }
+  auto& regs = *nscbc_reg_p;
+  std::vector<amrex::Real> h(regs.size());
+  amrex::Gpu::copy(
+    amrex::Gpu::deviceToHost, regs.begin(), regs.end(), h.begin());
+  if (!amrex::ParallelDescriptor::IOProcessor()) {
+    for (size_t e = 0; e < h.size(); e += reg::ncomp) {
+      h[e + reg::u_minus] = 0.0;
+      h[e + reg::dp_ac] = 0.0;
+    }
+  }
+  amrex::ParallelDescriptor::ReduceRealSum(
+    h.data(), static_cast<int>(h.size()));
+  if (amrex::ParallelDescriptor::IOProcessor()) {
+    std::ofstream f(dir + "/NSCBCRegisters", std::ios::binary);
+    const long n = static_cast<long>(h.size());
+    f.write(reinterpret_cast<const char*>(&n), sizeof(n));
+    f.write(
+      reinterpret_cast<const char*>(h.data()),
+      static_cast<std::streamsize>(n * sizeof(amrex::Real)));
+  }
+}
+
+// Restore the registers: read, broadcast, then zero the EMA state this rank
+// does not own so the invariant (and the next checkpoint's gather) holds; the
+// replicated corrections stay everywhere.
+// A checkpoint without the file (pre-register, or registers then disabled)
+// restarts with cold registers, which re-seed on the first advance.
+void
+PeleC::nscbc_registers_restart(const std::string& dir)
+{
+  if (!bc_nscbc || !(bc_nscbc_nri || bc_nscbc_ndnr) || (level != 0)) {
+    return;
+  }
+  auto& regs = nscbc_registers(geom.Domain());
+  std::vector<amrex::Real> h(regs.size(), 0.0);
+  int have = 0;
+  if (amrex::ParallelDescriptor::IOProcessor()) {
+    std::ifstream f(dir + "/NSCBCRegisters", std::ios::binary);
+    if (f.good()) {
+      long n = 0;
+      f.read(reinterpret_cast<char*>(&n), sizeof(n));
+      if (n == static_cast<long>(h.size())) {
+        f.read(
+          reinterpret_cast<char*>(h.data()),
+          static_cast<std::streamsize>(n * sizeof(amrex::Real)));
+        have = 1;
+      }
+    }
+  }
+  amrex::ParallelDescriptor::Bcast(
+    &have, 1, amrex::ParallelDescriptor::IOProcessorNumber());
+  if (have == 0) {
+    if (amrex::ParallelDescriptor::IOProcessor()) {
+      amrex::Print() << "  NSCBC: no register file in the checkpoint; "
+                        "registers re-seed on the first advance.\n";
+    }
+    return;
+  }
+  amrex::ParallelDescriptor::Bcast(
+    h.data(), static_cast<int>(h.size()),
+    amrex::ParallelDescriptor::IOProcessorNumber());
+
+  // Zero the state this rank does not own.
+  const amrex::Box dom = geom.Domain();
+  std::vector<char> owned(h.size() / reg::ncomp, 0);
+  for (int idir = 0; idir < AMREX_SPACEDIM; ++idir) {
+    for (int side = 0; side < 2; ++side) {
+      amrex::Box band = dom;
+      if (side == 0) {
+        band.setBig(idir, dom.smallEnd(idir));
+      } else {
+        band.setSmall(idir, dom.bigEnd(idir));
+      }
+      for (int bi = 0; bi < grids.size(); ++bi) {
+        if (dmap[bi] != amrex::ParallelDescriptor::MyProc()) {
+          continue;
+        }
+        const amrex::Box b = grids[bi] & band;
+        if (!b.ok()) {
+          continue;
+        }
+        amrex::LoopOnCpu(b, [&](int i, int j, int k) {
+          amrex::ignore_unused(k); // 2-D: AMREX_D_DECL drops it
+          const amrex::IntVect iv(AMREX_D_DECL(i, j, k));
+          owned[nscbc_reg_index(idir, side, iv, dom) / reg::ncomp] = 1;
+        });
+      }
+    }
+  }
+  for (size_t e = 0; e < owned.size(); ++e) {
+    if (owned[e] == 0) {
+      for (int n = 0; n < reg::ncomp; ++n) {
+        if ((n != reg::u_minus) && (n != reg::dp_ac)) {
+          h[e * reg::ncomp + n] = 0.0;
+        }
+      }
+    }
+  }
+  amrex::Gpu::copy(amrex::Gpu::hostToDevice, h.begin(), h.end(), regs.begin());
 }
 
 pc_nscbc::Params

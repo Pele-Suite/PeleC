@@ -407,6 +407,10 @@ PeleC::read_params()
                        << ",  backflow_material = "
                        << bc_nscbc_backflow_material << "\n";
       }
+      if (bc_nscbc_nri || bc_nscbc_ndnr) {
+        amrex::Print() << "    boundary registers (level 0): NRI = "
+                       << bc_nscbc_nri << ",  NDNR = " << bc_nscbc_ndnr << "\n";
+      }
       if (bc_nscbc_pin_farfield) {
         amrex::Print()
           << "    incoming acoustic PINNED to the far field; bc_nscbc_sigma "

@@ -236,3 +236,81 @@ but faithful nowhere (2.7× overshoot at relax_u = 5), and on resonance the
 injection collapses at any stiffness because a velocity relaxation cannot
 drive the velocity node it is aimed at. The deterioration is a property of
 the formulation, not of either code.
+
+## Boundary registers (NRI and NDNR) — the PeleC half of driver t3-register/ndnr
+
+The stateful repairs from `Docs/NSCBC-boundary-registers-design.md`, wired
+into PeleC (`pelec.bc_nscbc_nri=1` for inlets, `pelec.bc_nscbc_ndnr=1` for
+outlets; registers update once per level-0 advance in
+`PeleC::nscbc_update_registers`, and `BCfill` composes the effective target —
+the kernel stays a pure function).
+
+**NRI** (inlet reflection cancellation), duct point relax_u = 2, f = 0.8 f0,
+with the hook's feed-forward (`prob.force_feedforward=1`). NRI is for
+acoustic signals: with a turbulent inflow it reads each convected eddy as an
+outgoing wave and amplifies the streamwise fluctuation (1.4× for a 5%
+TurbInflow inlet), so PeleC warns when both are on.
+
+| treatment | I_in | I_u | driver |
+|---|---|---|---|
+| feed-forward alone | 2.419 | 1.493 | 2.40 |
+| feed-forward + register (`bc_nscbc_nri=1`) | **0.996** | 0.611 | 1.031 / 0.660 |
+
+**NDNR** (outgoing-wave-excluded relaxation at outlets), the planar pulse of
+the main table, with R measured against the instantaneous domain mean as in
+the driver:
+
+| treatment | R [%] | mean p at end |
+|---|---|---|
+| σ = 0.25, classical | 0.75 | 1013241.8 |
+| σ = 0.25 + `bc_nscbc_ndnr=1` | **0.062** | 1013249.4 |
+| σ = 16, classical | 30.10 | 1013178.2 |
+| σ = 16 + `bc_nscbc_ndnr=1` | **0.90** | 1013240.8 |
+
+The register strips the outgoing wave,
+`p'_+ = ½[(p − p̄) + ρc_ref (u_out − ū_out)]`, from the relaxation's
+deviation, so σ never acts on the pulse leaving the domain (a 33× reduction
+at σ = 16) while the mean and the incoming wave are still relaxed without
+lag. The mean is held to 9 ppm of the 1013250 target at σ = 16 (classical:
+71 ppm), and it settles: run on to 40 L/c (`stop_time=0.0116
+max_step=1000000`), the σ = 16 NDNR mean stays within 2e-9 of ambient after
+20 L/c, where the classical σ = 16 boundary is still ringing at ±7e-5.
+
+**Relax on the outgoing wave, not on a filtered pressure.** The first NDNR
+form relaxed on `p − EMA(p)`, i.e. on the EMA-lagged mean pressure. That is a
+lagged integral loop around the domain's pressure, and this vented duct (wall
+at x-lo) is exactly the configuration that exposes it: at σ = 16 the mean grew
+from the pulse's 7e-5 to +15% at 35 L/c and −72% at 40 L/c, and σ = 4 grew too.
+It passed every short test because they stop at 1.6 L/c, where it read 37 ppm.
+Any NDNR gate has to run for many register time constants (τ = 6 L/c).
+
+**A measured implementation lesson.** The register must never carry
+`p/(ρc)` itself: its mean is ~10⁴ cm/s, so any change of the impedance
+multiplies into a spurious wave. Forming the invariant with the
+instantaneous local impedance aliased the coherent 0.1% impedance
+oscillation in at signal amplitude — measured identically in both codes,
+I_in 1.03 → 1.61 (driver, `NSCBC1D_LOCAL_RC=1`) and 1.59 (PeleC). A slow-EMA
+reference `ρc` cured that but not the principle: a flame leaving through an
+NDNR outlet halves `ρc` at the face, and the single-EMA invariant read it as
+a 14% pressure wave (NSCBC-FlameOutflow, `nscbc-flameexit.inp` at σ = 16
+with the flame closures: −145,000 dyn/cm² against −432 without NDNR). The
+store therefore keeps EMAs of `u_out` and `p` separately and combines only
+their deviations, scaled by the slow-EMA `ρc`; for a fixed impedance that is
+the single-EMA invariant exactly. The same crossing now reads −1,062, the
+inert front +568 (σ = 16, NDNR; +451 without), and the tables above
+improved with it (single-EMA invariant: I_in 0.970, NDNR 0.087% / 1.24%,
+40 L/c settle 1.2e-7). The kernel's per-fill frozen `rho_c` never had this
+problem because it differences across the stencil at one instant; the
+register differences across time.
+
+**Determinism.** Straight-through vs checkpoint+restart (σ = 16 NDNR, split
+at step 400 of 800) is bit-identical; the registers ride in the checkpoint
+as `NSCBCRegisters`. Decomposition: n1 vs n6 of the same MPI binary is
+bit-identical on every state field, including a 400×64 grid whose
+`max_grid_size=32` splits the register faces tangentially across ranks, and
+so is a 2-D radial pulse on 16 boxes with every face characteristic (n1 vs
+n4, inviscid and viscous) — the case that exposed, and now gates, the
+cross-rank register reads described in the design note.
+(Note the case GNUmakefile defaults to `USE_MPI=FALSE`; build with
+`USE_MPI=TRUE` before believing any `mpiexec` result, and compare
+plotfiles field-by-field — a multi-rank run shards `Cell_D`.)
