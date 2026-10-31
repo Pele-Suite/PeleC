@@ -1,0 +1,74 @@
+# NSCBC-FlameOutflow: a wrinkled, unanchored premixed flame sheet straddling a
+# subsonic characteristic outflow.  See README.md.
+#
+# Streamwise x, transverse y (periodic).  phi = 0.4 H2/air at 1 atm, 298 K,
+# S_L = 22.8 cm/s, thermal thickness ~0.07 cm.  dx = 0.00625 cm puts ~11 cells
+# through the reaction zone.  The stream runs at U = 2 S_L so the sheet drifts
+# downstream and needs no anchor.
+#
+# The mean sheet position sits exactly on the outflow plane (sheet_x = 1.0),
+# so half the boundary is burnt and half is fresh, with the reaction zone
+# inside the boundary cells at the two crossings.  That is what puts a live
+# heat-release term and a strongly tilted flame normal into the boundary cell,
+# which is what bc_nscbc_beta_s and bc_nscbc_beta exist to handle.
+
+max_step  = 100000
+stop_time = 6.0e-5
+
+geometry.is_periodic = 0 1
+geometry.coord_sys   = 0
+geometry.prob_lo     = 0.0  0.0
+geometry.prob_hi     = 0.6  0.4
+
+pelec.lo_bc = "UserBC" "Interior"
+pelec.hi_bc = "UserBC" "Interior"
+
+# L_ref is the domain length, 0.6 cm.  At the burnt sound speed (~8.6e4 cm/s)
+# sigma = 1 gives tau_relax = 7e-6 s, so stop_time is ~8 relaxation times.
+pelec.bc_nscbc         = 1
+pelec.bc_nscbc_sigma   = 1.0
+pelec.bc_nscbc_relax_u = 2.0
+pelec.bc_nscbc_relax_t = 0.2
+pelec.bc_nscbc_beta    = 1.0
+pelec.bc_nscbc_beta_s  = 1.0
+pelec.bc_nscbc_order   = 2
+
+prob.pamb          = 1013250.0
+prob.phi_in        = -0.5
+prob.u_ratio       = 2.0
+prob.sheet_x       = 1.0
+prob.wrinkle_amp   = 0.08
+prob.wrinkle_k     = 1.0
+prob.pmf_flame_loc = 3.0
+prob.pmf_datafile  = "LiDryer_H2_p1_phi0_4000tu0300.dat"
+
+pelec.do_hydro = 1
+pelec.do_mol = 0
+pelec.diffuse_vel  = 1
+pelec.diffuse_temp = 1
+pelec.diffuse_spec = 1
+pelec.diffuse_enth = 1
+pelec.do_react = 1
+pelec.chem_integrator = "ReactorRK64"
+# Must stay at the default 1: setting it to 0 destroys a reacting state on the
+# first step (see NSCBC-PMF/README.md).
+pelec.allow_negative_energy = 1
+
+pelec.cfl = 0.3
+pelec.init_shrink = 0.3
+pelec.change_max = 1.1
+pelec.sdc_iters = 2
+pelec.sum_interval = -1
+pelec.v = 1
+amr.v = 1
+
+amr.n_cell   = 96 64
+amr.max_level = 0
+amr.blocking_factor = 8
+amr.max_grid_size = 32
+
+amr.checkpoint_files_output = 0
+amr.plot_files_output = 1
+amr.plot_int = 100000
+amr.plot_file = plt
+amr.derive_plot_vars = pressure Temp x_velocity y_velocity

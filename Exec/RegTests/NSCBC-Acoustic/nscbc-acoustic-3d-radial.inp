@@ -1,0 +1,61 @@
+# NSCBC-Acoustic, 3-D radial: a Gaussian pressure pulse at the centre of a cube,
+# isentropic and at rest, with ALL SIX faces characteristic outflows.
+#
+# This is the case that tests corner and edge ownership.  The outgoing front
+# meets the six faces at normal incidence, the twelve edges at 45 degrees and
+# the eight corners along the body diagonal, so a ghost cell that lies outside
+# the domain in two or three directions at once is exercised by a real wave
+# rather than by a quiescent state.  The initial condition is exactly isotropic
+# about the box centre, so any departure from sphericity in the departing front
+# is boundary-generated and no reference solution is needed to say so.
+#
+# Run with pelec.bc_nscbc=0 for the contrast.
+max_step = 4000
+stop_time = 1.35e-4
+
+geometry.is_periodic = 0 0 0
+geometry.coord_sys   = 0
+geometry.prob_lo     = -2.5  -2.5  -2.5
+geometry.prob_hi     =  2.5   2.5   2.5
+
+pelec.lo_bc = "UserBC" "UserBC" "UserBC"
+pelec.hi_bc = "UserBC" "UserBC" "UserBC"
+
+# L_ref = 5 cm, c = 34719 cm/s, so tau_acoustic = 1.44e-4 s and at sigma = 0.25
+# tau_relax = 5.76e-4 s.  The front reaches the faces at t = 7.2e-5 s, the edges
+# at 1.02e-4 and the corners at 1.25e-4; stop_time is just past the corners.
+pelec.bc_nscbc       = 1
+pelec.bc_nscbc_sigma = 0.25
+pelec.bc_nscbc_beta  = 1.0
+pelec.bc_nscbc_order = 2
+
+prob.pulse_type = 1
+prob.x0    = 0.5 0.5 0.5
+prob.width = 0.06
+prob.amp   = 1.0e-3
+
+pelec.do_hydro = 1
+pelec.do_mol = 0
+pelec.diffuse_vel = 0
+pelec.diffuse_temp = 0
+pelec.diffuse_spec = 0
+pelec.do_react = 0
+pelec.allow_negative_energy = 0
+
+pelec.cfl = 0.4
+pelec.init_shrink = 1.0
+pelec.change_max = 1.05
+pelec.dt_cutoff = 5.e-20
+pelec.v = 1
+amr.v = 1
+
+amr.n_cell   = 96 96 96
+amr.max_level = 0
+amr.blocking_factor = 8
+amr.max_grid_size = 32
+
+amr.checkpoint_files_output = 0
+amr.plot_files_output = 1
+amr.plot_int = 25
+amr.plot_file = plt
+amr.derive_plot_vars = pressure x_velocity y_velocity z_velocity

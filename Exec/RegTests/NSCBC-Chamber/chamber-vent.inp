@@ -1,0 +1,55 @@
+# NSCBC-Chamber, variant (b): the characteristic boundary IS the vent.
+# The open end carries the flame closures -- the front will cross it live.
+# sigma = 0.25 keeps the end acoustically open, so the post-peak ring-down
+# shows the chamber's own mode decay rather than the boundary's reflection.
+max_step  = 1000000
+stop_time = 8.0e-3
+
+geometry.is_periodic = 0 0
+geometry.coord_sys   = 0
+geometry.prob_lo     = 0.0  0.0
+geometry.prob_hi     = 1.2  0.3
+
+pelec.lo_bc = "NoSlipWall" "NoSlipWall"
+pelec.hi_bc = "UserBC"     "NoSlipWall"
+
+pelec.bc_nscbc         = 1
+pelec.bc_nscbc_sigma   = 0.25
+pelec.bc_nscbc_beta    = 0.5
+pelec.bc_nscbc_beta_s  = 0
+pelec.bc_nscbc_order   = 2
+pelec.bc_nscbc_extrap_temperature = 1
+pelec.bc_nscbc_extrap_material    = 0
+
+prob.pamb          = 1013250.0
+prob.kernel_r      = 0.1
+prob.kernel_y      = 0.5
+prob.pmf_flame_loc = 3.0
+prob.pmf_datafile  = "LiDryer_H2_p1_phi0_4000tu0300.dat"
+
+pelec.do_hydro = 1
+pelec.do_mol = 0
+pelec.diffuse_vel  = 1
+pelec.diffuse_temp = 1
+pelec.diffuse_spec = 1
+pelec.do_react = 1
+pelec.chem_integrator = "ReactorRK64"
+pelec.allow_negative_energy = 1
+
+pelec.cfl = 0.4
+pelec.init_shrink = 1.0
+pelec.change_max = 1.05
+pelec.v = 1
+amr.v = 1
+
+amr.n_cell   = 96 24
+amr.max_level = 0
+amr.blocking_factor = 4
+amr.max_grid_size = 48
+
+amr.checkpoint_files_output = 0
+amr.plot_files_output = 1
+amr.plot_int = -1
+amr.plot_per = 2.5e-5
+amr.plot_file = plt
+amr.derive_plot_vars = pressure Temp x_velocity y_velocity magvort heatRelease

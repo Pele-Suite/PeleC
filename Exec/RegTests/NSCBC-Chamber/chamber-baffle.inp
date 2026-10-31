@@ -1,0 +1,76 @@
+# NSCBC-Chamber BAFFLE: the Sydney baffle (EB follow-up 2).
+#
+# chamber-box.inp with two baffle plates across the chamber at x = 0.8
+# (mid-chamber, upstream face), thickness 0.05, leaving a central gap of 0.1
+# -- 67% blockage.  The flame accelerates through the gap, the vented jet is
+# faster and more wrinkled, and the A/B against chamber-box.inp is the
+# baffle's contribution to the overpressure trace with everything else
+# identical.
+max_step  = 1000000
+stop_time = 8.0e-3
+
+geometry.is_periodic = 0 0
+geometry.coord_sys   = 0
+geometry.prob_lo     = 0.0  0.0
+geometry.prob_hi     = 2.4  0.9
+
+pelec.lo_bc = "NoSlipWall" "NoSlipWall"
+pelec.hi_bc = "UserBC"     "NoSlipWall"
+
+pelec.bc_nscbc         = 1
+pelec.bc_nscbc_sigma   = 0.25
+pelec.bc_nscbc_beta    = 0.5
+pelec.bc_nscbc_beta_s  = 0
+pelec.bc_nscbc_order   = 2
+pelec.bc_nscbc_extrap_temperature = 1
+pelec.bc_nscbc_extrap_material    = 0
+
+eb2.geom_type = "nscbc-chamber-box"
+pelec.eb_zero_body_state = 1
+pelec.eb_isothermal      = 0
+prob.chamber_x0  = 0.205
+prob.chamber_yc  = 0.455
+prob.chamber_len = 1.2
+prob.chamber_h   = 0.3
+prob.wall_t      = 0.05
+prob.baffle      = 1
+prob.baffle_x    = 0.805
+prob.baffle_w    = 0.05
+prob.baffle_gap  = 0.1
+
+prob.pamb          = 1013250.0
+prob.kernel_r      = 0.1
+prob.kernel_x      = 0.205
+prob.kernel_y      = 0.5055556
+prob.pmf_flame_loc = 3.0
+prob.pmf_datafile  = "LiDryer_H2_p1_phi0_4000tu0300.dat"
+
+pelec.do_hydro = 1
+pelec.do_mol = 1
+pelec.diffuse_vel  = 1
+pelec.diffuse_temp = 1
+pelec.diffuse_spec = 1
+pelec.diffuse_enth = 1
+pelec.do_react = 1
+pelec.chem_integrator = "ReactorRK64"
+pelec.allow_negative_energy = 1
+
+pelec.cfl = 0.3
+pelec.init_shrink = 0.3
+pelec.change_max = 1.1
+pelec.sdc_iters = 2
+pelec.sum_interval = -1
+pelec.v = 1
+amr.v = 1
+
+amr.n_cell   = 192 72
+amr.max_level = 0
+amr.blocking_factor = 8
+amr.max_grid_size = 32
+
+amr.checkpoint_files_output = 0
+amr.plot_files_output = 1
+amr.plot_int = -1
+amr.plot_per = 2.5e-5
+amr.plot_file = plt
+amr.derive_plot_vars = pressure Temp x_velocity y_velocity
