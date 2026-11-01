@@ -373,6 +373,11 @@ boundary cells — and the closures are what carry it:
 * **Post-exit residuals are** :math:`\sigma` **'s alone** (+133 at :math:`\sigma = 1`, +8.5 at 16, −253 recovering
   at 0.25, dyn/cm²): once the flame is gone there is no chemistry at the boundary for :math:`\beta_s` to model, and
   the emptied domain returns to ambient at the relaxation rate.
+* **A front without heat release is a different case.** With the chemistry off, the same profile leaving at
+  :math:`\sigma = 0.25` builds a +2.0%-of-ambient excursion with the bare closure, and over-vents to −7.7% with
+  ``extrap_temperature = 1`` alone — the stream triples and the front is dragged out early. At :math:`\sigma = 16`
+  either closure stays within a few thousand dyn/cm², and a hard outflow does best (−192). The flame recipe is a
+  property of the pair on a *burning* front; for a front that does not burn, :math:`\sigma` is the control.
 * ``extrap_material`` is for fronts that *sit*, not fronts that leave: its quasi-steady continuation over-vents a
   transit. ``pin_farfield`` anchors a through-flow duct to :math:`p + \rho c u` — the operating point shifts and
   stays shifted; reservoir boundaries only.
@@ -411,8 +416,11 @@ the domain length normal to the face), and the relaxation then ignores the wave 
   acoustic signals only: with TurbInflow it takes convected eddies for outgoing waves and amplifies the
   turbulence (1.4× on the streamwise intensity of a 5% inlet).
 * ``bc_nscbc_ndnr = 1`` (outlets): the pressure relaxation ignores the outgoing wave's pressure. A strong
-  anchor then no longer reflects: at :math:`\sigma = 16` the planar-pulse reflection falls from 30% to 1.2%,
-  and at :math:`\sigma = 0.25` from 0.75% to 0.09%, while the mean still settles on the target.
+  anchor then no longer reflects: at :math:`\sigma = 16` the planar-pulse reflection falls from 30% to 0.9%,
+  and at :math:`\sigma = 0.25` from 0.75% to 0.06%, while the mean still settles on the target. The register
+  forms the outgoing wave from the deviations of :math:`u` and :math:`p` alone, so a front crossing the outlet
+  does not register as a wave: the flame of *A structure leaving through the outflow*, at :math:`\sigma = 16`
+  with the flame closures, reads −1,062 dyn/cm² with NDNR against −432 without.
 
 Registers live on level 0 only (keep refinement off characteristic faces anyway), ride in checkpoints, and
 give results independent of the MPI decomposition. Their reference means need a few register time constants to
@@ -508,13 +516,17 @@ when ``pelec.v > 0``. A silent fallback is a bug that will not be found.
                                                     well below the run time; or move the outflow away from
                                                     the flame.
    Reflects *and* drifts                            The boundary is sitting on a flame or shear layer.
-                                                    Move it if you can; otherwise set
+                                                    Move it if you can; otherwise, for a flame, set
                                                     ``extrap_temperature = 1`` and ``beta_s = 0``, which
                                                     hold hard-outflow accuracy at any :math:`\sigma`.
-   A flame or front must pass OUT through the       Set ``extrap_temperature = 1`` and ``beta_s = 0``
-   outflow                                          before it arrives (any :math:`\sigma` then survives);
+   A flame must pass OUT through the outflow        Set ``extrap_temperature = 1`` and ``beta_s = 0``
+                                                    before it arrives (any :math:`\sigma` then survives);
                                                     keep ``extrap_material`` off during the transit. See
                                                     *A structure leaving through the outflow*.
+   A front without heat release must pass OUT       Raise :math:`\sigma` toward 16, or use a hard outflow if
+   (hot gas, a composition front)                   no sound must leave. Do not set
+                                                    ``extrap_temperature = 1`` alone: at low :math:`\sigma`
+                                                    it over-vents an inert front (−7.7% of ambient).
    Reflection persists at any :math:`\sigma`, 2-D    Missing transverse terms. Move the boundary further out.
    Inflow never reaches the target velocity         Increase ``relax_u``.
    Inflow oscillates or goes unstable               Reduce ``relax_u``; a value much above 10 is a hard
@@ -531,10 +543,11 @@ when ``pelec.v > 0``. A silent fallback is a bug that will not be found.
    ``flow reversal`` count sustained above zero     The outflow is misplaced, or the face should be an
                                                     inflow. Transient counts are benign.
    ``material structure`` advisory printed          A front, flame or density gradient is sitting in the
-                                                    outflow boundary cells (:math:`|dS|` > 5% of ρ per cell). Turn
-                                                    on the flame closures (``extrap_temperature = 1``,
-                                                    ``beta_s = 0``); keep ``extrap_material`` off if it is
-                                                    about to cross.
+                                                    outflow boundary cells (:math:`|dS|` > 5% of ρ per cell). A
+                                                    flame: turn on the flame closures (``extrap_temperature = 1``,
+                                                    ``beta_s = 0``). A front without heat release: raise
+                                                    :math:`\sigma` instead. Keep ``extrap_material`` off if it
+                                                    is about to cross.
    ``EB body state`` count above zero               Covered cells are adjacent to the boundary face; the
                                                     stencil order was degraded to avoid them.
    ===============================================  ==========================================================

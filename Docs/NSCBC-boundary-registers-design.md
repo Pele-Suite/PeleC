@@ -135,20 +135,31 @@ index, component)` — not a face-band MultiFab. The band is a 2-D skin of
 the domain; a MultiFab would buy distributed ownership at the price of
 FillPatch-adjacent machinery, and the skin is small enough (≲1 MB at
 chamber resolution) to replicate. Components:
-`{ema_Rout, u_minus, dp_ac, trend_dS, ema_rhoc, init}`. One EMA serves both
-consumers: NRI's `u_minus = ½(R_out − R̄_out)` and NDNR's
-`dp_ac = ½ρc_ref(R_out − R̄_out)` are the velocity and pressure of the same
+`{ema_u, ema_p, u_minus, dp_ac, trend_dS, ema_rhoc, init}`. One pair of EMAs
+serves both consumers: with `ΔR = (u_out − ū_out) + (p − p̄)/ρc_ref` the
+outgoing invariant's departure from its mean, NRI's `u_minus = ½ΔR` and
+NDNR's `dp_ac = ½ρc_ref ΔR` are the velocity and pressure of the same
 outgoing wave, so phase B needed no `ema_pplus` of its own.
 
 Three lessons were paid for in measurement:
 
-* **The invariant needs a time-frozen impedance** (`ema_rhoc`). With the
-  instantaneous local `rho c`, the mean `p/(ρc)` (~10⁴ cm/s) times the
-  coherent impedance oscillation aliases into `R_out` at signal amplitude.
-  Driver with `NSCBC1D_LOCAL_RC=1`: I_in degrades 1.03 → 1.61; PeleC
-  measured 1.59 before the fix and 0.970 after. The kernel's per-fill
-  frozen `rho_c` is immune (stencil difference at one instant); a register
-  differences across time and is not.
+* **Form the invariant's departure from deviations, never from `p/(ρc)`
+  itself.** The mean `p/(ρc)` is ~10⁴ cm/s, so `R_out = u_out + p/(ρc)`
+  formed whole turns any change of the impedance into a spurious wave. It
+  was paid for twice. With the instantaneous local `ρc`, the coherent 0.1%
+  impedance oscillation aliased in at signal amplitude (driver with
+  `NSCBC1D_LOCAL_RC=1`: I_in 1.03 → 1.61; PeleC 1.59); referencing a
+  slow-EMA `ρc` (`ema_rhoc`) cured that (0.970) but kept the product on the
+  EMA's drift and on any genuine change of the impedance — a flame leaving
+  through an NDNR outlet halves `ρc` at the face, which read as a 14%
+  pressure wave (−145,000 dyn/cm², NSCBC-FlameOutflow exit test at σ = 16).
+  The store now keeps EMAs of `u_out` and `p` separately and combines only
+  their deviations, scaled by `ema_rhoc`: for a fixed impedance that is the
+  single-EMA invariant exactly, and with no mean `p/(ρc)` left in it the
+  crossing reads −1,062 (−432 without NDNR) while every acoustic gate
+  improves (below). The kernel's per-fill frozen `rho_c` is immune
+  throughout (stencil difference at one instant); a register differences
+  across time and is not.
 * **`amrex::DefaultGeometry().Domain()` is not a reliable level test** in
   the fill path: the comparison silently failed, the fill never took the
   register pointer, and the composition was a no-op (I_in bit-identical to
@@ -168,10 +179,10 @@ Three lessons were paid for in measurement:
   formulation and the `ema_pplus` this note had proposed.
 
 Gates, all green: driver t3 register+FF I_in ∈ [0.85, 1.15] across the
-matrix; PeleC duct NRI point I_in = 0.970 (driver 1.031); PeleC planar
-σ = 16 NDNR 30.10% → 1.24% with the mean held to 12 ppm, and settled to
-1.2e-7 of ambient over 40 L/c; restart bit-identity with `NSCBCRegisters` in the
-checkpoint. Measured tables: `Exec/RegTests/NSCBC-Acoustic/README.md`.
+matrix; PeleC duct NRI point I_in = 0.996 (driver 1.031); PeleC planar
+σ = 16 NDNR 30.10% → 0.90% with the mean held to 9 ppm, and settled to
+1.9e-9 of ambient over 40 L/c (1.24%, 12 ppm and 1.2e-7 with the single-EMA
+invariant); restart bit-identity with `NSCBCRegisters` in the checkpoint. Measured tables: `Exec/RegTests/NSCBC-Acoustic/README.md`.
 
 Determinism, measured not assumed. The ownership invariant (EMA state on
 the owning rank, zero elsewhere) was not enough on its own: a fill does read

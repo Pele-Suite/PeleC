@@ -254,7 +254,7 @@ TurbInflow inlet), so PeleC warns when both are on.
 | treatment | I_in | I_u | driver |
 |---|---|---|---|
 | feed-forward alone | 2.419 | 1.493 | 2.40 |
-| feed-forward + register (`bc_nscbc_nri=1`) | **0.970** | 0.593 | 1.031 / 0.660 |
+| feed-forward + register (`bc_nscbc_nri=1`) | **0.996** | 0.611 | 1.031 / 0.660 |
 
 **NDNR** (outgoing-wave-excluded relaxation at outlets), the planar pulse of
 the main table, with R measured against the instantaneous domain mean as in
@@ -263,17 +263,18 @@ the driver:
 | treatment | R [%] | mean p at end |
 |---|---|---|
 | σ = 0.25, classical | 0.75 | 1013241.8 |
-| σ = 0.25 + `bc_nscbc_ndnr=1` | **0.087** | 1013249.1 |
+| σ = 0.25 + `bc_nscbc_ndnr=1` | **0.062** | 1013249.4 |
 | σ = 16, classical | 30.10 | 1013178.2 |
-| σ = 16 + `bc_nscbc_ndnr=1` | **1.24** | 1013237.4 |
+| σ = 16 + `bc_nscbc_ndnr=1` | **0.90** | 1013240.8 |
 
-The register strips the outgoing wave, `p'_+ = ½ρc_ref(R_out − R̄_out)`, from
-the relaxation's deviation, so σ never acts on the pulse leaving the domain
-(a 24× reduction at σ = 16) while the mean and the incoming wave are still
-relaxed without lag. The mean is held to 12 ppm of the 1013250 target at
-σ = 16 (classical: 71 ppm), and it settles: run on to 40 L/c
-(`stop_time=0.0116`), the σ = 16 NDNR mean stays within 1.2e-7 of ambient
-after 20 L/c, where the classical σ = 16 boundary is still ringing at ±7e-5.
+The register strips the outgoing wave,
+`p'_+ = ½[(p − p̄) + ρc_ref (u_out − ū_out)]`, from the relaxation's
+deviation, so σ never acts on the pulse leaving the domain (a 33× reduction
+at σ = 16) while the mean and the incoming wave are still relaxed without
+lag. The mean is held to 9 ppm of the 1013250 target at σ = 16 (classical:
+71 ppm), and it settles: run on to 40 L/c (`stop_time=0.0116
+max_step=1000000`), the σ = 16 NDNR mean stays within 2e-9 of ambient after
+20 L/c, where the classical σ = 16 boundary is still ringing at ±7e-5.
 
 **Relax on the outgoing wave, not on a filtered pressure.** The first NDNR
 form relaxed on `p − EMA(p)`, i.e. on the EMA-lagged mean pressure. That is a
@@ -283,16 +284,24 @@ from the pulse's 7e-5 to +15% at 35 L/c and −72% at 40 L/c, and σ = 4 grew to
 It passed every short test because they stop at 1.6 L/c, where it read 37 ppm.
 Any NDNR gate has to run for many register time constants (τ = 6 L/c).
 
-**A measured implementation lesson.** The register invariant must be
-referenced to a *time-frozen* impedance (the store carries a slow-EMA
-`rho c` per point). Computing `R₋ = u − p/(ρc)` with the instantaneous
-local impedance aliases the mean `p/(ρc)` (~10⁴ cm/s) times the coherent
-0.1% impedance oscillation into the invariant — tens of cm/s, the same
-order as the signal. Measured identically in both codes: local impedance
-degrades I_in from 1.03 to 1.61 (driver, `NSCBC1D_LOCAL_RC=1`) and to 1.59
-(PeleC). The kernel's per-fill frozen `rho_c` never had this problem
-because it differences across the stencil at one instant; the register
-differences across time.
+**A measured implementation lesson.** The register must never carry
+`p/(ρc)` itself: its mean is ~10⁴ cm/s, so any change of the impedance
+multiplies into a spurious wave. Forming the invariant with the
+instantaneous local impedance aliased the coherent 0.1% impedance
+oscillation in at signal amplitude — measured identically in both codes,
+I_in 1.03 → 1.61 (driver, `NSCBC1D_LOCAL_RC=1`) and 1.59 (PeleC). A slow-EMA
+reference `ρc` cured that but not the principle: a flame leaving through an
+NDNR outlet halves `ρc` at the face, and the single-EMA invariant read it as
+a 14% pressure wave (NSCBC-FlameOutflow, `nscbc-flameexit.inp` at σ = 16
+with the flame closures: −145,000 dyn/cm² against −432 without NDNR). The
+store therefore keeps EMAs of `u_out` and `p` separately and combines only
+their deviations, scaled by the slow-EMA `ρc`; for a fixed impedance that is
+the single-EMA invariant exactly. The same crossing now reads −1,062, the
+inert front +568 (σ = 16, NDNR; +451 without), and the tables above
+improved with it (single-EMA invariant: I_in 0.970, NDNR 0.087% / 1.24%,
+40 L/c settle 1.2e-7). The kernel's per-fill frozen `rho_c` never had this
+problem because it differences across the stencil at one instant; the
+register differences across time.
 
 **Determinism.** Straight-through vs checkpoint+restart (σ = 16 NDNR, split
 at step 400 of 800) is bit-identical; the registers ride in the checkpoint

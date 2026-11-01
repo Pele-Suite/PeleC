@@ -214,6 +214,10 @@ wisdom into a number. If you must put one there:
   `bc_nscbc_beta_s = 0`. Together they hold the error at the hard-outflow
   level at ANY σ, so you can keep a transparent boundary (σ = 0.25, 0.76%
   reflection) instead of buying anchoring with reflection.
+* That pair is for a *flame*. If what reaches the outflow does not burn — a
+  hot or compositional front — do not turn on `extrap_temperature` alone at
+  low σ: it over-vents (−7.7% of ambient on the inert front of the exit
+  test). Raise σ toward 16, or use a hard outflow if no sound must leave.
 * If absolute pressure error matters more than transparency, σ = 16 with
   `beta_s = 1` is still the best row (L2 ≈ 260–290) at 28% reflection. Do
   not combine σ = 16 with β_s = 0 — the two corrections overshoot together.
@@ -304,8 +308,10 @@ the corrected β_s = 0 it is half of the closure pair that removes the
 σ = 16 from β_s = 0 rows measured under the inverted source sign; those
 numbers are in the git history and were measurements of the bug.)
 
-The default is off, because it changes every outflow result. Turn it on when a
-thermal or compositional structure is anywhere near the boundary.
+The default is off, because it changes every outflow result. Turn it on, with
+`beta_s = 0`, when a flame is near the boundary. It is not a fix for every
+front: on a front *without* heat release that leaves through the outflow it
+over-vents at low σ (the exit test below, *An inert front*).
 
 ## The material continuation (`bc_nscbc_extrap_material`), and what it settles
 
@@ -490,3 +496,29 @@ knob changed in Phase 0. `pin_farfield` anchors a through-flow duct to
 p + ρcu (stream 460 cm/s slow, +17500 persistent); `extrap_material` remains
 for fronts that stay, not fronts that leave. The old rows are in the git
 history.
+
+### An inert front
+
+The same profile with the chemistry off (`pelec.do_react=0`): only the
+temperature and composition jump leaves, and conduction across it is its only
+dilatation. `extrap_material = 0`, β = 0.5, order 2, plotfiles every
+1×10⁻⁵ s; the largest domain-mean excursion over the run and the residual at
+6×10⁻⁴ s, in dyn/cm²:
+
+| outflow | largest mean Δp | residual | front |
+|---|---|---|---|
+| hard `p = p_amb` | −192 | +1.2 | on schedule |
+| σ = 0.25 | +20,067 | +1,738 | held back, gone 8×10⁻⁵ s late |
+| σ = 0.25, eT = 1 | −77,562 | −1,895 | dragged out early; the stream triples |
+| σ = 16 | +451 | +8.6 | on schedule |
+| σ = 16, eT = 1 | −2,997 | +8.6 | on schedule |
+
+The flame's recipe does not carry over. `extrap_temperature` on its own
+over-vents a front that does not burn — the excursion flips sign and grows
+fourfold against the bare closure — so the flame rows' success with eT = 1 and
+β_s = 0 is a property of the pair on a burning front, not evidence that eT is
+right for any front. For a front without heat release σ is the control: at 16
+either closure holds the excursion to a few thousand dyn/cm² at most, and the
+domain is back at ambient within 1.5×10⁻⁴ s of the exit. (With the chemistry
+on, σ = 16 bare — eT = 0, β_s = 1 — also lets the flame out on schedule:
++1,561 largest, +8.5 residual, on the same measure.)

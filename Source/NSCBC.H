@@ -307,9 +307,10 @@ enum : int {
                      // (Target::passives): the interior values were kept, so
                      // nothing about them enters through the inflow.
   structure,         // ADVISORY, not a fallback: material structure sat in an
-                     // outflow boundary cell (|dS| > 5% of rho).  A front at
+                     // outflow boundary cell (|dS| > 5% of rho).  A flame at
                      // the boundary wants the flame closures --
-                     // extrap_temperature and beta_s = 0; see
+                     // extrap_temperature and beta_s = 0; a front without
+                     // heat release wants a stiffer sigma instead; see
                      // NSCBC-FlameOutflow/README.md.
   count
 };

@@ -63,21 +63,27 @@ nscbc_diag()
 // ---------------------------------------------------------------------------
 namespace reg {
 enum : int {
-  ema_Rout = 0, // EMA of the outgoing invariant u_out + p/(rho c)
-  u_minus,      // ready-to-add LAB-frame velocity correction (NRI inflow)
-  dp_ac,        // ready-to-add pressure correction (NDNR outflow)
-  trend_dS,     // EMA of |dS|/rho: the slow material-structure trend
-                // (phase C, advisory: kept and checkpointed, not yet read)
-  ema_rhoc,     // slowly-EMA'd reference impedance.  The invariant MUST be
-                // referenced to a time-frozen rho c: the mean p/(rho c) is
-                // ~1e4 cm/s, so a coherent 0.1% oscillation of the local
-                // impedance aliases tens of cm/s into R_out -- signal
-                // amplitude.  (The kernel's per-fill frozen rho_c is safe
-                // because it differences across the stencil at one instant;
-                // the register differences across time.)  Measured: local
-                // impedance degrades I_in from 1.03 to 1.6 in the driver
-                // and identically in PeleC.
-  init,         // 1 once this entry has been seeded
+  ema_u = 0, // EMA of the outward normal velocity u_out
+  ema_p,     // EMA of the pressure.  The outgoing invariant's departure
+             // from its mean, R_out - mean = (u_out - ema_u)
+             // + (p - ema_p) / rho_c_ref, is formed from these two
+             // deviations -- never from p / rho c itself, whose mean
+             // (~1e4 cm/s) turns ANY change of the impedance into a
+             // spurious wave: a flame leaving through an NDNR outlet
+             // halves rho c there, which read as a 14% pressure wave
+             // (NSCBC-FlameOutflow, nscbc-flameexit.inp).  For a fixed
+             // impedance this is the single-EMA invariant exactly.
+  u_minus,   // ready-to-add LAB-frame velocity correction (NRI inflow)
+  dp_ac,     // ready-to-add pressure correction (NDNR outflow)
+  trend_dS,  // EMA of |dS|/rho: the slow material-structure trend
+             // (phase C, advisory: kept and checkpointed, not yet read)
+  ema_rhoc,  // slowly-EMA'd reference impedance, scaling the two
+             // deviations.  (Forming R_out = u_out + p / rho c with the
+             // local impedance was the first instance of the aliasing
+             // above: a coherent 0.1% impedance oscillation times the
+             // mean p / rho c degraded I_in from 1.03 to 1.6, in the
+             // driver and identically in PeleC.)
+  init,      // 1 once this entry has been seeded
   ncomp
 };
 }
@@ -1028,7 +1034,7 @@ PeleC::nscbc_update_registers(const amrex::Real dt)
                      : rp
                          [nscbc_reg_index(idir, side, iv, dom) +
                           reg::ema_rhoc]);
-            const amrex::Real R_out = n_sgn * u_n + p / rc_ref;
+            const amrex::Real u_out = n_sgn * u_n;
 
             const amrex::Real tau = 6.0 * L_ref / c; // 3 t_a = 6 L/c
             const amrex::Real w = dt / (tau + dt);
@@ -1053,27 +1059,30 @@ PeleC::nscbc_update_registers(const amrex::Real dt)
             }
 
             if (rp[ridx + reg::init] == 0.0) {
-              rp[ridx + reg::ema_Rout] = R_out;
+              rp[ridx + reg::ema_u] = u_out;
+              rp[ridx + reg::ema_p] = p;
               rp[ridx + reg::trend_dS] = dS_abs;
               rp[ridx + reg::ema_rhoc] = rhoc;
               rp[ridx + reg::init] = 1.0;
             } else {
-              rp[ridx + reg::ema_Rout] +=
-                w * (R_out - rp[ridx + reg::ema_Rout]);
+              rp[ridx + reg::ema_u] += w * (u_out - rp[ridx + reg::ema_u]);
+              rp[ridx + reg::ema_p] += w * (p - rp[ridx + reg::ema_p]);
               rp[ridx + reg::trend_dS] +=
                 w * (dS_abs - rp[ridx + reg::trend_dS]);
               rp[ridx + reg::ema_rhoc] += w * (rhoc - rp[ridx + reg::ema_rhoc]);
             }
-            rp[ridx + reg::u_minus] =
-              n_sgn * 0.5 * (R_out - rp[ridx + reg::ema_Rout]);
+            // The outgoing invariant's departure from its mean, from the
+            // two deviations (see reg::ema_p).
+            const amrex::Real dR_out = (u_out - rp[ridx + reg::ema_u]) +
+                                       (p - rp[ridx + reg::ema_p]) / rc_ref;
+            rp[ridx + reg::u_minus] = n_sgn * 0.5 * dR_out;
             // NDNR: the outgoing-wave pressure p'_+ = 1/2 rho c (R_out - mean),
             // so the relaxation K (p - p_tgt - p'_+) ignores the waves leaving
             // the domain but still acts, unlagged, on the mean and on the
             // incoming wave.  Relaxing on the EMA of p itself instead is a
             // lagged integral loop around the domain's pressure: it grew
             // without bound in a vented duct (NSCBC-Acoustic, sigma >= 4).
-            rp[ridx + reg::dp_ac] =
-              0.5 * rc_ref * (R_out - rp[ridx + reg::ema_Rout]);
+            rp[ridx + reg::dp_ac] = 0.5 * rc_ref * dR_out;
             cp[2 * t] = rp[ridx + reg::u_minus];
             cp[2 * t + 1] = rp[ridx + reg::dp_ac];
           });
@@ -1276,17 +1285,19 @@ PeleC::nscbc_report_diagnostics()
                    << ",  inflow passives unset "
                    << h[pc_nscbc::Diag::passive_unset] << "\n";
     if (structure > 0) {
-      // Advisory, not a fallback: a front is in the outflow boundary cells,
-      // which is the configuration the flame closures exist for.
+      // Advisory, not a fallback: a front is in the outflow boundary cells.
+      // A flame there is what the flame closures exist for; a front without
+      // heat release is not (NSCBC-FlameOutflow/README.md, the exit test).
       amrex::Print()
         << "  NSCBC: material structure (|dS| > 5% of rho per cell) sat in "
         << structure << " outflow boundary-cell fills since the last report.\n"
-        << "         A flame or front is on this outflow: set "
-           "bc_nscbc_extrap_temperature = 1 and bc_nscbc_beta_s = 0 (any "
-           "sigma then\n"
-        << "         survives a crossing), and keep bc_nscbc_extrap_material "
-           "off during a transit.  See the BCs chapter and "
-           "NSCBC-FlameOutflow/README.md.\n";
+        << "         A front is on this outflow.  If it burns, set "
+           "bc_nscbc_extrap_temperature = 1 and bc_nscbc_beta_s = 0\n"
+        << "         before it crosses; if it does not, raise bc_nscbc_sigma "
+           "toward 16 instead (extrap_temperature alone\n"
+        << "         over-vents an inert front at low sigma).  Keep "
+           "bc_nscbc_extrap_material off during a transit.\n"
+        << "         See the BCs chapter and NSCBC-FlameOutflow/README.md.\n";
     }
   }
   // Settle any counter atomics still in flight on other streams before the
