@@ -30,15 +30,13 @@ jobs:
           pip install sphinx sphinx_rtd_theme
       - name: Configure
         run: cmake -B${{runner.workspace}}/build-docs ${{github.workspace}}/Docs
-      # Sphinx runs with -W --keep-going, so warnings fail the build;
-      # bash -eo pipefail keeps that status through the tee.
+      # Sphinx runs with -W --keep-going, so warnings fail the build.
       - name: Build
         working-directory: ${{runner.workspace}}/build-docs
-        shell: bash
         run: |
-          echo "::add-matcher::.github/problem-matchers/sphinx.json"
-          cmake --build ${{runner.workspace}}/build-docs 2>&1 | tee -a build-output.txt
-          touch ${{runner.workspace}}/build-docs/sphinx/html/.nojekyll
+          echo "::add-matcher::${{github.workspace}}/.github/problem-matchers/sphinx.json"
+          cmake --build .
+          touch sphinx/html/.nojekyll
       - name: Deploy
         if: github.event_name == 'push' && github.ref == 'refs/heads/development'
         uses: JamesIves/github-pages-deploy-action@releases/v4

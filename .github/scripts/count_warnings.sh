@@ -18,10 +18,7 @@ if [ -n "${2:-}" ]; then
 fi
 
 warnings=$(grep -E 'Warning:|Error:|warning:|error:' "${log}" | grep -Ev "${exclude}" | sort -u)
-count=0
-if [ -n "${warnings}" ]; then
-  printf '%s\n' "${warnings}"
-  count=$(printf '%s\n' "${warnings}" | grep -c '')
-fi
+[ -n "${warnings}" ] && printf '%s\n' "${warnings}"
+count=$(grep -c . <<<"${warnings}")
 echo "Warnings: ${count}"
 [ "${count}" -eq 0 ]
