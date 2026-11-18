@@ -2,6 +2,10 @@ name: PeleC-CI
 
 on:
   workflow_dispatch:
+  schedule:
+    # Weekly, so the ccaches are refreshed before GitHub evicts them after
+    # 7 days without access.
+    - cron: '0 3 * * 1'
   push:
     branches: [development]
   pull_request:
@@ -18,7 +22,13 @@ defaults:
 
 env:
   CCACHE_COMPRESS: 1
-  CCACHE_COMPRESSLEVEL: 10
+  # Only development (pushes, the weekly run and manual runs) saves the
+  # ccaches; PRs restore development's. A PR's own runs would each store a
+  # full copy (~1.6 GB per PR) and push development's out of the 10 GB limit.
+  SAVE_CCACHE: ${{github.event_name != 'pull_request' && github.ref == 'refs/heads/development'}}
+  # Compress hard only when the cache is kept; a PR's new entries are
+  # discarded at the end of the job.
+  CCACHE_COMPRESSLEVEL: ${{(github.event_name != 'pull_request' && github.ref == 'refs/heads/development') && 10 || 1}}
 
 jobs:
   Formatting:
@@ -47,13 +57,17 @@ jobs:
         working-directory: ./Exec/RegTests/PMF
         run: |
           echo "NPROCS=$(nproc)" >> $GITHUB_ENV
+          # Marks the start of the run for Trim Ccache
+          touch ${{runner.temp}}/ccache-start
           make COMP=gnu USE_MPI=FALSE DEBUG=TRUE TPL
           make COMP=gnu USE_MPI=FALSE DEBUG=FALSE TPL
           make COMP=llvm USE_MPI=FALSE DEBUG=TRUE PRECISION=FLOAT TPL
       - name: Install Ccache
         run: ${{github.workspace}}/Submodules/PelePhysics/Submodules/amrex/.github/workflows/dependencies/dependencies_ccache.sh
+      # Restore only; the cache is saved at the end of the job, and only from
+      # development (SAVE_CCACHE).
       - name: Set Up Ccache
-        uses: actions/cache@v5
+        uses: actions/cache/restore@v5
         with:
           path: ~/.cache/ccache
           key: ccache-${{github.workflow}}-${{github.job}}-git-${{github.sha}}
@@ -178,6 +192,24 @@ jobs:
       - name: EB-ConvergingNozzle TurbInflow debug report
         working-directory: ./Exec/RegTests/EB-ConvergingNozzle
         run: ${{github.workspace}}/.github/scripts/count_warnings.sh build-output.txt "GNUmakefile|ThirdParty"
+      # Hits refresh an entry's mtime: drop what this run did not use, so the
+      # saved cache is the current working set rather than everything since it
+      # was first created. Only after a successful job (the default
+      # condition), since a failed one never reached some files.
+      - name: Trim Ccache
+        if: env.SAVE_CCACHE == 'true'
+        run: |
+          # A plain assignment, so a missing marker fails the step (bash -e)
+          # rather than silently trimming nothing.
+          start=$(date -r ${{runner.temp}}/ccache-start +%s)
+          ccache --evict-older-than $(( $(date +%s) - start + 60 ))s
+          du -hs ~/.cache/ccache
+      - name: Save Ccache
+        if: env.SAVE_CCACHE == 'true'
+        uses: actions/cache/save@v5
+        with:
+          path: ~/.cache/ccache
+          key: ccache-${{github.workflow}}-${{github.job}}-git-${{github.sha}}
   CPU-CMake:
     needs: Formatting
     runs-on: ${{matrix.os}}
@@ -208,7 +240,7 @@ jobs:
           - os: macos-latest
             build_type: Debug
     env:
-      DO_REF_COMPARE: ${{matrix.reference_comparison == 'ON' && github.event_name != 'push'}}
+      DO_REF_COMPARE: ${{matrix.reference_comparison == 'ON' && github.event_name == 'pull_request'}}
       CCACHE_MAXSIZE: ${{matrix.ccache_size}}
       CTEST_ARGS: ${{matrix.ctest_args}}
     steps:
@@ -227,6 +259,8 @@ jobs:
       - name: Setup
         run: |
           echo "NPROCS=${{matrix.procs}}" >> $GITHUB_ENV
+          # Marks the start of the run for Trim Ccache
+          touch ${{runner.temp}}/ccache-start
           # Keep the helper outside the work tree: the reference comparison
           # checks out development, which may not have it.
           cp ${{github.workspace}}/.github/scripts/ctest_targets.py ${{runner.temp}}/
@@ -243,8 +277,10 @@ jobs:
       - name: Install Ccache
         if: runner.os == 'Linux'
         run: ${{github.workspace}}/Submodules/PelePhysics/Submodules/amrex/.github/workflows/dependencies/dependencies_ccache.sh
+      # Restore only; the cache is saved at the end of the job, and only from
+      # development (SAVE_CCACHE).
       - name: Set Up Ccache
-        uses: actions/cache@v5
+        uses: actions/cache/restore@v5
         with:
           path: ${{matrix.ccache_cache}}
           key: ccache-${{github.workflow}}-${{github.job}}-${{matrix.os}}-${{matrix.dim}}-${{matrix.build_type}}-git-${{github.sha}}
@@ -352,6 +388,24 @@ jobs:
         if: env.DO_REF_COMPARE == 'true'
         working-directory: ${{runner.workspace}}/build-reference
         run: ctest ${CTEST_ARGS} -VV --output-on-failure
+      # Hits refresh an entry's mtime: drop what this run did not use, so the
+      # saved cache is the current working set rather than everything since it
+      # was first created. Only after a successful job (the default
+      # condition), since a failed one never reached some files.
+      - name: Trim Ccache
+        if: env.SAVE_CCACHE == 'true'
+        run: |
+          # A plain assignment, so a missing marker fails the step (bash -e)
+          # rather than silently trimming nothing.
+          start=$(date -r ${{runner.temp}}/ccache-start +%s)
+          ccache --evict-older-than $(( $(date +%s) - start + 60 ))s
+          du -hs ${{matrix.ccache_cache}}
+      - name: Save Ccache
+        if: env.SAVE_CCACHE == 'true'
+        uses: actions/cache/save@v5
+        with:
+          path: ${{matrix.ccache_cache}}
+          key: ccache-${{github.workflow}}-${{github.job}}-${{matrix.os}}-${{matrix.dim}}-${{matrix.build_type}}-git-${{github.sha}}
 
   CPU-CMake-SINGLE:
     needs: Formatting
@@ -378,10 +432,14 @@ jobs:
       - name: Setup
         run: |
           echo "NPROCS=$(nproc)" >> $GITHUB_ENV
+          # Marks the start of the run for Trim Ccache
+          touch ${{runner.temp}}/ccache-start
       - name: Install Ccache
         run: ${{github.workspace}}/Submodules/PelePhysics/Submodules/amrex/.github/workflows/dependencies/dependencies_ccache.sh
+      # Restore only; the cache is saved at the end of the job, and only from
+      # development (SAVE_CCACHE).
       - name: Set Up Ccache
-        uses: actions/cache@v5
+        uses: actions/cache/restore@v5
         with:
           path: ~/.cache/ccache
           key: ccache-${{github.workflow}}-${{github.job}}-${{matrix.dim}}-single-git-${{github.sha}}
@@ -415,6 +473,24 @@ jobs:
         run: |
           echo "::add-matcher::.github/problem-matchers/gcc.json"
           .github/scripts/count_warnings.sh ${{runner.workspace}}/build-output.txt
+      # Hits refresh an entry's mtime: drop what this run did not use, so the
+      # saved cache is the current working set rather than everything since it
+      # was first created. Only after a successful job (the default
+      # condition), since a failed one never reached some files.
+      - name: Trim Ccache
+        if: env.SAVE_CCACHE == 'true'
+        run: |
+          # A plain assignment, so a missing marker fails the step (bash -e)
+          # rather than silently trimming nothing.
+          start=$(date -r ${{runner.temp}}/ccache-start +%s)
+          ccache --evict-older-than $(( $(date +%s) - start + 60 ))s
+          du -hs ~/.cache/ccache
+      - name: Save Ccache
+        if: env.SAVE_CCACHE == 'true'
+        uses: actions/cache/save@v5
+        with:
+          path: ~/.cache/ccache
+          key: ccache-${{github.workflow}}-${{github.job}}-${{matrix.dim}}-single-git-${{github.sha}}
 
   GPU-Nvidia:
     name: GPU-CUDA
@@ -430,6 +506,8 @@ jobs:
       - name: Setup
         run: |
           echo "NPROCS=$(nproc)" >> $GITHUB_ENV
+          # Marks the start of the run for Trim Ccache
+          touch ${{runner.temp}}/ccache-start
       - name: Dependencies
         run: |
           ${{github.workspace}}/Submodules/PelePhysics/Submodules/amrex/.github/workflows/dependencies/ubuntu_free_disk_space.sh
@@ -444,8 +522,10 @@ jobs:
               libcublas-dev-12-6 libnvjitlink-12-6
       - name: Install Ccache
         run: ${{github.workspace}}/Submodules/PelePhysics/Submodules/amrex/.github/workflows/dependencies/dependencies_ccache.sh
+      # Restore only; the cache is saved at the end of the job, and only from
+      # development (SAVE_CCACHE).
       - name: Set Up Ccache
-        uses: actions/cache@v5
+        uses: actions/cache/restore@v5
         with:
           path: ~/.cache/ccache
           key: ccache-${{github.workflow}}-${{github.job}}-git-${{github.sha}}
@@ -473,6 +553,24 @@ jobs:
           cmake --build build-cuda --parallel ${{env.NPROCS}}
           ccache -s
           du -hs ~/.cache/ccache
+      # Hits refresh an entry's mtime: drop what this run did not use, so the
+      # saved cache is the current working set rather than everything since it
+      # was first created. Only after a successful job (the default
+      # condition), since a failed one never reached some files.
+      - name: Trim Ccache
+        if: env.SAVE_CCACHE == 'true'
+        run: |
+          # A plain assignment, so a missing marker fails the step (bash -e)
+          # rather than silently trimming nothing.
+          start=$(date -r ${{runner.temp}}/ccache-start +%s)
+          ccache --evict-older-than $(( $(date +%s) - start + 60 ))s
+          du -hs ~/.cache/ccache
+      - name: Save Ccache
+        if: env.SAVE_CCACHE == 'true'
+        uses: actions/cache/save@v5
+        with:
+          path: ~/.cache/ccache
+          key: ccache-${{github.workflow}}-${{github.job}}-git-${{github.sha}}
   GPU-AMD:
     name: GPU-HIP
     needs: [Formatting, CPU-GNUmake]
@@ -487,6 +585,8 @@ jobs:
       - name: Setup
         run: |
           echo "NPROCS=$(nproc)" >> $GITHUB_ENV
+          # Marks the start of the run for Trim Ccache
+          touch ${{runner.temp}}/ccache-start
       - name: Dependencies
         run: |
           ${{github.workspace}}/Submodules/PelePhysics/Submodules/amrex/.github/workflows/dependencies/ubuntu_free_disk_space.sh
@@ -499,8 +599,10 @@ jobs:
           sudo apt-get install -y rocm-dev rocrand-dev rocprim-dev hiprand-dev
       - name: Install Ccache
         run: ${{github.workspace}}/Submodules/PelePhysics/Submodules/amrex/.github/workflows/dependencies/dependencies_ccache.sh
+      # Restore only; the cache is saved at the end of the job, and only from
+      # development (SAVE_CCACHE).
       - name: Set Up Ccache
-        uses: actions/cache@v5
+        uses: actions/cache/restore@v5
         with:
           path: ~/.cache/ccache
           key: ccache-${{github.workflow}}-${{github.job}}-git-${{github.sha}}
@@ -536,6 +638,24 @@ jobs:
           cmake --build ${{runner.workspace}}/build-hip --parallel ${{env.NPROCS}}
           ccache -s
           du -hs ~/.cache/ccache
+      # Hits refresh an entry's mtime: drop what this run did not use, so the
+      # saved cache is the current working set rather than everything since it
+      # was first created. Only after a successful job (the default
+      # condition), since a failed one never reached some files.
+      - name: Trim Ccache
+        if: env.SAVE_CCACHE == 'true'
+        run: |
+          # A plain assignment, so a missing marker fails the step (bash -e)
+          # rather than silently trimming nothing.
+          start=$(date -r ${{runner.temp}}/ccache-start +%s)
+          ccache --evict-older-than $(( $(date +%s) - start + 60 ))s
+          du -hs ~/.cache/ccache
+      - name: Save Ccache
+        if: env.SAVE_CCACHE == 'true'
+        uses: actions/cache/save@v5
+        with:
+          path: ~/.cache/ccache
+          key: ccache-${{github.workflow}}-${{github.job}}-git-${{github.sha}}
   GPU-Intel:
     name: GPU-SYCL
     needs: [Formatting, CPU-GNUmake]
@@ -551,6 +671,8 @@ jobs:
       - name: Setup
         run: |
           echo "NPROCS=$(nproc)" >> $GITHUB_ENV
+          # Marks the start of the run for Trim Ccache
+          touch ${{runner.temp}}/ccache-start
       - name: Dependencies
         run: |
           ${{github.workspace}}/Submodules/PelePhysics/Submodules/amrex/.github/workflows/dependencies/ubuntu_free_disk_space.sh
@@ -561,8 +683,10 @@ jobs:
           sudo apt-get install -y intel-oneapi-compiler-dpcpp-cpp intel-oneapi-mkl-devel
       - name: Install Ccache
         run: ${{github.workspace}}/Submodules/PelePhysics/Submodules/amrex/.github/workflows/dependencies/dependencies_ccache.sh
+      # Restore only; the cache is saved at the end of the job, and only from
+      # development (SAVE_CCACHE).
       - name: Set Up Ccache
-        uses: actions/cache@v5
+        uses: actions/cache/restore@v5
         with:
           path: ~/.cache/ccache
           key: ccache-${{github.workflow}}-${{github.job}}-git-${{github.sha}}
@@ -594,11 +718,32 @@ jobs:
           cmake --build ${{runner.workspace}}/build-sycl --parallel ${{env.NPROCS}}
           ccache -s
           du -hs ~/.cache/ccache
+      # Hits refresh an entry's mtime: drop what this run did not use, so the
+      # saved cache is the current working set rather than everything since it
+      # was first created. Only after a successful job (the default
+      # condition), since a failed one never reached some files.
+      - name: Trim Ccache
+        if: env.SAVE_CCACHE == 'true'
+        run: |
+          # A plain assignment, so a missing marker fails the step (bash -e)
+          # rather than silently trimming nothing.
+          start=$(date -r ${{runner.temp}}/ccache-start +%s)
+          ccache --evict-older-than $(( $(date +%s) - start + 60 ))s
+          du -hs ~/.cache/ccache
+      - name: Save Ccache
+        if: env.SAVE_CCACHE == 'true'
+        uses: actions/cache/save@v5
+        with:
+          path: ~/.cache/ccache
+          key: ccache-${{github.workflow}}-${{github.job}}-git-${{github.sha}}
   Lint-clang-tidy:
     needs: Formatting
     runs-on: ubuntu-24.04
     env:
       CCACHE_MAXSIZE: 100M
+      # Unlike the build jobs, this cache is saved on PRs too: a cold
+      # clang-tidy run takes hours, and the cache is small.
+      CCACHE_COMPRESSLEVEL: 10
     steps:
       - name: Clone
         uses: actions/checkout@v6
