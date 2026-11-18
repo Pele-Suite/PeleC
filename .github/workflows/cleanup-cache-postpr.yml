@@ -18,13 +18,16 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       - name: Clean up ccache
+        # Event values go through the environment, not ${{ }} in the script:
+        # a branch name is chosen by whoever pushed it (forks included), and
+        # pasted into the script it could run shell commands.
+        env:
+          REPO: ${{ github.repository }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
         run: |
-          REPO=${{ github.repository }}
-
           # For debugging cat ${GITHUB_EVENT_PATH} to see the payload.
 
-          pr_head_sha=${{ github.event.workflow_run.head_sha }}
-          pr_number=$(gh pr list --state all --search $pr_head_sha --json number --jq '.[0].number')
+          pr_number=$(gh pr list --state all --search "${HEAD_SHA}" --json number --jq '.[0].number')
           echo "Post-PR cache cleanup for PR ${pr_number}"
           BRANCH=refs/pull/${pr_number}/merge
 

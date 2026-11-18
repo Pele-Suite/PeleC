@@ -23,7 +23,6 @@ defaults:
     shell: bash
 
 env:
-  CCACHE_COMPRESS: 1
   # Only development (pushes, scheduled and manual runs) saves the
   # ccaches; PRs restore development's. A PR's own runs would each store a
   # full copy (~1.6 GB per PR) and push development's out of the 10 GB limit.
@@ -72,7 +71,7 @@ jobs:
         uses: actions/cache/restore@v5
         with:
           path: ~/.cache/ccache
-          key: ccache-${{github.workflow}}-${{github.job}}-git-${{github.sha}}-${{github.run_id}}
+          key: ccache-${{github.workflow}}-${{github.job}}-git-${{github.sha}}-${{github.run_id}}-${{github.run_attempt}}
           restore-keys: |
                ccache-${{github.workflow}}-${{github.job}}-git-
       - name: Python
@@ -83,8 +82,6 @@ jobs:
       - name: PMF debug make
         working-directory: ./Exec/RegTests/PMF
         run: |
-          # Matchers stay active for the rest of the job.
-          echo "::add-matcher::${{github.workspace}}/.github/problem-matchers/gcc.json"
           ccache -z
           make -j ${{env.NPROCS}} KEEP_BUILDINFO_CPP=TRUE USE_CCACHE=TRUE COMP=gnu USE_MPI=FALSE DEBUG=TRUE USE_LCT_TRANSPORT=TRUE 2>&1 | tee -a build-output.txt
           ccache -s
@@ -97,7 +94,12 @@ jobs:
         run: ./PeleC3d.gnu.DEBUG.ex pmf-lidryer-multicomp.inp max_step=2 amr.plot_files_output=0 amr.checkpoint_files_output=0
       - name: PMF debug report
         working-directory: ./Exec/RegTests/PMF
-        run: ${{github.workspace}}/.github/scripts/count_warnings.sh build-output.txt "GNUmakefile|ThirdParty"
+        # The matcher is on only while the report runs: on the raw build output
+        # it would also annotate the warnings the report excludes.
+        run: |
+          echo "::add-matcher::${{github.workspace}}/.github/problem-matchers/gcc.json"
+          trap 'echo "::remove-matcher owner=gcc-problem-matcher::"' EXIT
+          ${{github.workspace}}/.github/scripts/count_warnings.sh build-output.txt "GNUmakefile|ThirdParty"
       - name: EB debug build
         working-directory: ./Exec/RegTests/EB-C10
         run: |
@@ -110,7 +112,12 @@ jobs:
         run: ./PeleC3d.gnu.DEBUG.ex eb-c10.inp max_step=2 amr.plot_files_output=0 amr.checkpoint_files_output=0
       - name: EB debug report
         working-directory: ./Exec/RegTests/EB-C10
-        run: ${{github.workspace}}/.github/scripts/count_warnings.sh build-output.txt "GNUmakefile|ThirdParty"
+        # The matcher is on only while the report runs: on the raw build output
+        # it would also annotate the warnings the report excludes.
+        run: |
+          echo "::add-matcher::${{github.workspace}}/.github/problem-matchers/gcc.json"
+          trap 'echo "::remove-matcher owner=gcc-problem-matcher::"' EXIT
+          ${{github.workspace}}/.github/scripts/count_warnings.sh build-output.txt "GNUmakefile|ThirdParty"
       - name: EB OMP debug build
         working-directory: ./Exec/RegTests/EB-C10
         run: |
@@ -123,7 +130,12 @@ jobs:
         run: ./PeleC3d.gnu.DEBUG.OMP.ex eb-c10.inp max_step=2 amr.plot_files_output=0 amr.checkpoint_files_output=0
       - name: EB OMP debug report
         working-directory: ./Exec/RegTests/EB-C10
-        run: ${{github.workspace}}/.github/scripts/count_warnings.sh build-output.txt "GNUmakefile|ThirdParty"
+        # The matcher is on only while the report runs: on the raw build output
+        # it would also annotate the warnings the report excludes.
+        run: |
+          echo "::add-matcher::${{github.workspace}}/.github/problem-matchers/gcc.json"
+          trap 'echo "::remove-matcher owner=gcc-problem-matcher::"' EXIT
+          ${{github.workspace}}/.github/scripts/count_warnings.sh build-output.txt "GNUmakefile|ThirdParty"
       - name: TG debug single precision build
         working-directory: ./Exec/RegTests/TG
         run: |
@@ -136,7 +148,12 @@ jobs:
         run: ./PeleC3d.llvm.FLOAT.DEBUG.ex tg-2.inp max_step=2 amr.plot_files_output=0 amr.checkpoint_files_output=0
       - name: TG debug single precision report
         working-directory: ./Exec/RegTests/TG
-        run: ${{github.workspace}}/.github/scripts/count_warnings.sh build-output.txt "GNUmakefile|ThirdParty"
+        # The matcher is on only while the report runs: on the raw build output
+        # it would also annotate the warnings the report excludes.
+        run: |
+          echo "::add-matcher::${{github.workspace}}/.github/problem-matchers/gcc.json"
+          trap 'echo "::remove-matcher owner=gcc-problem-matcher::"' EXIT
+          ${{github.workspace}}/.github/scripts/count_warnings.sh build-output.txt "GNUmakefile|ThirdParty"
       - name: Soot debug build
         working-directory: ./Exec/RegTests/Soot-Flame
         run: |
@@ -146,7 +163,12 @@ jobs:
           du -hs ~/.cache/ccache
       - name: Soot debug report
         working-directory: ./Exec/RegTests/Soot-Flame
-        run: ${{github.workspace}}/.github/scripts/count_warnings.sh build-output.txt "GNUmakefile|ThirdParty"
+        # The matcher is on only while the report runs: on the raw build output
+        # it would also annotate the warnings the report excludes.
+        run: |
+          echo "::add-matcher::${{github.workspace}}/.github/problem-matchers/gcc.json"
+          trap 'echo "::remove-matcher owner=gcc-problem-matcher::"' EXIT
+          ${{github.workspace}}/.github/scripts/count_warnings.sh build-output.txt "GNUmakefile|ThirdParty"
       - name: Spray debug build
         working-directory: ./Exec/RegTests/Spray-Conv
         run: |
@@ -156,7 +178,12 @@ jobs:
           du -hs ~/.cache/ccache
       - name: Spray debug report
         working-directory: ./Exec/RegTests/Spray-Conv
-        run: ${{github.workspace}}/.github/scripts/count_warnings.sh build-output.txt "GNUmakefile|ThirdParty"
+        # The matcher is on only while the report runs: on the raw build output
+        # it would also annotate the warnings the report excludes.
+        run: |
+          echo "::add-matcher::${{github.workspace}}/.github/problem-matchers/gcc.json"
+          trap 'echo "::remove-matcher owner=gcc-problem-matcher::"' EXIT
+          ${{github.workspace}}/.github/scripts/count_warnings.sh build-output.txt "GNUmakefile|ThirdParty"
 
       - name: TurbInflowGenerator build
         working-directory: ./Submodules/PelePhysics/Support/TurbInflowGenerator
@@ -173,7 +200,12 @@ jobs:
           mv hit_ic_4_128.dat PeleTurb3d.gnu.ex ${{github.workspace}}/Exec/RegTests/EB-ConvergingNozzle
       - name: TurbInflowGenerator report
         working-directory: ./Submodules/PelePhysics/Support/TurbInflowGenerator
-        run: ${{github.workspace}}/.github/scripts/count_warnings.sh build-output.txt "GNUmakefile|ThirdParty"
+        # The matcher is on only while the report runs: on the raw build output
+        # it would also annotate the warnings the report excludes.
+        run: |
+          echo "::add-matcher::${{github.workspace}}/.github/problem-matchers/gcc.json"
+          trap 'echo "::remove-matcher owner=gcc-problem-matcher::"' EXIT
+          ${{github.workspace}}/.github/scripts/count_warnings.sh build-output.txt "GNUmakefile|ThirdParty"
       - name: EB-ConvergingNozzle TurbInflow build
         working-directory: ./Exec/RegTests/EB-ConvergingNozzle
         run: |
@@ -193,7 +225,12 @@ jobs:
           ./PeleC3d.gnu.ex turb_inflow_base.inp FILE=run_with_inflow.inp
       - name: EB-ConvergingNozzle TurbInflow debug report
         working-directory: ./Exec/RegTests/EB-ConvergingNozzle
-        run: ${{github.workspace}}/.github/scripts/count_warnings.sh build-output.txt "GNUmakefile|ThirdParty"
+        # The matcher is on only while the report runs: on the raw build output
+        # it would also annotate the warnings the report excludes.
+        run: |
+          echo "::add-matcher::${{github.workspace}}/.github/problem-matchers/gcc.json"
+          trap 'echo "::remove-matcher owner=gcc-problem-matcher::"' EXIT
+          ${{github.workspace}}/.github/scripts/count_warnings.sh build-output.txt "GNUmakefile|ThirdParty"
       # Hits refresh an entry's mtime: drop what this run did not use, so the
       # saved cache is the current working set rather than everything since it
       # was first created. Only after a successful job (the default
@@ -211,7 +248,7 @@ jobs:
         uses: actions/cache/save@v5
         with:
           path: ~/.cache/ccache
-          key: ccache-${{github.workflow}}-${{github.job}}-git-${{github.sha}}-${{github.run_id}}
+          key: ccache-${{github.workflow}}-${{github.job}}-git-${{github.sha}}-${{github.run_id}}-${{github.run_attempt}}
   CPU-CMake:
     needs: Formatting
     runs-on: ${{matrix.os}}
@@ -286,7 +323,7 @@ jobs:
         uses: actions/cache/restore@v5
         with:
           path: ${{matrix.ccache_cache}}
-          key: ccache-${{github.workflow}}-${{github.job}}-${{matrix.os}}-${{matrix.dim}}-${{matrix.build_type}}-git-${{github.sha}}-${{github.run_id}}
+          key: ccache-${{github.workflow}}-${{github.job}}-${{matrix.os}}-${{matrix.dim}}-${{matrix.build_type}}-git-${{github.sha}}-${{github.run_id}}-${{github.run_attempt}}
           restore-keys: |
                ccache-${{github.workflow}}-${{github.job}}-${{matrix.os}}-${{matrix.dim}}-${{matrix.build_type}}-git-
       - name: MASA
@@ -408,7 +445,7 @@ jobs:
         uses: actions/cache/save@v5
         with:
           path: ${{matrix.ccache_cache}}
-          key: ccache-${{github.workflow}}-${{github.job}}-${{matrix.os}}-${{matrix.dim}}-${{matrix.build_type}}-git-${{github.sha}}-${{github.run_id}}
+          key: ccache-${{github.workflow}}-${{github.job}}-${{matrix.os}}-${{matrix.dim}}-${{matrix.build_type}}-git-${{github.sha}}-${{github.run_id}}-${{github.run_attempt}}
 
   CPU-CMake-SINGLE:
     needs: Formatting
@@ -445,7 +482,7 @@ jobs:
         uses: actions/cache/restore@v5
         with:
           path: ~/.cache/ccache
-          key: ccache-${{github.workflow}}-${{github.job}}-${{matrix.dim}}-single-git-${{github.sha}}-${{github.run_id}}
+          key: ccache-${{github.workflow}}-${{github.job}}-${{matrix.dim}}-single-git-${{github.sha}}-${{github.run_id}}-${{github.run_attempt}}
           restore-keys: |
                ccache-${{github.workflow}}-${{github.job}}-${{matrix.dim}}-single-git-
       - name: Configure
@@ -493,7 +530,7 @@ jobs:
         uses: actions/cache/save@v5
         with:
           path: ~/.cache/ccache
-          key: ccache-${{github.workflow}}-${{github.job}}-${{matrix.dim}}-single-git-${{github.sha}}-${{github.run_id}}
+          key: ccache-${{github.workflow}}-${{github.job}}-${{matrix.dim}}-single-git-${{github.sha}}-${{github.run_id}}-${{github.run_attempt}}
 
   GPU-Nvidia:
     name: GPU-CUDA
@@ -531,7 +568,7 @@ jobs:
         uses: actions/cache/restore@v5
         with:
           path: ~/.cache/ccache
-          key: ccache-${{github.workflow}}-${{github.job}}-git-${{github.sha}}-${{github.run_id}}
+          key: ccache-${{github.workflow}}-${{github.job}}-git-${{github.sha}}-${{github.run_id}}-${{github.run_attempt}}
           restore-keys: |
                ccache-${{github.workflow}}-${{github.job}}-git-
       - name: Configure
@@ -573,7 +610,7 @@ jobs:
         uses: actions/cache/save@v5
         with:
           path: ~/.cache/ccache
-          key: ccache-${{github.workflow}}-${{github.job}}-git-${{github.sha}}-${{github.run_id}}
+          key: ccache-${{github.workflow}}-${{github.job}}-git-${{github.sha}}-${{github.run_id}}-${{github.run_attempt}}
   GPU-AMD:
     name: GPU-HIP
     needs: [Formatting, CPU-GNUmake]
@@ -608,7 +645,7 @@ jobs:
         uses: actions/cache/restore@v5
         with:
           path: ~/.cache/ccache
-          key: ccache-${{github.workflow}}-${{github.job}}-git-${{github.sha}}-${{github.run_id}}
+          key: ccache-${{github.workflow}}-${{github.job}}-git-${{github.sha}}-${{github.run_id}}-${{github.run_attempt}}
           restore-keys: |
                ccache-${{github.workflow}}-${{github.job}}-git-
       - name: Configure
@@ -658,7 +695,7 @@ jobs:
         uses: actions/cache/save@v5
         with:
           path: ~/.cache/ccache
-          key: ccache-${{github.workflow}}-${{github.job}}-git-${{github.sha}}-${{github.run_id}}
+          key: ccache-${{github.workflow}}-${{github.job}}-git-${{github.sha}}-${{github.run_id}}-${{github.run_attempt}}
   GPU-Intel:
     name: GPU-SYCL
     needs: [Formatting, CPU-GNUmake]
@@ -692,7 +729,7 @@ jobs:
         uses: actions/cache/restore@v5
         with:
           path: ~/.cache/ccache
-          key: ccache-${{github.workflow}}-${{github.job}}-git-${{github.sha}}-${{github.run_id}}
+          key: ccache-${{github.workflow}}-${{github.job}}-git-${{github.sha}}-${{github.run_id}}-${{github.run_attempt}}
           restore-keys: |
                ccache-${{github.workflow}}-${{github.job}}-git-
       - name: Configure
@@ -738,7 +775,7 @@ jobs:
         uses: actions/cache/save@v5
         with:
           path: ~/.cache/ccache
-          key: ccache-${{github.workflow}}-${{github.job}}-git-${{github.sha}}-${{github.run_id}}
+          key: ccache-${{github.workflow}}-${{github.job}}-git-${{github.sha}}-${{github.run_id}}-${{github.run_attempt}}
   Lint-clang-tidy:
     needs: Formatting
     runs-on: ubuntu-24.04
@@ -769,13 +806,16 @@ jobs:
         run: |
           ${{github.workspace}}/Submodules/PelePhysics/Submodules/amrex/.github/workflows/dependencies/dependencies_ccache.sh
           # ctcache 1.2.0; the module is a self-contained script
-          sudo curl -L https://raw.githubusercontent.com/matus-chochlik/ctcache/e33c063ca6e52b48bcefbc45d46d8c150ffa81ca/src/ctcache/clang_tidy_cache.py -o /usr/local/bin/clang-tidy-cache
+          sudo curl -fsSL https://raw.githubusercontent.com/matus-chochlik/ctcache/e33c063ca6e52b48bcefbc45d46d8c150ffa81ca/src/ctcache/clang_tidy_cache.py -o /usr/local/bin/clang-tidy-cache
           sudo chmod +x /usr/local/bin/clang-tidy-cache
+      # Restore and save separately: the combined actions/cache saves only
+      # when the whole job passes, so a run that finds warnings would throw
+      # away the cache it just filled.
       - name: Set Up Ccache
-        uses: actions/cache@v5
+        uses: actions/cache/restore@v5
         with:
           path: ~/.cache
-          key: ccache-${{github.workflow}}-${{github.job}}-git-${{github.sha}}-${{github.run_id}}
+          key: ccache-${{github.workflow}}-${{github.job}}-git-${{github.sha}}-${{github.run_id}}-${{github.run_attempt}}
           restore-keys: |
                ccache-${{github.workflow}}-${{github.job}}-git-
       - name: Configure
@@ -827,6 +867,13 @@ jobs:
           # characters); the per-directory stats files are not counted.
           echo "ctcache entries: $(find ${CTCACHE_DIR} -type f -regextype posix-extended -regex '.*/[0-9a-f]{38}' | wc -l)"
           ccache -s
+      # Saved on PRs too (see CCACHE_COMPRESSLEVEL above), whenever Check
+      # completed the build, before Short report can fail on warnings.
+      - name: Save Ccache
+        uses: actions/cache/save@v5
+        with:
+          path: ~/.cache
+          key: ccache-${{github.workflow}}-${{github.job}}-git-${{github.sha}}-${{github.run_id}}-${{github.run_attempt}}
       # Report on a failed Check too: that is when the warnings matter. The
       # full log is in the Check step.
       - name: Short report

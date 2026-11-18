@@ -18,31 +18,35 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       - name: Clean up ccache
-        run: |
-          REPO=${{ github.repository }}
-
+        # Event values go through the environment, not ${{ }} in the script:
+        # a branch name is chosen by whoever pushed it (forks included), and
+        # pasted into the script it could run shell commands.
+        env:
+          REPO: ${{ github.repository }}
           # push or pull_request or schedule or ...
-          EVENT=${{ github.event.workflow_run.event }}
-
+          EVENT: ${{ github.event.workflow_run.event }}
           # Triggering workflow run name (e.g., PeleC-CI)
-          WORKFLOW_NAME="${{ github.event.workflow_run.name }}"
+          WORKFLOW_NAME: ${{ github.event.workflow_run.name }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+          HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
+        run: |
 
           # For debugging, cat ${GITHUB_EVENT_PATH} to see the payload.
 
           if [[ $EVENT == "pull_request" ]]; then
-            pr_head_sha=${{ github.event.workflow_run.head_sha }}
-            pr_number=$(gh pr list --search $pr_head_sha --json number --jq '.[0].number')
+            pr_number=$(gh pr list --search "${HEAD_SHA}" --json number --jq '.[0].number')
             echo "Clean up cache for PR ${pr_number}"
             BRANCH=refs/pull/${pr_number}/merge
           else
-            BRANCH=refs/heads/${{ github.event.workflow_run.head_branch }}
+            BRANCH="refs/heads/${HEAD_BRANCH}"
           fi
 
           # Setting this to not fail the workflow while deleting cache keys.
           set +e
 
-          # In our cache keys, substring after `-git-` is the git hash and run id
-          # (the run id lets a scheduled run on an unchanged commit save), substring
+          # In our cache keys, substring after `-git-` is the git hash, run id
+          # and attempt (so a scheduled run on an unchanged commit, or a re-run,
+          # can save), substring
           # before that is a unique id for jobs (e.g., `ccache-PeleC-CI-CPU-GNUmake`).
           # The goal is to keep the newest key of each job and delete all others.
 
