@@ -16,7 +16,7 @@ on:
 
 jobs:
   Docs:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     steps:
       - name: Clone
         uses: actions/checkout@v6
@@ -26,27 +26,19 @@ jobs:
           python-version: '3.x'
       - name: Dependencies
         run: |
-          #Currently ignoring doxygen
-          #sudo apt-get update
-          #sudo apt-get install -y --no-install-recommends doxygen graphviz
           python -m pip install --upgrade pip
           pip install sphinx sphinx_rtd_theme
       - name: Configure
         run: cmake -B${{runner.workspace}}/build-docs ${{github.workspace}}/Docs
+      # Sphinx runs with -W --keep-going, so warnings fail the build;
+      # bash -eo pipefail keeps that status through the tee.
       - name: Build
         working-directory: ${{runner.workspace}}/build-docs
-        run:  |
-           echo "::add-matcher::.github/problem-matchers/sphinx.json"
-           cmake --build ${{runner.workspace}}/build-docs 2>&1 | tee -a build-output.txt
-           touch ${{runner.workspace}}/build-docs/sphinx/html/.nojekyll
-      - name: Report
-        working-directory: ${{runner.workspace}}/build-docs
+        shell: bash
         run: |
           echo "::add-matcher::.github/problem-matchers/sphinx.json"
-          egrep "WARNING:|Warning:|ERROR:|Error:" build-output.txt | sort | uniq | \
-            awk 'BEGIN{i=0}{print $0}{i++}END{print "Warnings: "i}' > build-output-warnings.txt
-          cat build-output-warnings.txt
-          exit $(tail -n 1 build-output-warnings.txt | awk '{print $2}')
+          cmake --build ${{runner.workspace}}/build-docs 2>&1 | tee -a build-output.txt
+          touch ${{runner.workspace}}/build-docs/sphinx/html/.nojekyll
       - name: Deploy
         if: github.event_name == 'push' && github.ref == 'refs/heads/development'
         uses: JamesIves/github-pages-deploy-action@releases/v4

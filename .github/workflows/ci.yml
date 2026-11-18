@@ -11,9 +11,14 @@ concurrency:
   group: ${{github.ref}}-${{github.head_ref}}-ci
   cancel-in-progress: true
 
+# Run steps with bash -eo pipefail, so `build | tee log` fails with the build.
+defaults:
+  run:
+    shell: bash
+
 jobs:
   Formatting:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     steps:
     - name: Clone
       uses: actions/checkout@v6
@@ -38,7 +43,6 @@ jobs:
           echo "NPROCS=$(nproc)" >> $GITHUB_ENV
           echo "CCACHE_COMPRESS=1" >> $GITHUB_ENV
           echo "CCACHE_COMPRESSLEVEL=10" >> $GITHUB_ENV
-          echo "CCACHE_LOGFILE=${{github.workspace}}/ccache.log.txt" >> $GITHUB_ENV
           echo "CCACHE_MAXSIZE=500M" >> $GITHUB_ENV
           make COMP=gnu USE_MPI=FALSE DEBUG=TRUE TPL
           make COMP=gnu USE_MPI=FALSE DEBUG=FALSE TPL
@@ -64,7 +68,6 @@ jobs:
         working-directory: ./Exec/RegTests/PMF
         run: |
           echo "::add-matcher::.github/problem-matchers/gcc.json"
-          set -eu -o pipefail
           ccache -z
           make -j ${{env.NPROCS}} KEEP_BUILDINFO_CPP=TRUE USE_CCACHE=TRUE COMP=gnu USE_MPI=FALSE DEBUG=TRUE USE_LCT_TRANSPORT=TRUE 2>&1 | tee -a build-output.txt
       - name: PMF ccache report
@@ -80,19 +83,11 @@ jobs:
         run: ./PeleC3d.gnu.DEBUG.ex pmf-lidryer-multicomp.inp max_step=2 amr.plot_files_output=0 amr.checkpoint_files_output=0
       - name: PMF debug report
         working-directory: ./Exec/RegTests/PMF
-        run: |
-          egrep "Warning:|Error:|warning:|error:" build-output.txt \
-            | egrep -v "Submodules/amrex|Submodules/sundials|GNUmakefile|ThirdParty" \
-            | egrep -v "ld: warning:" | sort | uniq \
-            | awk 'BEGIN{i=0}{print $0}{i++}END{print "Warnings: "i}' > warnings.txt
-          cat warnings.txt
-          export return=$(tail -n 1 warnings.txt | awk '{print $2}')
-          exit ${return}
+        run: ${{github.workspace}}/.github/scripts/count_warnings.sh build-output.txt "GNUmakefile|ThirdParty"
       - name: EB debug build
         working-directory: ./Exec/RegTests/EB-C10
         run: |
           echo "::add-matcher::.github/problem-matchers/gcc.json"
-          set -eu -o pipefail
           ccache -z
           make -j ${{env.NPROCS}} KEEP_BUILDINFO_CPP=TRUE USE_CCACHE=TRUE COMP=gnu USE_MPI=FALSE DEBUG=TRUE 2>&1 | tee -a build-output.txt
       - name: EB debug ccache report
@@ -105,19 +100,11 @@ jobs:
         run: ./PeleC3d.gnu.DEBUG.ex eb-c10.inp max_step=2 amr.plot_files_output=0 amr.checkpoint_files_output=0
       - name: EB debug report
         working-directory: ./Exec/RegTests/EB-C10
-        run: |
-          egrep "Warning:|Error:|warning:|error:" build-output.txt \
-            | egrep -v "Submodules/amrex|Submodules/sundials|GNUmakefile|ThirdParty" \
-            | egrep -v "ld: warning:" | sort | uniq \
-            | awk 'BEGIN{i=0}{print $0}{i++}END{print "Warnings: "i}' > warnings.txt
-          cat warnings.txt
-          export return=$(tail -n 1 warnings.txt | awk '{print $2}')
-          exit ${return}
+        run: ${{github.workspace}}/.github/scripts/count_warnings.sh build-output.txt "GNUmakefile|ThirdParty"
       - name: EB OMP debug build
         working-directory: ./Exec/RegTests/EB-C10
         run: |
           echo "::add-matcher::.github/problem-matchers/gcc.json"
-          set -eu -o pipefail
           ccache -z
           make -j ${{env.NPROCS}} KEEP_BUILDINFO_CPP=TRUE USE_CCACHE=TRUE COMP=gnu USE_MPI=FALSE DEBUG=TRUE USE_OMP=TRUE 2>&1 | tee -a build-output.txt
       - name: EB OMP debug ccache report
@@ -130,19 +117,11 @@ jobs:
         run: ./PeleC3d.gnu.DEBUG.OMP.ex eb-c10.inp max_step=2 amr.plot_files_output=0 amr.checkpoint_files_output=0
       - name: EB OMP debug report
         working-directory: ./Exec/RegTests/EB-C10
-        run: |
-          egrep "Warning:|Error:|warning:|error:" build-output.txt \
-            | egrep -v "Submodules/amrex|Submodules/sundials|GNUmakefile|ThirdParty" \
-            | egrep -v "ld: warning:" | sort | uniq \
-            | awk 'BEGIN{i=0}{print $0}{i++}END{print "Warnings: "i}' > warnings.txt
-          cat warnings.txt
-          export return=$(tail -n 1 warnings.txt | awk '{print $2}')
-          exit ${return}
+        run: ${{github.workspace}}/.github/scripts/count_warnings.sh build-output.txt "GNUmakefile|ThirdParty"
       - name: TG debug single precision build
         working-directory: ./Exec/RegTests/TG
         run: |
           echo "::add-matcher::.github/problem-matchers/gcc.json"
-          set -eu -o pipefail
           ccache -z
           make -j ${{env.NPROCS}} KEEP_BUILDINFO_CPP=TRUE USE_CCACHE=TRUE COMP=llvm USE_MPI=FALSE DEBUG=TRUE PRECISION=FLOAT 2>&1 | tee -a build-output.txt
       - name: TG debug single precision ccache report
@@ -155,19 +134,11 @@ jobs:
         run: ./PeleC3d.llvm.FLOAT.DEBUG.ex tg-2.inp max_step=2 amr.plot_files_output=0 amr.checkpoint_files_output=0
       - name: TG debug single precision report
         working-directory: ./Exec/RegTests/TG
-        run: |
-          egrep "Warning:|Error:|warning:|error:" build-output.txt \
-            | egrep -v "Submodules/amrex|Submodules/sundials|GNUmakefile|ThirdParty" \
-            | egrep -v "ld: warning:" | sort | uniq \
-            | awk 'BEGIN{i=0}{print $0}{i++}END{print "Warnings: "i}' > warnings.txt
-          cat warnings.txt
-          export return=$(tail -n 1 warnings.txt | awk '{print $2}')
-          exit ${return}
+        run: ${{github.workspace}}/.github/scripts/count_warnings.sh build-output.txt "GNUmakefile|ThirdParty"
       - name: Soot debug build
         working-directory: ./Exec/RegTests/Soot-Flame
         run: |
           echo "::add-matcher::.github/problem-matchers/gcc.json"
-          set -eu -o pipefail
           ccache -z
           make -j ${{env.NPROCS}} KEEP_BUILDINFO_CPP=TRUE USE_CCACHE=TRUE COMP=gnu USE_MPI=FALSE DEBUG=TRUE 2>&1 | tee -a build-output.txt
       - name: Soot debug ccache report
@@ -177,42 +148,26 @@ jobs:
           du -hs ~/.cache/ccache
       - name: Soot debug report
         working-directory: ./Exec/RegTests/Soot-Flame
-        run: |
-          egrep "Warning:|Error:|warning:|error:" build-output.txt \
-            | egrep -v "Submodules/amrex|Submodules/sundials|GNUmakefile|ThirdParty" \
-            | sort | uniq \
-            | awk 'BEGIN{i=0}{print $0}{i++}END{print "Warnings: "i}' > warnings.txt
-          cat warnings.txt
-          export return=$(tail -n 1 warnings.txt | awk '{print $2}')
-          exit ${return}
+        run: ${{github.workspace}}/.github/scripts/count_warnings.sh build-output.txt "GNUmakefile|ThirdParty"
       - name: Spray debug build
         working-directory: ./Exec/RegTests/Spray-Conv
         run: |
           echo "::add-matcher::.github/problem-matchers/gcc.json"
-          set -eu -o pipefail
           ccache -z
           make -j ${{env.NPROCS}} KEEP_BUILDINFO_CPP=TRUE USE_CCACHE=TRUE COMP=gnu USE_MPI=FALSE DEBUG=TRUE 2>&1 | tee -a build-output.txt
       - name: Spray debug ccache report
-        working-directory: ./Exec/RegTests/Soot-Flame
+        working-directory: ./Exec/RegTests/Spray-Conv
         run: |
           ccache -s
           du -hs ~/.cache/ccache
       - name: Spray debug report
         working-directory: ./Exec/RegTests/Spray-Conv
-        run: |
-          egrep "Warning:|Error:|warning:|error:" build-output.txt \
-            | egrep -v "Submodules/amrex|Submodules/sundials|GNUmakefile|ThirdParty" \
-            | sort | uniq \
-            | awk 'BEGIN{i=0}{print $0}{i++}END{print "Warnings: "i}' > warnings.txt
-          cat warnings.txt
-          export return=$(tail -n 1 warnings.txt | awk '{print $2}')
-          exit ${return}
+        run: ${{github.workspace}}/.github/scripts/count_warnings.sh build-output.txt "GNUmakefile|ThirdParty"
 
       - name: TurbInflowGenerator build
         working-directory: ./Submodules/PelePhysics/Support/TurbInflowGenerator
         run: |
           echo "::add-matcher::.github/problem-matchers/gcc.json"
-          set -eu -o pipefail
           ccache -z
           make -j ${{env.NPROCS}} KEEP_BUILDINFO_CPP=TRUE USE_CCACHE=TRUE COMP=gnu USE_MPI=FALSE 2>&1 | tee -a build-output.txt
       - name: TurbInflowGenerator ccache report
@@ -231,19 +186,11 @@ jobs:
           mv PeleTurb3d.gnu.ex ../../../../Exec/RegTests/EB-ConvergingNozzle
       - name: TurbInflowGenerator report
         working-directory: ./Submodules/PelePhysics/Support/TurbInflowGenerator
-        run: |
-          egrep "Warning:|Error:|warning:|error:" build-output.txt \
-            | egrep -v "Submodules/amrex|Submodules/sundials|GNUmakefile|ThirdParty" \
-            | sort | uniq \
-            | awk 'BEGIN{i=0}{print $0}{i++}END{print "Warnings: "i}' > warnings.txt
-          cat warnings.txt
-          export return=$(tail -n 1 warnings.txt | awk '{print $2}')
-          exit ${return}
+        run: ${{github.workspace}}/.github/scripts/count_warnings.sh build-output.txt "GNUmakefile|ThirdParty"
       - name: EB-ConvergingNozzle TurbInflow build
         working-directory: ./Exec/RegTests/EB-ConvergingNozzle
         run : |
           echo "::add-matcher::.github/problem-matchers/gcc.json"
-          set -eu -o pipefail
           ccache -z
           make -j ${{env.NPROCS}} KEEP_BUILDINFO_CPP=TRUE USE_CCACHE=TRUE COMP=gnu USE_MPI=FALSE 2>&1 | tee -a build-output.txt
       - name: EB-ConvergingNozzle TurbInflow  ccache report
@@ -263,14 +210,7 @@ jobs:
           ./PeleC3d.gnu.ex turb_inflow_base.inp FILE=run_with_inflow.inp
       - name: EB-ConvergingNozzle TurbInflow debug report
         working-directory: ./Exec/RegTests/EB-ConvergingNozzle
-        run: |
-          egrep "Warning:|Error:|warning:|error:" build-output.txt \
-            | egrep -v "Submodules/amrex|Submodules/sundials|GNUmakefile|ThirdParty" \
-            | egrep -v "ld: warning:" | sort | uniq \
-            | awk 'BEGIN{i=0}{print $0}{i++}END{print "Warnings: "i}' > warnings.txt
-          cat warnings.txt
-          export return=$(tail -n 1 warnings.txt | awk '{print $2}')
-          exit ${return}
+        run: ${{github.workspace}}/.github/scripts/count_warnings.sh build-output.txt "GNUmakefile|ThirdParty"
   CPU-CMake:
     needs: Formatting
     runs-on: ${{matrix.os}}
@@ -283,13 +223,11 @@ jobs:
         include:
           - os: macos-latest
             install_deps: brew install open-mpi libtool automake ccache
-            comp: llvm
             procs: $(sysctl -n hw.ncpu)
             ccache_cache: /Users/runner/Library/Caches/ccache
             reference_comparison: ON
           - os: ubuntu-24.04
             install_deps: sudo apt-get update && sudo apt-get install -y libopenmpi-dev openmpi-bin libtool-bin
-            comp: gnu
             procs: $(nproc)
             ccache_cache: ~/.cache/ccache
             reference_comparison: OFF
@@ -304,6 +242,7 @@ jobs:
             build_type: Debug
     env:
       DO_REF_COMPARE: ${{matrix.reference_comparison == 'ON' && github.event_name != 'push'}}
+      CTEST_ARGS: ${{matrix.ctest_args}}
     steps:
       - name: Clone
         uses: actions/checkout@v6
@@ -318,9 +257,11 @@ jobs:
           echo "NPROCS=${{matrix.procs}}" >> $GITHUB_ENV
           echo "CCACHE_COMPRESS=1" >> $GITHUB_ENV
           echo "CCACHE_COMPRESSLEVEL=10" >> $GITHUB_ENV
-          echo "CCACHE_LOGFILE=${{github.workspace}}/ccache.log.txt" >> $GITHUB_ENV
           echo "CCACHE_MAXSIZE=${{matrix.ccache_size}}" >> $GITHUB_ENV
           cmake -E make_directory ${{runner.workspace}}/deps
+          # Keep the helper outside the work tree: the reference comparison
+          # checks out development, which may not have it.
+          cp ${{github.workspace}}/.github/scripts/ctest_targets.py ${{runner.temp}}/
           if [ "${RUNNER_OS}" != "macOS" ]; then
             ${{github.workspace}}/Submodules/PelePhysics/Submodules/amrex/.github/workflows/dependencies/ubuntu_free_disk_space.sh
           fi
@@ -385,9 +326,8 @@ jobs:
       - name: Build
         run: |
           ccache -z
-            cmake --build ${{runner.workspace}}/build-${{matrix.dim}}d-${{matrix.os}}-${{matrix.build_type}} \
-            --parallel ${{env.NPROCS}} 2>&1 | tee -a ${{runner.workspace}}/build-output.txt; \
-          if [ ${PIPESTATUS[0]} -ne 0 ]; then exit 1; fi \
+          cmake --build ${{runner.workspace}}/build-${{matrix.dim}}d-${{matrix.os}}-${{matrix.build_type}} \
+            --parallel ${{env.NPROCS}} 2>&1 | tee -a ${{runner.workspace}}/build-output.txt
       - name: Ccache Report
         run: |
           ccache -s
@@ -395,17 +335,10 @@ jobs:
       - name: Report
         run: |
           echo "::add-matcher::.github/problem-matchers/gcc.json"
-          egrep "Warning:|Error:|warning:|error:" ${{runner.workspace}}/build-output.txt \
-            | egrep -v "Submodules/amrex|Submodules/sundials" \
-            | egrep -v "ld: warning:" | egrep -v "lto-wrapper: warning:" | sort | uniq \
-            | awk 'BEGIN{i=0}{print $0}{i++}END{print "Warnings: "i}' > ${{runner.workspace}}/build-output-warnings.txt
-          cat ${{runner.workspace}}/build-output-warnings.txt
-          export return=$(tail -n 1 ${{runner.workspace}}/build-output-warnings.txt | awk '{print $2}')
-          exit ${return}
+          .github/scripts/count_warnings.sh ${{runner.workspace}}/build-output.txt
       - name: Test
         working-directory: ${{runner.workspace}}/build-${{matrix.dim}}d-${{matrix.os}}-${{matrix.build_type}}
-        run: |
-          ctest ${{matrix.ctest_args}} -VV --output-on-failure
+        run: ctest ${CTEST_ARGS} -VV --output-on-failure
       - name: Checkout Reference Version
         if: env.DO_REF_COMPARE == 'true'
         run : |
@@ -416,6 +349,11 @@ jobs:
       - name: Configure Reference Version
         if: env.DO_REF_COMPARE == 'true'
         run : |
+          # CMake File API query: the configure writes the codemodel that
+          # ctest_targets.py reads to map test commands to targets.
+          QUERY=${{runner.workspace}}/build-${{matrix.dim}}d-${{matrix.os}}-${{matrix.build_type}}-reference/.cmake/api/v1/query
+          mkdir -p ${QUERY}
+          touch ${QUERY}/codemodel-v2
           cmake -B${{runner.workspace}}/build-${{matrix.dim}}d-${{matrix.os}}-${{matrix.build_type}}-reference \
           -DCMAKE_INSTALL_PREFIX:PATH=${{runner.workspace}}/install-${{matrix.dim}}d-${{matrix.os}}-${{matrix.build_type}}-reference  \
           -DCMAKE_BUILD_TYPE:STRING=${{matrix.build_type}} \
@@ -436,15 +374,20 @@ jobs:
         if: env.DO_REF_COMPARE == 'true'
         run : |
           ccache -z
-            cmake --build ${{runner.workspace}}/build-${{matrix.dim}}d-${{matrix.os}}-${{matrix.build_type}}-reference \
-            --parallel ${{env.NPROCS}}
+          # The reference build only produces plotfiles for the comparison:
+          # build just the executables its tests run.
+          BUILD_DIR=${{runner.workspace}}/build-${{matrix.dim}}d-${{matrix.os}}-${{matrix.build_type}}-reference
+          TARGETS=$(python3 ${{runner.temp}}/ctest_targets.py ${BUILD_DIR} ${CTEST_ARGS}) \
+            || { echo "::warning::could not list the test targets, building all"; TARGETS=""; }
+          echo "Building: ${TARGETS:-all targets}"
+          cmake --build ${BUILD_DIR} --parallel ${{env.NPROCS}} ${TARGETS:+--target ${TARGETS}}
           ccache -s
           du -hs ${{matrix.ccache_cache}}
       - name: Test Reference and Compare
         if: env.DO_REF_COMPARE == 'true'
         working-directory: ${{runner.workspace}}/build-${{matrix.dim}}d-${{matrix.os}}-${{matrix.build_type}}-reference
         run : |
-          ctest ${{matrix.ctest_args}} -VV --output-on-failure
+          ctest ${CTEST_ARGS} -VV --output-on-failure
 
   CPU-CMake-SINGLE:
     needs: Formatting
@@ -471,8 +414,7 @@ jobs:
           echo "NPROCS=$(nproc)" >> $GITHUB_ENV
           echo "CCACHE_COMPRESS=1" >> $GITHUB_ENV
           echo "CCACHE_COMPRESSLEVEL=10" >> $GITHUB_ENV
-          echo "CCACHE_LOGFILE=${{github.workspace}}/ccache.log.txt" >> $GITHUB_ENV
-          echo "CCACHE_MAXSIZE=50M" >> $GITHUB_ENV
+          echo "CCACHE_MAXSIZE=250M" >> $GITHUB_ENV
       - name: Install Ccache
         run: |
           wget https://github.com/ccache/ccache/releases/download/v4.8/ccache-4.8-linux-x86_64.tar.xz
@@ -504,9 +446,8 @@ jobs:
       - name: Build
         run: |
           ccache -z
-            cmake --build ${{runner.workspace}}/build-${{matrix.dim}}d-single \
-            --parallel ${{env.NPROCS}} 2>&1 | tee -a ${{runner.workspace}}/build-output.txt; \
-          if [ ${PIPESTATUS[0]} -ne 0 ]; then exit 1; fi \
+          cmake --build ${{runner.workspace}}/build-${{matrix.dim}}d-single \
+            --parallel ${{env.NPROCS}} 2>&1 | tee -a ${{runner.workspace}}/build-output.txt
       - name: Ccache Report
         run: |
           ccache -s
@@ -514,17 +455,7 @@ jobs:
       - name: Report
         run: |
           echo "::add-matcher::.github/problem-matchers/gcc.json"
-          egrep "Warning:|Error:|warning:|error:" ${{runner.workspace}}/build-output.txt \
-            | egrep -v "Submodules/amrex|Submodules/sundials" \
-            | egrep -v "ld: warning:" | egrep -v "lto-wrapper: warning:" | sort | uniq \
-            | awk 'BEGIN{i=0}{print $0}{i++}END{print "Warnings: "i}' > ${{runner.workspace}}/build-output-warnings.txt
-          cat ${{runner.workspace}}/build-output-warnings.txt
-          export return=$(tail -n 1 ${{runner.workspace}}/build-output-warnings.txt | awk '{print $2}')
-          exit ${return}
-      #- name: Test
-      #  working-directory: ${{runner.workspace}}/build-${{matrix.dim}}d-single
-      #  run: |
-      #    ctest -LE no-ci -VV --output-on-failure
+          .github/scripts/count_warnings.sh ${{runner.workspace}}/build-output.txt
 
   GPU-Nvidia:
     name: GPU-CUDA
@@ -540,7 +471,6 @@ jobs:
           echo "NPROCS=$(nproc)" >> $GITHUB_ENV
           echo "CCACHE_COMPRESS=1" >> $GITHUB_ENV
           echo "CCACHE_COMPRESSLEVEL=10" >> $GITHUB_ENV
-          echo "CCACHE_LOGFILE=${{github.workspace}}/ccache.log.txt" >> $GITHUB_ENV
           echo "CCACHE_MAXSIZE=300M" >> $GITHUB_ENV
       - name: Dependencies
         run: |
@@ -553,7 +483,7 @@ jobs:
               cuda-nvml-dev-12-6 cuda-nvtx-12-6 \
               libcurand-dev-12-6 cuda-cupti-dev-12-6 \
               libcusolver-dev-12-6 libcusparse-dev-12-6 \
-              libcublas-dev-12-6 libcurand-dev-12-6 libnvjitlink-12-6
+              libcublas-dev-12-6 libnvjitlink-12-6
       - name: Install Ccache
         run: |
           wget https://github.com/ccache/ccache/releases/download/v4.8/ccache-4.8-linux-x86_64.tar.xz
@@ -603,7 +533,6 @@ jobs:
           echo "NPROCS=$(nproc)" >> $GITHUB_ENV
           echo "CCACHE_COMPRESS=1" >> $GITHUB_ENV
           echo "CCACHE_COMPRESSLEVEL=10" >> $GITHUB_ENV
-          echo "CCACHE_LOGFILE=${{github.workspace}}/ccache.log.txt" >> $GITHUB_ENV
           echo "CCACHE_MAXSIZE=250M" >> $GITHUB_ENV
       - name: Dependencies
         run: |
@@ -630,11 +559,7 @@ jobs:
       - name: Configure
         run: |
           source /etc/profile.d/rocm.sh
-          which clang
-          which clang++
-          which hipcc
           hipcc --version
-          hipconfig --full
           cmake -B${{runner.workspace}}/build-hip \
           -DCMAKE_BUILD_TYPE:STRING=Release \
           -DCMAKE_VERBOSE_MAKEFILE:BOOL=ON \
@@ -676,7 +601,6 @@ jobs:
           echo "NPROCS=$(nproc)" >> $GITHUB_ENV
           echo "CCACHE_COMPRESS=1" >> $GITHUB_ENV
           echo "CCACHE_COMPRESSLEVEL=10" >> $GITHUB_ENV
-          echo "CCACHE_LOGFILE=${{github.workspace}}/ccache.log.txt" >> $GITHUB_ENV
           echo "CCACHE_MAXSIZE=200M" >> $GITHUB_ENV
           echo "CCACHE_DEPEND=1" >> $GITHUB_ENV
       - name: Dependencies
@@ -728,41 +652,6 @@ jobs:
         run: |
           ccache -s
           du -hs ~/.cache/ccache
-#  Lint-cppcheck:
-#    needs: Formatting
-#    runs-on: macos-12
-#    steps:
-#      - name: Clone
-#        uses: actions/checkout@v6
-#        with:
-#          submodules: 'recursive'
-#      - name: Dependencies
-#        run: |
-#          export HOMEBREW_NO_INSTALLED_DEPENDENTS_CHECK=TRUE
-#          wget https://raw.githubusercontent.com/Homebrew/homebrew-core/9b0e3d32f590458ae9e5dbf01943b39845b5315e/Formula/cppcheck.rb
-#          brew install cppcheck.rb
-#      - name: Configure
-#        run: |
-#          cmake -B${{runner.workspace}}/build-cppcheck \
-#          -DPELE_ENABLE_MPI:BOOL=OFF \
-#          -DPELE_ENABLE_FCOMPARE_FOR_TESTS:BOOL=OFF \
-#          -DPELE_ENABLE_MASA:BOOL=OFF \
-#          -DPELE_ENABLE_CPPCHECK:BOOL=ON \
-#          ${{github.workspace}}
-#      - name: Check
-#        working-directory: ${{runner.workspace}}/build-cppcheck
-#        run: make cppcheck
-#      - name: Full report
-#        working-directory: ${{runner.workspace}}/build-cppcheck/cppcheck
-#        run: cat cppcheck-full-report.txt
-#      - name: Short report
-#        working-directory: ${{runner.workspace}}/build-cppcheck/cppcheck
-#        run: |
-#          echo "::add-matcher::.github/problem-matchers/cppcheck.json"
-#          awk 'BEGIN{i=0}{print $0}{i++}END{print "Warnings: "i}' < cppcheck-report.txt > cppcheck-warnings.txt
-#          cat cppcheck-warnings.txt
-#          export return=$(tail -n 1 cppcheck-warnings.txt | awk '{print $2}')
-#          exit ${return}
   Lint-clang-tidy:
     needs: Formatting
     runs-on: ubuntu-24.04
@@ -776,18 +665,26 @@ jobs:
           echo "NPROCS=$(nproc)" >> $GITHUB_ENV
           echo "CCACHE_COMPRESS=1" >> $GITHUB_ENV
           echo "CCACHE_COMPRESSLEVEL=10" >> $GITHUB_ENV
-          echo "CCACHE_LOGFILE=${{github.workspace}}/ccache.log.txt" >> $GITHUB_ENV
           echo "CCACHE_EXTRAFILES=${{github.workspace}}/.clang-tidy" >> $GITHUB_ENV
           echo "CCACHE_MAXSIZE=100M" >> $GITHUB_ENV
-          echo "CTCACHE_DIR=~/.cache/ctcache" >> $GITHUB_ENV
+          # clang-tidy-cache skips files whose preprocessed source, flags and
+          # resolved clang-tidy config are unchanged. SAVE_OUTPUT/SAVE_ALL
+          # store each file's diagnostics (clang-tidy's stdout) and exit code
+          # and replay them on a hit; stderr is not replayed. Keyed on the
+          # clang-tidy version, which the hash does not include. Comments are
+          # kept in the hash so that NOLINT edits invalidate the entry.
+          echo "CTCACHE_DIR=${HOME}/.cache/ctcache/$(clang-tidy --version | sha256sum | cut -c1-12)" >> $GITHUB_ENV
+          echo "CTCACHE_SAVE_OUTPUT=1" >> $GITHUB_ENV
+          echo "CTCACHE_SAVE_ALL=1" >> $GITHUB_ENV
+          echo "CTCACHE_KEEP_COMMENTS=1" >> $GITHUB_ENV
       - name: Install Ccache
         run: |
           wget https://github.com/ccache/ccache/releases/download/v4.8/ccache-4.8-linux-x86_64.tar.xz
-          sudo curl https://raw.githubusercontent.com/matus-chochlik/ctcache/7fd516e91c17779cbc6fc18bd119313d9532dd90/clang-tidy-cache -Lo /usr/bin/clang-tidy-cache
           tar xvf ccache-4.8-linux-x86_64.tar.xz
           sudo cp -f ccache-4.8-linux-x86_64/ccache /usr/local/bin/
-          sudo chmod +x /usr/bin/clang-tidy-cache
-          mkdir -p ~/.cache/ctcache
+          # ctcache 1.2.0; the module is a self-contained script
+          sudo curl -L https://raw.githubusercontent.com/matus-chochlik/ctcache/e33c063ca6e52b48bcefbc45d46d8c150ffa81ca/src/ctcache/clang_tidy_cache.py -o /usr/local/bin/clang-tidy-cache
+          sudo chmod +x /usr/local/bin/clang-tidy-cache
       - name: Set Up Ccache
         uses: actions/cache@v5
         with:
@@ -812,24 +709,35 @@ jobs:
           -DPELE_ENABLE_FCOMPARE_FOR_TESTS:BOOL=OFF \
           -DPELE_ENABLE_MASA:BOOL=OFF \
           -DPELE_ENABLE_CLANG_TIDY:BOOL=ON \
+          "-DCLANG_TIDY_EXE:STRING=clang-tidy-cache;$(command -v clang-tidy)" \
           -DPELE_EXCLUDE_BUILD_IN_CI:BOOL=ON \
           -DCMAKE_CXX_COMPILER_LAUNCHER:STRING=ccache \
           ${{github.workspace}}
       - name: Check
         working-directory: ${{runner.workspace}}/build-clang-tidy
         run: |
-          cmake --build . --parallel ${{env.NPROCS}} 2>&1 | tee -a clang-tidy-full-report.txt
-          egrep "Warning:|Error:|warning:|error:" clang-tidy-full-report.txt \
-            | egrep -v "Submodules/amrex|Submodules/sundials" \
-            | egrep -v "ld: warning:" | sort | uniq \
-            | awk 'BEGIN{i=0}{print $0}{i++}END{print "Warnings: "i}' > clang-tidy-warnings.txt
+          mkdir -p ${CTCACHE_DIR}
+          touch ${{runner.temp}}/ctcache-start
+          build_status=0
+          cmake --build . --parallel ${{env.NPROCS}} 2>&1 | tee -a clang-tidy-full-report.txt || build_status=$?
+          # Hits refresh an entry's mtime: drop the ones this run did not use
+          # (and older clang-tidy versions) so the cache does not grow. Only
+          # after a complete build: a failed one never reached some files.
+          if [ ${build_status} -eq 0 ]; then
+            find ${CTCACHE_DIR} -type f ! -newer ${{runner.temp}}/ctcache-start -delete
+            find ${HOME}/.cache/ctcache -mindepth 1 -maxdepth 1 ! -path ${CTCACHE_DIR} -exec rm -rf {} +
+          fi
+          # Fail on a failed build: a replayed cache hit restores the exit
+          # code but not clang-tidy's stderr, so the warning count alone can
+          # miss it.
+          exit ${build_status}
       - name: Ccache Report
         run: |
-          ls ~/.cache
-          ls ~/.cache/ccache
           du -hs ~/.cache/ccache
-          ls ~/.cache/ctcache
           du -hs ~/.cache/ctcache
+          # Entries are named by the rest of their sha1 digest (38 hex
+          # characters); the per-directory stats files are not counted.
+          echo "ctcache entries: $(find ${CTCACHE_DIR} -type f -regextype posix-extended -regex '.*/[0-9a-f]{38}' | wc -l)"
           ccache -s
       - name: Full report
         working-directory: ${{runner.workspace}}/build-clang-tidy
@@ -838,9 +746,7 @@ jobs:
         working-directory: ${{runner.workspace}}/build-clang-tidy
         run: |
           echo "::add-matcher::.github/problem-matchers/gcc.json"
-          cat clang-tidy-warnings.txt
-          export return=$(tail -n 1 clang-tidy-warnings.txt | awk '{print $2}')
-          exit ${return}
+          ${{github.workspace}}/.github/scripts/count_warnings.sh clang-tidy-full-report.txt
   Lint-codeql:
     needs: Formatting
     runs-on: ubuntu-24.04
@@ -891,7 +797,7 @@ jobs:
           sarif_file: sarif-results/cpp.sarif
   Lint-codespell:
     needs: Formatting
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     steps:
       - name: Clone
         uses: actions/checkout@v6
