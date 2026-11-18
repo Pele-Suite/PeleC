@@ -653,6 +653,7 @@ jobs:
           -DCMAKE_CXX_COMPILER_LAUNCHER:STRING=ccache \
           ${{github.workspace}}
       - name: Check
+        id: check
         working-directory: ${{runner.workspace}}/build-clang-tidy
         run: |
           mkdir -p ${CTCACHE_DIR}
@@ -681,7 +682,7 @@ jobs:
       # Report on a failed Check too: that is when the warnings matter. The
       # full log is in the Check step.
       - name: Short report
-        if: success() || failure()
+        if: success() || steps.check.outcome == 'failure'
         working-directory: ${{runner.workspace}}/build-clang-tidy
         run: |
           echo "::add-matcher::.github/problem-matchers/gcc.json"

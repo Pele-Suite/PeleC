@@ -7,7 +7,7 @@
 
 set -u -o pipefail
 
-log=$1
+log=${1:-}
 if [ ! -r "${log}" ]; then
   echo "count_warnings.sh: cannot read log ${log}" >&2
   exit 2
