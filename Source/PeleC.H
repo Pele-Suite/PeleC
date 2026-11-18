@@ -18,6 +18,7 @@
 #include "PeleCUtilities.H"
 #include "Tagging.H"
 #include "IndexDefines.H"
+#include "NSCBC.H"
 #include "prob_parm.H"
 #include "PelePhysics.H"
 #include "ReactorBase.H"
@@ -92,6 +93,26 @@ public:
     amrex::Real time);
 
   ~PeleC() override;
+
+  // NSCBC accessors.  pc_bcfill_hyp is a free function and the runtime
+  // parameters are protected statics, so these exist to let the boundary
+  // filler capture its parameters HOST-side into a POD functor member.  A
+  // device kernel must never read a class static or ParmParse directly.
+  static bool nscbc_active() { return bc_nscbc; }
+  static pc_nscbc::Params nscbc_params(int idir);
+  // Report and reset the NSCBC fallback counters.  A silent fallback is a bug
+  // that will not be found; this is how it surfaces.
+  static void nscbc_report_diagnostics();
+  // Create the counters, once and host-side, from read_params: the fill runs
+  // inside an OpenMP-parallel MFIter loop and must not allocate on first use.
+  static void nscbc_init_diagnostics();
+
+  // Warn when THIS refined level's grids touch a domain face that the
+  // characteristic treatment can reach (Hard/UserBC): the extrapolation
+  // stencil is level-local, so a fine patch on such a face makes the
+  // boundary condition level-dependent.  Called from post_regrid and
+  // post_init; no-op on level 0 or when bc_nscbc is off.
+  void nscbc_check_fine_faces() const;
 
   // Restart from a checkpoint file.
   void restart(
