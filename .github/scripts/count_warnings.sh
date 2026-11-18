@@ -8,6 +8,10 @@
 set -u -o pipefail
 
 log=$1
+if [ ! -r "${log}" ]; then
+  echo "count_warnings.sh: cannot read log ${log}" >&2
+  exit 2
+fi
 exclude='Submodules/amrex|Submodules/sundials|ld: warning:|lto-wrapper: warning:'
 if [ -n "${2:-}" ]; then
   exclude="${exclude}|$2"
