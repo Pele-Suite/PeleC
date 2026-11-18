@@ -87,11 +87,12 @@ struct PCHypFillExtDir
   //  independent of the order in which ghost cells are visited and identical
   //  on CPU and GPU.
   //
-  //  (Note that the legacy bcnormal() path further down does NOT have this
-  //  property: at a corner it reads dest() at a tangential index that is
-  //  itself a ghost cell, which another thread in the same launch may be
-  //  writing.  That is pre-existing behaviour and is left untouched here so
-  //  that no existing result moves.)
+  //  (The legacy bcnormal() path further down does NOT have this property:
+  //  at a corner it reads dest() at a tangential index that is itself a
+  //  ghost cell, filled by the face pass that AMReX runs before its edge and
+  //  corner passes, so its corner value depends on that pass order rather
+  //  than on interior data alone.  There is no race; that pre-existing
+  //  behaviour is left untouched so that no existing result moves.)
   // -------------------------------------------------------------------------
   AMREX_GPU_DEVICE
   AMREX_FORCE_INLINE
@@ -129,7 +130,11 @@ struct PCHypFillExtDir
 
       // Tangential indices are clamped into the domain (and the FAB), in
       // every tangential direction: only valid interior cells are read, and
-      // the fill is a pure function of pre-launch data.
+      // the fill is a pure function of pre-launch data.  Next to a WALL in a
+      // tangential direction this reads the domain's boundary row, not the
+      // wall's reflected ghost (which the legacy path would have used), so a
+      // corner ghost owned by this face carries that row's tangential
+      // velocity rather than the wall-flipped one.
       //
       // In a PERIODIC tangential direction this leaves a small seam
       // residual, and that is a deliberate trade.  amrex's corner protocol
@@ -171,12 +176,8 @@ struct PCHypFillExtDir
       };
       amrex::Real s_N[NVAR], s_Nm1[NVAR], s_Nm2[NVAR];
       const amrex::IntVect ivN = stencil_iv(0);
-      const amrex::IntVect ivNm1 = stencil_iv(1);
-      const amrex::IntVect ivNm2 = stencil_iv(2);
       for (int n = 0; n < NVAR; n++) {
         s_N[n] = dest(ivN, n);
-        s_Nm1[n] = dest(ivNm1, n);
-        s_Nm2[n] = dest(ivNm2, n);
       }
 
       // Query the problem for this boundary POINT.  x is the location on the
@@ -221,6 +222,24 @@ struct PCHypFillExtDir
         x, s_N, idir, sgn, time, geom, *lprobparm, turb_fluc);
       if (tgt.type == pc_nscbc::Type::off) {
         continue; // this face is not characteristic here; try the next
+      }
+
+      // The rest of the stencil, now that this point is characteristic.
+      const amrex::IntVect ivNm1 = stencil_iv(1);
+      const amrex::IntVect ivNm2 = stencil_iv(2);
+      for (int n = 0; n < NVAR; n++) {
+        s_Nm1[n] = dest(ivNm1, n);
+        s_Nm2[n] = dest(ivNm2, n);
+      }
+      // A FAB holding fewer interior cells along the normal than the
+      // extrapolation wants (the coarse patch of a two-level fill under a
+      // fine grid on this face, say) drops the order to what fits.  Counted,
+      // because the ghost then depends on the box layout.
+      if (
+        (m_nscbc_diag != nullptr) &&
+        (depth_fab < amrex::min<int>(3, depth_domain))) {
+        amrex::HostDevice::Atomic::Add(
+          &m_nscbc_diag[pc_nscbc::Diag::stencil_short], amrex::Long(1));
       }
 
       amrex::Real s_ghost[NVAR];
@@ -549,7 +568,7 @@ PeleC::nscbc_check_fine_faces() const
           "characteristic fill's stencil is level-local, so a refined patch "
           "on a characteristic face makes the boundary condition "
           "level-dependent. Keep refinement away from characteristic faces "
-          "(see the BCs chapter). (This warning is printed once per face.)");
+          "(see Source/NSCBC.H). (This warning is printed once per face.)");
       }
     }
   }
@@ -612,14 +631,17 @@ PeleC::nscbc_report_diagnostics()
   const amrex::Long total =
     h[pc_nscbc::Diag::reversed] + h[pc_nscbc::Diag::body_state] +
     h[pc_nscbc::Diag::eos_failure] + h[pc_nscbc::Diag::floored] +
-    h[pc_nscbc::Diag::target_incomplete] + h[pc_nscbc::Diag::passive_unset];
+    h[pc_nscbc::Diag::stencil_short] + h[pc_nscbc::Diag::target_incomplete] +
+    h[pc_nscbc::Diag::passive_unset];
   if (amrex::ParallelDescriptor::IOProcessor() && (total > 0 || verbose > 1)) {
     amrex::Print() << "  NSCBC fallbacks since last report:" << "  supersonic "
                    << h[pc_nscbc::Diag::supersonic] << ",  flow reversal "
                    << h[pc_nscbc::Diag::reversed] << ",  EB body state "
                    << h[pc_nscbc::Diag::body_state] << ",  EOS failure "
                    << h[pc_nscbc::Diag::eos_failure] << ",  floored "
-                   << h[pc_nscbc::Diag::floored] << ",  target incomplete "
+                   << h[pc_nscbc::Diag::floored] << ",  short stencil "
+                   << h[pc_nscbc::Diag::stencil_short]
+                   << ",  target incomplete "
                    << h[pc_nscbc::Diag::target_incomplete]
                    << ",  inflow passives unset "
                    << h[pc_nscbc::Diag::passive_unset] << "\n";

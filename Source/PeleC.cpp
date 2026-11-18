@@ -342,8 +342,7 @@ PeleC::read_params()
 
   if (bc_nscbc) {
     nscbc_init_diagnostics();
-    pc_nscbc::Params probe = nscbc_params(0);
-    probe.sigma = bc_nscbc_sigma;
+    const pc_nscbc::Params probe = nscbc_params(0);
     std::string why;
     if (!probe.validate(why)) {
       amrex::Abort("pelec.bc_nscbc_*: " + why);
@@ -405,8 +404,8 @@ PeleC::read_params()
             << " acoustic transit times at low Mach\n"
             << "               (tau_relax / tau_acoustic = 1 / (sigma (1 - "
                "M^2)));\n"
-            << "               it must be much larger than 1 and much smaller "
-               "than the run time.\n";
+            << "               tau_relax must be much longer than an acoustic "
+               "transit and much shorter than the run.\n";
         } else {
           amrex::Print() << "  ->  perfectly non-reflecting; the mean pressure "
                             "is NOT anchored and will drift.\n";
@@ -1259,6 +1258,10 @@ PeleC::post_restart()
     amrex::Gpu::hostToDevice, PeleC::h_prob_parm_device,
     PeleC::h_prob_parm_device + 1, PeleC::d_prob_parm_device);
 
+  // A restart runs neither post_init nor post_regrid, so the warning about
+  // refined grids on a characteristic face has to be issued from here.
+  nscbc_check_fine_faces();
+
 #ifdef PELE_USE_SPRAY
   postRestartParticles(parent->theRestartFile());
 #endif
@@ -1293,15 +1296,17 @@ PeleC::postCoarseTimeStep(amrex::Real cumtime)
   BL_PROFILE("PeleC::postCoarseTimeStep()");
   AmrLevel::postCoarseTimeStep(cumtime);
 
-  // NSCBC counters must never be silent: without this, a run with the
-  // default sum_interval = -1 never calls nscbc_report_diagnostics() and a
-  // boundary counting millions of reversal fills looks identical to one
-  // counting none (that misread happened in NSCBC-Chamber; see its
-  // README).  When the user has not opted
-  // into periodic reporting, report on a fixed cadence -- the report only
-  // prints when something actually counted, so healthy runs stay quiet.
-  if (bc_nscbc && verbose > 0 && sum_interval <= 0 && sum_per <= 0.0) {
-    if (parent->levelSteps(0) % 100 == 0) {
+  // The NSCBC counters must not stay silent: a boundary counting millions
+  // of reversal fills must not look like one counting none.
+  // sum_integrated_quantities() reports them, but only with pelec.v > 0 and
+  // on the sum_interval / sum_per cadence; whenever that path cannot report,
+  // report here on a fixed cadence instead.  The report prints only when
+  // something counted (or pelec.v > 1), so healthy runs stay quiet.
+  constexpr int nscbc_report_every = 100; // coarse steps
+  const bool sum_path_reports =
+    (verbose > 0) && ((sum_interval > 0) || (sum_per > 0.0));
+  if (bc_nscbc && !sum_path_reports) {
+    if (parent->levelSteps(0) % nscbc_report_every == 0) {
       nscbc_report_diagnostics();
     }
   }

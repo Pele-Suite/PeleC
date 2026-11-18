@@ -4,9 +4,9 @@
 //  NSCBC.H -- characteristic (Navier-Stokes Characteristic Boundary Condition)
 //             ghost-cell fill for subsonic inflow and outflow faces.
 //
-//  Deliberately free of any dependency on PeleC.H so the standalone driver in
-//  Verification/NSCBC1D compiles it unmodified; depends only on
-//  IndexDefines.H, the PelePhysics EOS, and AMReX.
+//  Deliberately free of any dependency on PeleC.H, so that a standalone 1-D
+//  driver (a later PR in this series) can compile it unmodified; depends
+//  only on IndexDefines.H, the PelePhysics EOS, and AMReX.
 //
 //  FORMULATION.  Everything is written in an outward-normal frame,
 //  u_out = n_sgn * u_n (n_sgn = +1 on a hi face, -1 on a lo face), so one
@@ -53,11 +53,13 @@
 //  shortcut forms error out under SRK.
 // ============================================================================
 
+#include <AMReX.H>
 #include <AMReX_REAL.H>
 #include <AMReX_GpuQualifiers.H>
 #include <AMReX_Algorithm.H>
 #include <AMReX_Math.H>
 #include <cmath>
+#include <string>
 
 #include "IndexDefines.H"
 #include "Constants.H"
@@ -99,7 +101,7 @@ struct Params
   // Order of the outgoing-invariant extrapolation:
   //   1 = zeroth-order copy (constant across ghost layers)
   //   2 = minmod-limited linear in the ghost layer index (default)
-  // Exposed so that a bit-comparison against the standalone 1-D driver can be
+  // Exposed so that a bit-comparison against a standalone 1-D driver can be
   // done without recompiling.  Verification knob, not a physics knob.
   int order = 2;
 
@@ -139,7 +141,9 @@ struct Params
 
 // ---------------------------------------------------------------------------
 //  Target state returned per boundary point by the problem hook.  Only the
-//  entries relevant to `type` are read: outflow -> p; inflow -> u[], T, Y[].
+//  entries relevant to `type` are read: outflow -> p; inflow -> u[], T, Y[]
+//  (and p where the inflow is supersonic; dudt and the passives are
+//  optional).  A missing p is counted (Diag::target_incomplete).
 //  Deliberately no relaxation for composition: at an inflow every species
 //  characteristic is incoming (hard imposition is well posed), at an outflow
 //  all are outgoing (imposing would over-specify).
@@ -155,11 +159,11 @@ struct Target
   // Inflow acoustic-injection feed-forward: the time derivative of the
   // NORMAL velocity target, supplied analytically by the problem hook when
   // it is forcing the inlet.  The value-relaxation alone has no amplitude
-  // slot (design doc I.3e) -- an injected signal rides the same relaxation
-  // that holds the mean, with the measured deterioration of driver t3 --
-  // and a register-based NRI transplant does not create one (measured:
-  // subtracting the outgoing wave from the deviation only exposes the bare
-  // injection bandwidth limit).  This term is that slot, stateless: the
+  // slot: an injected signal rides the same relaxation that holds the mean
+  // and is attenuated by it (measured on the forced-inlet case of a later
+  // PR in this series), and subtracting the outgoing wave from the deviation
+  // does not create one either (it only exposes the bare injection
+  // bandwidth limit).  This term is that slot, stateless: the
   // incoming amplitude gains 2 rho c du^t/dt, the GC transplant of the
   // flux form's acoustic forcing, and the relaxation keeps its one job of
   // holding the mean.  Zero (default) recovers the classical inlet
@@ -185,9 +189,10 @@ struct Target
 
 // ---------------------------------------------------------------------------
 //  Diagnostic counters.  Every fallback is counted; a silent fallback is a
-//  bug that will not be found.  Storage is amrex::Long, not int: with the
-//  default sum_interval = -1 the counters are never reset, and the supersonic
-//  counter on a large 3-D run walks past 2^31 in ~1e4 steps.
+//  bug that will not be found.  Storage is amrex::Long, not int: the
+//  counters are reset only when reported (every sum_interval steps, or every
+//  100 coarse steps with the default sum_interval = -1), and the supersonic
+//  counter on a large 3-D run can pass 2^31 between two reports.
 // ---------------------------------------------------------------------------
 namespace Diag {
 enum : int {
@@ -196,6 +201,10 @@ enum : int {
   body_state,        // an EB-covered cell was found in the stencil
   eos_failure,       // an EOS call returned a non-finite or non-positive value
   floored,           // a positivity floor was hit
+  stencil_short,     // the FAB held fewer interior cells along the normal
+                     // than the extrapolation order wants (the coarse patch
+                     // under a fine grid on the face): the order dropped to
+                     // what fits, and the ghost depends on the box layout.
   target_incomplete, // the Target carries no pressure where one is required.
                      // Outflow: nothing to relax toward, so the interior
                      // pressure was substituted and the ghost pressure is not
@@ -566,8 +575,8 @@ apply(
     // that replaced it dropped dR+, S_p and T_in relative to the forward
     // branch and froze the ghost velocity -- an O(1) discontinuity at
     // u_out = 0 that a flame finishing its transit turned into a growing
-    // dither and a spurious 0.3 atm chamber spike
-    // (NSCBC-Chamber/README.md; gates: driver C13 a/b/c).
+    // dither and a spurious 0.3 atm chamber spike (the chamber case and
+    // the 1-D driver's reversal tests, both later PRs in this series).
     //
     // The COUNTER carries a roundoff deadband (the closure itself has no
     // branch left to care): a face holding a quiescent charge sits at
@@ -576,7 +585,7 @@ apply(
     // wave was still a centimetre from the boundary.  Counting only
     // |u_out| > 1e-9 c keeps "reversal count zero" meaning NO PHYSICAL
     // BACKFLOW rather than "no roundoff", which is the semantics the
-    // README's advice ("sustained nonzero means a misplaced outflow")
+    // advice "a sustained nonzero count means a misplaced outflow"
     // depends on.
     if (u_out_N < -1.0e-9 * c_N) {
       bump(Diag::reversed);
@@ -633,11 +642,12 @@ apply(
   // the chamber's cold runaway: the outward-cooling T ramp refrigerates the
   // boundary cell, the steepened ramp extrapolates colder still, and
   // 1/(rho c) amplifies the relaxation as T falls -- 385 -> 241 -> 89 K in
-  // 42 us, then NaN (NSCBC-Chamber/README.md, driver C13).  So the material
+  // 42 us, then NaN (the chamber case of a later PR).  So the material
   // SLOPES are used only where their upwind justification holds: full for
   // u_out >= 0 (every forward-flow result is untouched to the bit), ramped
   // off across a narrow band below zero (1e-3 c -- a continuity
-  // regularisation of the fill, not a physics knob; C13 gates it), and zero
+  // regularisation of the fill, not a physics knob; the 1-D driver's
+  // reversal tests gate it), and zero
   // under firm reversal, where the ghost keeps the interior VALUES -- which
   // is what the surviving closure always did.
   const amrex::Real w_mat =
@@ -671,11 +681,11 @@ apply(
     }
     // There is deliberately NO diffusive source term on L_in.  The
     // ghost-cell form does not have the flux-form's viscous-condition gap:
-    // the diffusion operator reads these ghost cells, so a correct ghost
-    // closure (extrap_temperature, gated by C8 and C12) already carries the
-    // diffusive physics, and an amplitude-side term counts it twice
-    // (measured: it moves the C12 driver error 104 -> -911).  Re-verify
-    // against C12 before revisiting.
+    // the diffusion operator reads these ghost cells, so the ghost closure
+    // already carries the diffusive physics, and an amplitude-side term
+    // counts it twice (measured on the viscous tests of the 1-D driver, a
+    // later PR: it moves that error 104 -> -911).  Re-verify there before
+    // revisiting.
     Rm_g = Rm_N + static_cast<amrex::Real>(layer) * dx_normal * L_in /
                     (lambda_in * rho_c);
   }

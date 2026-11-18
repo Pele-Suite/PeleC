@@ -69,7 +69,7 @@ weno_scheme                  int           1
 
 # ---------------------------------------------------------------------------
 # Characteristic (NSCBC) boundary treatment.  See Source/NSCBC.H for the
-# formulation and Docs/sphinx/BoundaryConditions.rst for guidance.
+# formulation and the notes on each parameter below.
 #
 # Master switch.  Even when true, the treatment is applied only at boundary
 # POINTS for which the problem's ProblemSpecificFunctions::bcnormal_nscbc()

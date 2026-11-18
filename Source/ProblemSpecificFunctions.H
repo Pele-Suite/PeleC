@@ -171,8 +171,11 @@ struct DefaultProblemSpecificFunctions
   //
   // Only the fields relevant to the returned type are read:
   //     Type::outflow -> p
-  //     Type::inflow  -> u[], T, Y[]
-  // There is deliberately no relaxation coefficient for composition; see
+  //     Type::inflow  -> u[], T, Y[]; also p where the inflow is supersonic
+  //                      (every characteristic then enters, so the full state
+  //                      is needed), and optionally dudt and the passives.
+  // A missing p is counted as a target_incomplete fallback.  There is
+  // deliberately no relaxation coefficient for composition; see
   // Source/NSCBC.H.
   //
   // s_int is the state in the first interior cell along the boundary normal,
