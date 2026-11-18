@@ -196,22 +196,17 @@ enum : int {
   body_state,        // an EB-covered cell was found in the stencil
   eos_failure,       // an EOS call returned a non-finite or non-positive value
   floored,           // a positivity floor was hit
-  transverse_drop,   // a transverse derivative was unavailable or unusable
-  source_drop,       // a modelled source term was unavailable or unusable
-  target_incomplete, // a supersonic inflow whose Target carries no pressure:
-                     // every characteristic is incoming, so the FULL state is
+  target_incomplete, // the Target carries no pressure where one is required.
+                     // Outflow: nothing to relax toward, so the interior
+                     // pressure was substituted and the ghost pressure is not
+                     // anchored at all.  Supersonic inflow: every
+                     // characteristic is incoming, so the FULL state is
                      // required; the interior pressure was substituted, which
                      // makes the ghost depend on a domain it should be
                      // causally upstream of.  Set Target.p in bcnormal_nscbc.
   passive_unset,     // an inflow Target left its passive scalars unset
                      // (Target::passives): the interior values were kept, so
                      // nothing about them enters through the inflow.
-  structure,         // ADVISORY, not a fallback: material structure sat in an
-                     // outflow boundary cell (|dS| > 5% of rho).  A flame at
-                     // the boundary wants the flame closures --
-                     // extrap_temperature and beta_s = 0; a front without
-                     // heat release wants a stiffer sigma instead; see
-                     // NSCBC-FlameOutflow/README.md.
   count
 };
 }
@@ -252,6 +247,28 @@ copy_state(const amrex::Real src[NVAR], amrex::Real dst[NVAR]) noexcept
   for (int n = 0; n < NVAR; n++) {
     dst[n] = src[n];
   }
+}
+
+// Clamp a target composition at zero and renormalise it to unit sum, as
+// cell_primitives does for an interior state, so that a packed ghost keeps
+// sum_k (rho Y)_k == rho whatever the problem hook returned.  False, with
+// Y_out untouched, if the target carries no mass at all.
+AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE bool
+normalize_Y(
+  const amrex::Real Y_in[NUM_SPECIES], amrex::Real Y_out[NUM_SPECIES]) noexcept
+{
+  amrex::Real Ysum = 0.0;
+  for (int n = 0; n < NUM_SPECIES; n++) {
+    Ysum += amrex::max<amrex::Real>(Y_in[n], 0.0);
+  }
+  if (!(Ysum > constants::very_small_num())) {
+    return false;
+  }
+  const amrex::Real inv = 1.0 / Ysum;
+  for (int n = 0; n < NUM_SPECIES; n++) {
+    Y_out[n] = amrex::max<amrex::Real>(Y_in[n], 0.0) * inv;
+  }
+  return true;
 }
 
 // ---------------------------------------------------------------------------
@@ -406,8 +423,13 @@ inflow_passives(
 //    n_stencil: usable cells (3/2/1), reduced further on EB body state.
 //    idir, sgn: boundary normal and side (+1 lo, -1 hi, as bcnormal).
 //    layer: 1 = nearest the domain.  diag: optional Long[Diag::count].
+//  Returns true when s_ghost was written.  Returns false, with s_ghost
+//  untouched, when s_N is EB body state: there is nothing to build a
+//  characteristic state from, and the caller must fill the cell some other
+//  way (copying the body state out would put a zero-density ghost next to a
+//  covered cell).
 // ===========================================================================
-AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE void
+AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE bool
 apply(
   const amrex::Real s_N[NVAR],
   const amrex::Real s_Nm1[NVAR],
@@ -432,11 +454,11 @@ apply(
 
   // ---- 0. Stencil hygiene ------------------------------------------------
   if (is_body_state(s_N)) {
-    // Nothing usable to build a characteristic state from.  Leave whatever the
-    // caller pre-populated (the reflected NoSlipWall state) in place.
+    // Nothing usable to build a characteristic state from, and the body
+    // state itself must not be copied out as a ghost.  Decline; the caller
+    // leaves this cell to its ordinary fill.
     bump(Diag::body_state);
-    copy_state(s_N, s_ghost);
-    return;
+    return false;
   }
   if ((n_stencil > 2) && is_body_state(s_Nm2)) {
     n_stencil = 2;
@@ -456,7 +478,7 @@ apply(
   if (!qN.ok) {
     bump(Diag::eos_failure);
     copy_state(s_N, s_ghost);
-    return;
+    return true;
   }
 
   // ---- 1. Outward-normal frame ------------------------------------------
@@ -475,7 +497,7 @@ apply(
       // Supersonic outflow: zero-gradient is exact, not an approximation.
       bump(Diag::supersonic);
       copy_state(s_N, s_ghost);
-      return;
+      return true;
     }
     // Supersonic inflow: every characteristic is incoming, so the full state
     // is specified.  Only meaningful with an inflow target.  A Target
@@ -486,30 +508,49 @@ apply(
       if (!(tgt.p > 0.0)) {
         bump(Diag::target_incomplete);
       }
+      // The target composition is cleaned as the subsonic inflow cleans
+      // its own, so the packed ghost keeps sum(rho Y) == rho.
+      amrex::Real Y_g[NUM_SPECIES];
+      if (!normalize_Y(tgt.Y, Y_g)) {
+        for (int n = 0; n < NUM_SPECIES; n++) {
+          Y_g[n] = qN.Y[n];
+        }
+        bump(Diag::floored);
+      }
       amrex::Real rho_g = 0.0, e_g = 0.0;
-      eos.PYT2RE(tgt.p > 0.0 ? tgt.p : qN.p, tgt.Y, tgt.T, rho_g, e_g);
+      eos.PYT2RE(tgt.p > 0.0 ? tgt.p : qN.p, Y_g, tgt.T, rho_g, e_g);
       if (
         amrex::Math::isfinite(rho_g) && (rho_g > 0.0) &&
         amrex::Math::isfinite(e_g)) {
         amrex::Real u_g[3] = {tgt.u[0], tgt.u[1], tgt.u[2]};
-        pack_ghost(rho_g, u_g, e_g, tgt.T, tgt.Y, s_N, s_ghost);
+        pack_ghost(rho_g, u_g, e_g, tgt.T, Y_g, s_N, s_ghost);
         if (tgt.passives) {
           inflow_passives(tgt, 1.0, s_ghost);
         } else if (NUM_ADV + NUM_AUX + NUM_LIN > 0) {
           bump(Diag::passive_unset);
         }
         bump(Diag::supersonic);
-        return;
+        return true;
       }
       bump(Diag::eos_failure);
     }
     bump(Diag::supersonic);
     copy_state(s_N, s_ghost);
-    return;
+    return true;
   }
 
   // ---- 3. Direction sanity ----------------------------------------------
   const bool outflow_face = (tgt.type == Type::outflow);
+  // An outflow Target without a pressure has nothing to relax toward.  The
+  // interior pressure stands in (the relaxation then vanishes, and the
+  // far-field pin pins to the interior) and the fill is COUNTED: a
+  // default-constructed p = 0 would otherwise pull the ghost pressure toward
+  // zero on every fill until the floor caught it, visible only as a
+  // "floored" count.  An inflow reads p_tgt only through the floor below.
+  const amrex::Real p_tgt = (tgt.p > 0.0) ? tgt.p : qN.p;
+  if (outflow_face && !(tgt.p > 0.0)) {
+    bump(Diag::target_incomplete);
+  }
   if (outflow_face && (u_out_N < 0.0)) {
     // Transient reversal at an outflow: COUNTED, but no longer a separate
     // closure.  The acoustic side of the standard outflow path is well
@@ -527,7 +568,6 @@ apply(
     // u_out = 0 that a flame finishing its transit turned into a growing
     // dither and a spurious 0.3 atm chamber spike
     // (NSCBC-Chamber/README.md; gates: driver C13 a/b/c).
-    // Sustained recirculation as a local inflow is Params::backflow_material.
     //
     // The COUNTER carries a roundoff deadband (the closure itself has no
     // branch left to care): a face holding a quiescent charge sits at
@@ -605,19 +645,17 @@ apply(
       ? 1.0
       : amrex::max<amrex::Real>(0.0, 1.0 + u_out_N / (1.0e-3 * c_N));
 
-  const amrex::Real dRm = 0.0;
-
   amrex::Real Rm_g;
   if (outflow_face && prm.pin_farfield) {
     // Hard far-field pin: R_- takes its far-field value (u_out = 0,
     // p = p_target).  Value constraint, not a rate, and there is nowhere in it
     // to put a transverse term -- so pin_farfield ignores beta.
-    Rm_g = -tgt.p / rho_c;
+    Rm_g = -p_tgt / rho_c;
   } else {
     amrex::Real L_in;
     if (outflow_face) {
       const amrex::Real K = prm.sigma * one_m_M2 * c_N / prm.L_ref;
-      L_in = K * (qN.p - tgt.p);
+      L_in = K * (qN.p - p_tgt);
     } else {
       const amrex::Real u_out_tgt = n_sgn * tgt.u[idir];
       const amrex::Real K = prm.relax_u * one_m_M2 * c_N / prm.L_ref;
@@ -638,17 +676,16 @@ apply(
     // diffusive physics, and an amplitude-side term counts it twice
     // (measured: it moves the C12 driver error 104 -> -911).  Re-verify
     // against C12 before revisiting.
-    Rm_g =
-      Rm_N + static_cast<amrex::Real>(layer) * dRm +
-      static_cast<amrex::Real>(layer) * dx_normal * L_in / (lambda_in * rho_c);
+    Rm_g = Rm_N + static_cast<amrex::Real>(layer) * dx_normal * L_in /
+                    (lambda_in * rho_c);
   }
 
   // ---- 6. Invert the acoustic pair --------------------------------------
   amrex::Real u_out_g = 0.5 * (Rp_g + Rm_g);
   amrex::Real p_g = 0.5 * rho_c * (Rp_g - Rm_g);
 
-  const amrex::Real p_floor = amrex::max<amrex::Real>(
-    1.0e-3 * (tgt.p > 0.0 ? tgt.p : qN.p), constants::very_small_num());
+  const amrex::Real p_floor =
+    amrex::max<amrex::Real>(1.0e-3 * p_tgt, constants::very_small_num());
   if (!amrex::Math::isfinite(p_g) || (p_g < p_floor)) {
     p_g = p_floor;
     bump(Diag::floored);
@@ -783,7 +820,7 @@ apply(
     !(T_g > 0.0)) {
     bump(Diag::eos_failure);
     copy_state(s_N, s_ghost);
-    return;
+    return true;
   }
 
   // ---- 8. Pack and sanitise ---------------------------------------------
@@ -802,6 +839,7 @@ apply(
       bump(Diag::floored);
     }
   }
+  return true;
 }
 
 } // namespace pc_nscbc

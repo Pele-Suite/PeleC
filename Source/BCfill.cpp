@@ -12,8 +12,11 @@
 
 namespace {
 // Device-resident fallback counters for the characteristic boundary
-// treatment.  Allocated on first use, reduced and reported by
-// PeleC::nscbc_report_diagnostics().
+// treatment.  Created once, host-side, by PeleC::nscbc_init_diagnostics()
+// from read_params (before any boundary fill can run); reduced and reported
+// by PeleC::nscbc_report_diagnostics().  Not created lazily from the fill:
+// the fill runs inside the OpenMP-parallel MFIter loop of
+// StateDataPhysBCFunct, where a first-use allocation would race.
 //
 // Held as a heap pointer released through amrex::ExecOnFinalize rather than as
 // a function-local static object.  A static Gpu::DeviceVector destructs at
@@ -25,14 +28,9 @@ amrex::Gpu::DeviceVector<amrex::Long>* nscbc_diag_p = nullptr;
 amrex::Gpu::DeviceVector<amrex::Long>&
 nscbc_diag()
 {
-  if (nscbc_diag_p == nullptr) {
-    nscbc_diag_p =
-      new amrex::Gpu::DeviceVector<amrex::Long>(pc_nscbc::Diag::count, 0);
-    amrex::ExecOnFinalize([]() {
-      delete nscbc_diag_p;
-      nscbc_diag_p = nullptr;
-    });
-  }
+  AMREX_ALWAYS_ASSERT_WITH_MESSAGE(
+    nscbc_diag_p != nullptr,
+    "NSCBC counters used before PeleC::nscbc_init_diagnostics()");
   return *nscbc_diag_p;
 }
 
@@ -47,8 +45,11 @@ struct PCHypFillExtDir
   amrex::Long* m_nscbc_diag{nullptr};
   // TurbInflow fluctuations for the characteristic fill: a copy of the
   // layer-1 ghost velocities add_turb wrote, taken before the launch (the
-  // fill overwrites those cells while other threads still need them).
-  amrex::Array4<const amrex::Real> m_turb{};
+  // fill overwrites those cells while other threads still need them).  One
+  // band per domain face, indexed 2*dir + side (0 = lo, 1 = hi); empty on a
+  // face that is not ext_dir or that this FAB does not touch.
+  amrex::GpuArray<amrex::Array4<const amrex::Real>, 2 * AMREX_SPACEDIM>
+    m_turb{};
   bool m_has_turb{false};
 
   AMREX_GPU_HOST
@@ -58,7 +59,8 @@ struct PCHypFillExtDir
     const bool nscbc,
     const amrex::GpuArray<pc_nscbc::Params, AMREX_SPACEDIM>& nscbc_prm,
     amrex::Long* nscbc_diag,
-    amrex::Array4<const amrex::Real> const& turb = {},
+    amrex::GpuArray<amrex::Array4<const amrex::Real>, 2 * AMREX_SPACEDIM> const&
+      turb = {},
     const bool has_turb = false)
     : lprobparm(d_prob_parm),
       m_do_turb_inflow(do_turb_inflow),
@@ -78,8 +80,9 @@ struct PCHypFillExtDir
   //
   //  Corner ownership.  A ghost cell may lie outside the domain in more than
   //  one direction.  Such a cell is owned by the LOWEST idir in which it is
-  //  outside on an ext_dir face whose problem hook returns a live target;
-  //  the state is written exactly once.  Combined with the clamped stencil
+  //  outside on an ext_dir face whose problem hook returns a live target
+  //  and whose boundary cell holds fluid (not EB body state); the state is
+  //  written exactly once.  Combined with the clamped stencil
   //  below this makes the fill a pure function of valid interior data, hence
   //  independent of the order in which ghost cells are visited and identical
   //  on CPU and GPU.
@@ -128,20 +131,20 @@ struct PCHypFillExtDir
       // every tangential direction: only valid interior cells are read, and
       // the fill is a pure function of pre-launch data.
       //
-      // In a PERIODIC tangential direction this leaves a small, measured
-      // seam residual, and that is a deliberate trade.  amrex's corner
-      // protocol (StateDataPhysBCFunct) recomputes corner ghosts on a strip
-      // FAB holding only their image band, so a seam-adjacent cell is filled
+      // In a PERIODIC tangential direction this leaves a small seam
+      // residual, and that is a deliberate trade.  amrex's corner protocol
+      // (StateDataPhysBCFunct) recomputes corner ghosts on a strip FAB
+      // holding only their image band, so a seam-adjacent cell is filled
       // twice on two different FABs; exact agreement requires restricting
       // the tangential stencil to the band the strip can see.  Both
       // alternatives were built and measured: a wrap through the resident
       // images leaves the array aperiodic at the 2e-2 level, and the
-      // strip-consistent band is bitwise-periodic and measured equally
-      // stable (NSCBC-FlameOutflow-DRM, beta = 0.5) -- but costs ~100 lines
-      // of decomposition-sensitive index machinery to remove a residual that
-      // measures 2e-4 (inert) to 1.6e-3 (flame on the seam corner).  The
-      // clamp was kept for simplicity; nscbc_check_periodic_wrap() reports
-      // the residual and aborts above 1e-2, which a broken stencil fails.
+      // strip-consistent band is bitwise-periodic and equally stable -- but
+      // costs ~100 lines of decomposition-sensitive index machinery to
+      // remove a residual that measures 2e-4 (inert) to 1.6e-3 (a flame on
+      // the seam corner).  The clamp was kept for simplicity.  Nothing in
+      // this code checks the residual; the verification cases of a later PR
+      // in this series measure it.
       amrex::IntVect base(AMREX_D_DECL(iv[0], iv[1], iv[2]));
       for (int d = 0; d < AMREX_SPACEDIM; ++d) {
         if (d != idir) {
@@ -192,7 +195,8 @@ struct PCHypFillExtDir
       // them; the hook decides how they enter its Target (added to the mean,
       // or as the total velocity).
       amrex::GpuArray<amrex::Real, AMREX_SPACEDIM> turb_fluc{0.0};
-      if (m_has_turb) {
+      const auto& turb = m_turb[2 * idir + ((sgn > 0) ? 0 : 1)];
+      if (m_has_turb && turb) {
         amrex::IntVect ivt = base;
         ivt[idir] = N_pos - sgn; // the layer-1 ghost, where add_turb wrote
         // Across a periodic tangential direction the turbulence is periodic
@@ -209,7 +213,7 @@ struct PCHypFillExtDir
           }
         }
         for (int n = 0; n < AMREX_SPACEDIM; n++) {
-          turb_fluc[n] = m_turb(ivt, n);
+          turb_fluc[n] = turb(ivt, n);
         }
       }
 
@@ -219,13 +223,17 @@ struct PCHypFillExtDir
         continue; // this face is not characteristic here; try the next
       }
 
-      // Boundary-register composition (level 0 only; the registers change
-      // once per advance and are read frozen here).  The kernel below sees
-      // only the composed Target -- it stays a pure function.
       amrex::Real s_ghost[NVAR];
-      pc_nscbc::apply(
-        s_N, s_Nm1, s_Nm2, n_stencil, dx[idir], idir, sgn, layer, tgt,
-        m_nscbc_prm[idir], s_ghost, m_nscbc_diag);
+      if (!pc_nscbc::apply(
+            s_N, s_Nm1, s_Nm2, n_stencil, dx[idir], idir, sgn, layer, tgt,
+            m_nscbc_prm[idir], s_ghost, m_nscbc_diag)) {
+        // The boundary cell of the stencil is EB body state: there is
+        // nothing to build a characteristic state from, so this face does
+        // not own the cell.  Another direction may; otherwise the ordinary
+        // bcnormal() path below fills it exactly as it would without the
+        // characteristic treatment.
+        continue;
+      }
       for (int n = 0; n < NVAR; n++) {
         dest(iv, n) = s_ghost[n];
       }
@@ -429,20 +437,38 @@ pc_bcfill_hyp(
   amrex::Long* diag = nscbc ? nscbc_diag().data() : nullptr;
 
   // The characteristic fill reads the TurbInflow fluctuations from a copy
-  // (see PCHypFillExtDir::m_turb).  Async arena: freed in stream order.
-  amrex::FArrayBox turb_copy;
+  // (see PCHypFillExtDir::m_turb): only the one-cell band add_turb wrote on
+  // each ext_dir face, not the whole FAB.  Async arena: freed in stream
+  // order.
+  amrex::Array<amrex::FArrayBox, 2 * AMREX_SPACEDIM> turb_copy;
+  amrex::GpuArray<amrex::Array4<const amrex::Real>, 2 * AMREX_SPACEDIM>
+    turb_arr{};
   const bool has_turb = nscbc && PeleC::turb_inflow.is_initialized();
   if (has_turb) {
-    turb_copy.resize(data.box(), AMREX_SPACEDIM, amrex::The_Async_Arena());
-    turb_copy.copy<amrex::RunOn::Device>(
-      data, data.box(), UMX, data.box(), 0, AMREX_SPACEDIM);
+    for (int dir = 0; dir < AMREX_SPACEDIM; ++dir) {
+      for (int side = 0; side < 2; ++side) {
+        const bool ext_dir = (side == 0)
+                               ? (bcr[1].lo()[dir] == amrex::BCType::ext_dir)
+                               : (bcr[1].hi()[dir] == amrex::BCType::ext_dir);
+        const amrex::Box band =
+          ((side == 0) ? amrex::adjCellLo(geom.Domain(), dir)
+                       : amrex::adjCellHi(geom.Domain(), dir)) &
+          data.box();
+        if (ext_dir && band.ok()) {
+          auto& fab = turb_copy[2 * dir + side];
+          fab.resize(band, AMREX_SPACEDIM, amrex::The_Async_Arena());
+          fab.copy<amrex::RunOn::Device>(
+            data, band, UMX, band, 0, AMREX_SPACEDIM);
+          turb_arr[2 * dir + side] = fab.const_array();
+        }
+      }
+    }
   }
 
   amrex::GpuBndryFuncFab<PCHypFillExtDir> hyp_bndry_func(
     PCHypFillExtDir{
       lprobparm, PeleC::turb_inflow.is_initialized(), nscbc, nscbc_prm, diag,
-      has_turb ? turb_copy.const_array() : amrex::Array4<const amrex::Real>{},
-      has_turb});
+      turb_arr, has_turb});
   hyp_bndry_func(bx, data, dcomp, numcomp, geom, time, bcr, bcomp, scomp);
 }
 
@@ -550,11 +576,30 @@ PeleC::nscbc_params(const int idir)
 }
 
 void
+PeleC::nscbc_init_diagnostics()
+{
+  if (nscbc_diag_p != nullptr) {
+    return;
+  }
+  nscbc_diag_p =
+    new amrex::Gpu::DeviceVector<amrex::Long>(pc_nscbc::Diag::count, 0);
+  amrex::ExecOnFinalize([]() {
+    delete nscbc_diag_p;
+    nscbc_diag_p = nullptr;
+  });
+}
+
+void
 PeleC::nscbc_report_diagnostics()
 {
   if (!bc_nscbc) {
     return;
   }
+  // Settle any counter atomics still in flight BEFORE the copy: the fills
+  // bump these counters from MFIter's rotating streams, and the blocking
+  // Gpu::copy below synchronises only its own stream.  A count landing
+  // between the copy and the reset would never be reported.
+  amrex::Gpu::Device::synchronize();
   std::vector<amrex::Long> h(pc_nscbc::Diag::count, 0);
   amrex::Gpu::copy(
     amrex::Gpu::deviceToHost, nscbc_diag().begin(), nscbc_diag().end(),
@@ -564,14 +609,9 @@ PeleC::nscbc_report_diagnostics()
   // The supersonic path is exact, not a degradation, so it is reported but is
   // not a warning.  The others mean the boundary is being asked for something
   // it cannot cleanly provide.
-  // transverse_drop and source_drop belong here as much as the rest: a
-  // beta or beta_s that is silently not being applied looks exactly like a
-  // beta or beta_s that does nothing, and the only way to tell the two apart
-  // is to count it.
   const amrex::Long total =
     h[pc_nscbc::Diag::reversed] + h[pc_nscbc::Diag::body_state] +
     h[pc_nscbc::Diag::eos_failure] + h[pc_nscbc::Diag::floored] +
-    h[pc_nscbc::Diag::transverse_drop] + h[pc_nscbc::Diag::source_drop] +
     h[pc_nscbc::Diag::target_incomplete] + h[pc_nscbc::Diag::passive_unset];
   if (amrex::ParallelDescriptor::IOProcessor() && (total > 0 || verbose > 1)) {
     amrex::Print() << "  NSCBC fallbacks since last report:" << "  supersonic "
@@ -579,16 +619,11 @@ PeleC::nscbc_report_diagnostics()
                    << h[pc_nscbc::Diag::reversed] << ",  EB body state "
                    << h[pc_nscbc::Diag::body_state] << ",  EOS failure "
                    << h[pc_nscbc::Diag::eos_failure] << ",  floored "
-                   << h[pc_nscbc::Diag::floored] << ",  transverse dropped "
-                   << h[pc_nscbc::Diag::transverse_drop] << ",  source dropped "
-                   << h[pc_nscbc::Diag::source_drop] << ",  target incomplete "
+                   << h[pc_nscbc::Diag::floored] << ",  target incomplete "
                    << h[pc_nscbc::Diag::target_incomplete]
                    << ",  inflow passives unset "
                    << h[pc_nscbc::Diag::passive_unset] << "\n";
   }
-  // Settle any counter atomics still in flight on other streams before the
-  // reset; the blocking Gpu::copy above synchronised only its own stream.
-  amrex::Gpu::Device::synchronize();
   nscbc_diag().assign(pc_nscbc::Diag::count, 0);
   // The reset itself is a device fill on the current stream; the next
   // advance's fills bump these counters from MFIter's rotating streams,

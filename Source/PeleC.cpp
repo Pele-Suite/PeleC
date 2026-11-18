@@ -203,9 +203,10 @@ PeleC::read_params()
       amrex::Abort(
         "pelec." + std::string(removed) +
         " has been removed: it has had no effect since the Fortran GC-NSCBC "
-        "was deleted. Remove it from your inputs file. See "
-        "Docs/sphinx/BoundaryConditions.rst for the currently recommended "
-        "subsonic inflow/outflow treatment.");
+        "was deleted. Remove it from your inputs file. The characteristic "
+        "treatment is now enabled with pelec.bc_nscbc = 1 and a "
+        "bcnormal_nscbc hook in the problem's prob.H; see Source/NSCBC.H and "
+        "Source/ProblemSpecificFunctions.H.");
     }
   }
 
@@ -340,6 +341,7 @@ PeleC::read_params()
   }
 
   if (bc_nscbc) {
+    nscbc_init_diagnostics();
     pc_nscbc::Params probe = nscbc_params(0);
     probe.sigma = bc_nscbc_sigma;
     std::string why;

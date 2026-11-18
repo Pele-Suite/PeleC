@@ -115,7 +115,7 @@ bc_nscbc_pin_farfield       bool          false
 # place meant that reconnecting a live NSCBC would silently change the
 # behaviour of every Hard/UserBC case that did not explicitly opt out.
 # PeleC::read_params aborts with a migration message if either key is present
-# in an inputs file.  See Docs/sphinx/BoundaryConditions.rst.
+# in an inputs file.
 
 # if true, define an external source term
 add_ext_src                 bool           false
@@ -273,14 +273,8 @@ PrT                          Real          1.0
 # category: EB
 #-----------------------------------------------------------------------------
 
-# set the EB boundary temperature for isothermal walls.  The default is
-# ambient-like on purpose: this used to default to 1.0 K, and because
-# eb_isothermal also defaults true, any diffusive EB case that did not set
-# both parameters was silently conducting heat into one-kelvin walls -- the
-# NSCBC-Chamber box variants refrigerated their cut cells to 77 K and NaN'd
-# at the corners before this was found (see that case's README).  A wall
-# temperature is physics; set it deliberately.
-eb_boundary_T                Real         300.0
+# set the EB boundary temperature for isothermal walls
+eb_boundary_T                Real         1.0
 
 # flag for isothermal EB boundary
 eb_isothermal                bool         true

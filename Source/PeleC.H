@@ -103,9 +103,9 @@ public:
   // Report and reset the NSCBC fallback counters.  A silent fallback is a bug
   // that will not be found; this is how it surfaces.
   static void nscbc_report_diagnostics();
-
-  // Boundary registers (Docs/NSCBC-boundary-registers-design.md): the
-  // once-per-advance update, and checkpoint/restart of the register array.
+  // Create the counters, once and host-side, from read_params: the fill runs
+  // inside an OpenMP-parallel MFIter loop and must not allocate on first use.
+  static void nscbc_init_diagnostics();
 
   // Warn when THIS refined level's grids touch a domain face that the
   // characteristic treatment can reach (Hard/UserBC): the extrapolation
@@ -113,12 +113,6 @@ public:
   // boundary condition level-dependent.  Called from post_regrid and
   // post_init; no-op on level 0 or when bc_nscbc is off.
   void nscbc_check_fine_faces() const;
-
-  // Gate the characteristic fill's periodicity: a ghost cell and its image
-  // one period away along a periodic tangential direction must agree to the
-  // last bit, since they are built from the same data by the same arithmetic.
-  // Runs once, from post_init, and only when a characteristic face has a
-  // periodic tangential direction.
 
   // Restart from a checkpoint file.
   void restart(
