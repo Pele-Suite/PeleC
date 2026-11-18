@@ -3,16 +3,18 @@ name: PeleC-CI
 on:
   workflow_dispatch:
   schedule:
-    # Weekly, so the ccaches are refreshed before GitHub evicts them after
-    # 7 days without access.
-    - cron: '0 3 * * 1'
+    # Twice a week, so the ccaches are refreshed before GitHub evicts them
+    # after 7 days without access, with a margin for late scheduled starts.
+    - cron: '0 3 * * 1,4'
   push:
     branches: [development]
   pull_request:
     branches: [development]
 
 concurrency:
-  group: ${{github.ref}}-${{github.head_ref}}-ci
+  # The event is in the group so that a scheduled run and a push to
+  # development do not cancel each other.
+  group: ${{github.ref}}-${{github.head_ref}}-${{github.event_name}}-ci
   cancel-in-progress: true
 
 # Run steps with bash -eo pipefail, so `build | tee log` fails with the build.
@@ -22,7 +24,7 @@ defaults:
 
 env:
   CCACHE_COMPRESS: 1
-  # Only development (pushes, the weekly run and manual runs) saves the
+  # Only development (pushes, scheduled and manual runs) saves the
   # ccaches; PRs restore development's. A PR's own runs would each store a
   # full copy (~1.6 GB per PR) and push development's out of the 10 GB limit.
   SAVE_CCACHE: ${{github.event_name != 'pull_request' && github.ref == 'refs/heads/development'}}
@@ -70,7 +72,7 @@ jobs:
         uses: actions/cache/restore@v5
         with:
           path: ~/.cache/ccache
-          key: ccache-${{github.workflow}}-${{github.job}}-git-${{github.sha}}
+          key: ccache-${{github.workflow}}-${{github.job}}-git-${{github.sha}}-${{github.run_id}}
           restore-keys: |
                ccache-${{github.workflow}}-${{github.job}}-git-
       - name: Python
@@ -209,7 +211,7 @@ jobs:
         uses: actions/cache/save@v5
         with:
           path: ~/.cache/ccache
-          key: ccache-${{github.workflow}}-${{github.job}}-git-${{github.sha}}
+          key: ccache-${{github.workflow}}-${{github.job}}-git-${{github.sha}}-${{github.run_id}}
   CPU-CMake:
     needs: Formatting
     runs-on: ${{matrix.os}}
@@ -240,7 +242,8 @@ jobs:
           - os: macos-latest
             build_type: Debug
     env:
-      DO_REF_COMPARE: ${{matrix.reference_comparison == 'ON' && github.event_name == 'pull_request'}}
+      # Compare with development, except on development itself.
+      DO_REF_COMPARE: ${{matrix.reference_comparison == 'ON' && github.ref != 'refs/heads/development'}}
       CCACHE_MAXSIZE: ${{matrix.ccache_size}}
       CTEST_ARGS: ${{matrix.ctest_args}}
     steps:
@@ -283,7 +286,7 @@ jobs:
         uses: actions/cache/restore@v5
         with:
           path: ${{matrix.ccache_cache}}
-          key: ccache-${{github.workflow}}-${{github.job}}-${{matrix.os}}-${{matrix.dim}}-${{matrix.build_type}}-git-${{github.sha}}
+          key: ccache-${{github.workflow}}-${{github.job}}-${{matrix.os}}-${{matrix.dim}}-${{matrix.build_type}}-git-${{github.sha}}-${{github.run_id}}
           restore-keys: |
                ccache-${{github.workflow}}-${{github.job}}-${{matrix.os}}-${{matrix.dim}}-${{matrix.build_type}}-git-
       - name: MASA
@@ -405,7 +408,7 @@ jobs:
         uses: actions/cache/save@v5
         with:
           path: ${{matrix.ccache_cache}}
-          key: ccache-${{github.workflow}}-${{github.job}}-${{matrix.os}}-${{matrix.dim}}-${{matrix.build_type}}-git-${{github.sha}}
+          key: ccache-${{github.workflow}}-${{github.job}}-${{matrix.os}}-${{matrix.dim}}-${{matrix.build_type}}-git-${{github.sha}}-${{github.run_id}}
 
   CPU-CMake-SINGLE:
     needs: Formatting
@@ -442,7 +445,7 @@ jobs:
         uses: actions/cache/restore@v5
         with:
           path: ~/.cache/ccache
-          key: ccache-${{github.workflow}}-${{github.job}}-${{matrix.dim}}-single-git-${{github.sha}}
+          key: ccache-${{github.workflow}}-${{github.job}}-${{matrix.dim}}-single-git-${{github.sha}}-${{github.run_id}}
           restore-keys: |
                ccache-${{github.workflow}}-${{github.job}}-${{matrix.dim}}-single-git-
       - name: Configure
@@ -490,7 +493,7 @@ jobs:
         uses: actions/cache/save@v5
         with:
           path: ~/.cache/ccache
-          key: ccache-${{github.workflow}}-${{github.job}}-${{matrix.dim}}-single-git-${{github.sha}}
+          key: ccache-${{github.workflow}}-${{github.job}}-${{matrix.dim}}-single-git-${{github.sha}}-${{github.run_id}}
 
   GPU-Nvidia:
     name: GPU-CUDA
@@ -528,7 +531,7 @@ jobs:
         uses: actions/cache/restore@v5
         with:
           path: ~/.cache/ccache
-          key: ccache-${{github.workflow}}-${{github.job}}-git-${{github.sha}}
+          key: ccache-${{github.workflow}}-${{github.job}}-git-${{github.sha}}-${{github.run_id}}
           restore-keys: |
                ccache-${{github.workflow}}-${{github.job}}-git-
       - name: Configure
@@ -570,7 +573,7 @@ jobs:
         uses: actions/cache/save@v5
         with:
           path: ~/.cache/ccache
-          key: ccache-${{github.workflow}}-${{github.job}}-git-${{github.sha}}
+          key: ccache-${{github.workflow}}-${{github.job}}-git-${{github.sha}}-${{github.run_id}}
   GPU-AMD:
     name: GPU-HIP
     needs: [Formatting, CPU-GNUmake]
@@ -605,7 +608,7 @@ jobs:
         uses: actions/cache/restore@v5
         with:
           path: ~/.cache/ccache
-          key: ccache-${{github.workflow}}-${{github.job}}-git-${{github.sha}}
+          key: ccache-${{github.workflow}}-${{github.job}}-git-${{github.sha}}-${{github.run_id}}
           restore-keys: |
                ccache-${{github.workflow}}-${{github.job}}-git-
       - name: Configure
@@ -655,7 +658,7 @@ jobs:
         uses: actions/cache/save@v5
         with:
           path: ~/.cache/ccache
-          key: ccache-${{github.workflow}}-${{github.job}}-git-${{github.sha}}
+          key: ccache-${{github.workflow}}-${{github.job}}-git-${{github.sha}}-${{github.run_id}}
   GPU-Intel:
     name: GPU-SYCL
     needs: [Formatting, CPU-GNUmake]
@@ -689,7 +692,7 @@ jobs:
         uses: actions/cache/restore@v5
         with:
           path: ~/.cache/ccache
-          key: ccache-${{github.workflow}}-${{github.job}}-git-${{github.sha}}
+          key: ccache-${{github.workflow}}-${{github.job}}-git-${{github.sha}}-${{github.run_id}}
           restore-keys: |
                ccache-${{github.workflow}}-${{github.job}}-git-
       - name: Configure
@@ -735,7 +738,7 @@ jobs:
         uses: actions/cache/save@v5
         with:
           path: ~/.cache/ccache
-          key: ccache-${{github.workflow}}-${{github.job}}-git-${{github.sha}}
+          key: ccache-${{github.workflow}}-${{github.job}}-git-${{github.sha}}-${{github.run_id}}
   Lint-clang-tidy:
     needs: Formatting
     runs-on: ubuntu-24.04
@@ -772,7 +775,7 @@ jobs:
         uses: actions/cache@v5
         with:
           path: ~/.cache
-          key: ccache-${{github.workflow}}-${{github.job}}-git-${{github.sha}}
+          key: ccache-${{github.workflow}}-${{github.job}}-git-${{github.sha}}-${{github.run_id}}
           restore-keys: |
                ccache-${{github.workflow}}-${{github.job}}-git-
       - name: Configure

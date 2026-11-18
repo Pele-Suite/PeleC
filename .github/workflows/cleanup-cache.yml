@@ -41,7 +41,8 @@ jobs:
           # Setting this to not fail the workflow while deleting cache keys.
           set +e
 
-          # In our cache keys, substring after `-git-` is git hash, substring
+          # In our cache keys, substring after `-git-` is the git hash and run id
+          # (the run id lets a scheduled run on an unchanged commit save), substring
           # before that is a unique id for jobs (e.g., `ccache-PeleC-CI-CPU-GNUmake`).
           # The goal is to keep the newest key of each job and delete all others.
 
