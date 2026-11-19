@@ -24,9 +24,9 @@ warnings=$(grep -E 'Warning:|Error:|warning:|error:' "${log}" | grep -Ev "${excl
 count=0
 if [ -n "${warnings}" ]; then
   # Annotate only if the matcher is there; the list and count print anyway.
-  matcher="$(dirname "$0")/../problem-matchers/gcc.json"
+  matcher="$(cd "$(dirname "$0")/../problem-matchers" 2>/dev/null && pwd)/gcc.json"
   if [ -r "${matcher}" ]; then
-    echo "::add-matcher::$(cd "$(dirname "${matcher}")" && pwd)/gcc.json"
+    echo "::add-matcher::${matcher}"
   fi
   printf '%s\n' "${warnings}"
   echo "::remove-matcher owner=gcc-problem-matcher::"
