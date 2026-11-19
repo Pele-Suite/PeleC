@@ -49,6 +49,7 @@ jobs:
     runs-on: ubuntu-24.04
     env:
       CCACHE_MAXSIZE: 500M
+      CCACHE_PATH: ~/.cache/ccache
     steps:
       - name: Clone
         uses: actions/checkout@v6
@@ -68,9 +69,10 @@ jobs:
       # Restore only; the cache is saved at the end of the job, and only from
       # development (SAVE_CCACHE).
       - name: Set Up Ccache
+        id: ccache
         uses: actions/cache/restore@v5
         with:
-          path: ~/.cache/ccache
+          path: ${{env.CCACHE_PATH}}
           key: ccache-${{github.workflow}}-${{github.job}}-git-${{github.sha}}-${{github.run_id}}-${{github.run_attempt}}
           restore-keys: |
                ccache-${{github.workflow}}-${{github.job}}-git-
@@ -94,12 +96,7 @@ jobs:
         run: ./PeleC3d.gnu.DEBUG.ex pmf-lidryer-multicomp.inp max_step=2 amr.plot_files_output=0 amr.checkpoint_files_output=0
       - name: PMF debug report
         working-directory: ./Exec/RegTests/PMF
-        # The matcher is on only while the report runs: on the raw build output
-        # it would also annotate the warnings the report excludes.
-        run: |
-          echo "::add-matcher::${{github.workspace}}/.github/problem-matchers/gcc.json"
-          trap 'echo "::remove-matcher owner=gcc-problem-matcher::"' EXIT
-          ${{github.workspace}}/.github/scripts/count_warnings.sh build-output.txt "GNUmakefile|ThirdParty"
+        run: ${{github.workspace}}/.github/scripts/count_warnings.sh build-output.txt "GNUmakefile|ThirdParty"
       - name: EB debug build
         working-directory: ./Exec/RegTests/EB-C10
         run: |
@@ -112,12 +109,7 @@ jobs:
         run: ./PeleC3d.gnu.DEBUG.ex eb-c10.inp max_step=2 amr.plot_files_output=0 amr.checkpoint_files_output=0
       - name: EB debug report
         working-directory: ./Exec/RegTests/EB-C10
-        # The matcher is on only while the report runs: on the raw build output
-        # it would also annotate the warnings the report excludes.
-        run: |
-          echo "::add-matcher::${{github.workspace}}/.github/problem-matchers/gcc.json"
-          trap 'echo "::remove-matcher owner=gcc-problem-matcher::"' EXIT
-          ${{github.workspace}}/.github/scripts/count_warnings.sh build-output.txt "GNUmakefile|ThirdParty"
+        run: ${{github.workspace}}/.github/scripts/count_warnings.sh build-output.txt "GNUmakefile|ThirdParty"
       - name: EB OMP debug build
         working-directory: ./Exec/RegTests/EB-C10
         run: |
@@ -130,12 +122,7 @@ jobs:
         run: ./PeleC3d.gnu.DEBUG.OMP.ex eb-c10.inp max_step=2 amr.plot_files_output=0 amr.checkpoint_files_output=0
       - name: EB OMP debug report
         working-directory: ./Exec/RegTests/EB-C10
-        # The matcher is on only while the report runs: on the raw build output
-        # it would also annotate the warnings the report excludes.
-        run: |
-          echo "::add-matcher::${{github.workspace}}/.github/problem-matchers/gcc.json"
-          trap 'echo "::remove-matcher owner=gcc-problem-matcher::"' EXIT
-          ${{github.workspace}}/.github/scripts/count_warnings.sh build-output.txt "GNUmakefile|ThirdParty"
+        run: ${{github.workspace}}/.github/scripts/count_warnings.sh build-output.txt "GNUmakefile|ThirdParty"
       - name: TG debug single precision build
         working-directory: ./Exec/RegTests/TG
         run: |
@@ -148,12 +135,7 @@ jobs:
         run: ./PeleC3d.llvm.FLOAT.DEBUG.ex tg-2.inp max_step=2 amr.plot_files_output=0 amr.checkpoint_files_output=0
       - name: TG debug single precision report
         working-directory: ./Exec/RegTests/TG
-        # The matcher is on only while the report runs: on the raw build output
-        # it would also annotate the warnings the report excludes.
-        run: |
-          echo "::add-matcher::${{github.workspace}}/.github/problem-matchers/gcc.json"
-          trap 'echo "::remove-matcher owner=gcc-problem-matcher::"' EXIT
-          ${{github.workspace}}/.github/scripts/count_warnings.sh build-output.txt "GNUmakefile|ThirdParty"
+        run: ${{github.workspace}}/.github/scripts/count_warnings.sh build-output.txt "GNUmakefile|ThirdParty"
       - name: Soot debug build
         working-directory: ./Exec/RegTests/Soot-Flame
         run: |
@@ -163,12 +145,7 @@ jobs:
           du -hs ~/.cache/ccache
       - name: Soot debug report
         working-directory: ./Exec/RegTests/Soot-Flame
-        # The matcher is on only while the report runs: on the raw build output
-        # it would also annotate the warnings the report excludes.
-        run: |
-          echo "::add-matcher::${{github.workspace}}/.github/problem-matchers/gcc.json"
-          trap 'echo "::remove-matcher owner=gcc-problem-matcher::"' EXIT
-          ${{github.workspace}}/.github/scripts/count_warnings.sh build-output.txt "GNUmakefile|ThirdParty"
+        run: ${{github.workspace}}/.github/scripts/count_warnings.sh build-output.txt "GNUmakefile|ThirdParty"
       - name: Spray debug build
         working-directory: ./Exec/RegTests/Spray-Conv
         run: |
@@ -178,12 +155,7 @@ jobs:
           du -hs ~/.cache/ccache
       - name: Spray debug report
         working-directory: ./Exec/RegTests/Spray-Conv
-        # The matcher is on only while the report runs: on the raw build output
-        # it would also annotate the warnings the report excludes.
-        run: |
-          echo "::add-matcher::${{github.workspace}}/.github/problem-matchers/gcc.json"
-          trap 'echo "::remove-matcher owner=gcc-problem-matcher::"' EXIT
-          ${{github.workspace}}/.github/scripts/count_warnings.sh build-output.txt "GNUmakefile|ThirdParty"
+        run: ${{github.workspace}}/.github/scripts/count_warnings.sh build-output.txt "GNUmakefile|ThirdParty"
 
       - name: TurbInflowGenerator build
         working-directory: ./Submodules/PelePhysics/Support/TurbInflowGenerator
@@ -200,12 +172,7 @@ jobs:
           mv hit_ic_4_128.dat PeleTurb3d.gnu.ex ${{github.workspace}}/Exec/RegTests/EB-ConvergingNozzle
       - name: TurbInflowGenerator report
         working-directory: ./Submodules/PelePhysics/Support/TurbInflowGenerator
-        # The matcher is on only while the report runs: on the raw build output
-        # it would also annotate the warnings the report excludes.
-        run: |
-          echo "::add-matcher::${{github.workspace}}/.github/problem-matchers/gcc.json"
-          trap 'echo "::remove-matcher owner=gcc-problem-matcher::"' EXIT
-          ${{github.workspace}}/.github/scripts/count_warnings.sh build-output.txt "GNUmakefile|ThirdParty"
+        run: ${{github.workspace}}/.github/scripts/count_warnings.sh build-output.txt "GNUmakefile|ThirdParty"
       - name: EB-ConvergingNozzle TurbInflow build
         working-directory: ./Exec/RegTests/EB-ConvergingNozzle
         run: |
@@ -225,30 +192,29 @@ jobs:
           ./PeleC3d.gnu.ex turb_inflow_base.inp FILE=run_with_inflow.inp
       - name: EB-ConvergingNozzle TurbInflow debug report
         working-directory: ./Exec/RegTests/EB-ConvergingNozzle
-        # The matcher is on only while the report runs: on the raw build output
-        # it would also annotate the warnings the report excludes.
-        run: |
-          echo "::add-matcher::${{github.workspace}}/.github/problem-matchers/gcc.json"
-          trap 'echo "::remove-matcher owner=gcc-problem-matcher::"' EXIT
-          ${{github.workspace}}/.github/scripts/count_warnings.sh build-output.txt "GNUmakefile|ThirdParty"
+        run: ${{github.workspace}}/.github/scripts/count_warnings.sh build-output.txt "GNUmakefile|ThirdParty"
       # Hits refresh an entry's mtime: drop what this run did not use, so the
       # saved cache is the current working set rather than everything since it
       # was first created. Only after a successful job (the default
-      # condition), since a failed one never reached some files.
-      - name: Trim Ccache
+      # condition), since a failed one never reached some files. Defined once
+      # here and reused (*trim_ccache, *save_ccache) by the other build jobs,
+      # which set CCACHE_PATH and give their restore step id: ccache.
+      - &trim_ccache
+        name: Trim Ccache
         if: env.SAVE_CCACHE == 'true'
         run: |
           # A plain assignment, so a missing marker fails the step (bash -e)
           # rather than silently trimming nothing.
           start=$(date -r ${{runner.temp}}/ccache-start +%s)
           ccache --evict-older-than $(( $(date +%s) - start + 60 ))s
-          du -hs ~/.cache/ccache
-      - name: Save Ccache
+          du -hs ${{env.CCACHE_PATH}}
+      - &save_ccache
+        name: Save Ccache
         if: env.SAVE_CCACHE == 'true'
         uses: actions/cache/save@v5
         with:
-          path: ~/.cache/ccache
-          key: ccache-${{github.workflow}}-${{github.job}}-git-${{github.sha}}-${{github.run_id}}-${{github.run_attempt}}
+          path: ${{env.CCACHE_PATH}}
+          key: ${{steps.ccache.outputs.cache-primary-key}}
   CPU-CMake:
     needs: Formatting
     runs-on: ${{matrix.os}}
@@ -282,6 +248,7 @@ jobs:
       # Compare with development, except on development itself.
       DO_REF_COMPARE: ${{matrix.reference_comparison == 'ON' && github.ref != 'refs/heads/development'}}
       CCACHE_MAXSIZE: ${{matrix.ccache_size}}
+      CCACHE_PATH: ${{matrix.ccache_cache}}
       CTEST_ARGS: ${{matrix.ctest_args}}
     steps:
       - name: Clone
@@ -317,12 +284,11 @@ jobs:
       - name: Install Ccache
         if: runner.os == 'Linux'
         run: ${{github.workspace}}/Submodules/PelePhysics/Submodules/amrex/.github/workflows/dependencies/dependencies_ccache.sh
-      # Restore only; the cache is saved at the end of the job, and only from
-      # development (SAVE_CCACHE).
       - name: Set Up Ccache
+        id: ccache
         uses: actions/cache/restore@v5
         with:
-          path: ${{matrix.ccache_cache}}
+          path: ${{env.CCACHE_PATH}}
           key: ccache-${{github.workflow}}-${{github.job}}-${{matrix.os}}-${{matrix.dim}}-${{matrix.build_type}}-git-${{github.sha}}-${{github.run_id}}-${{github.run_attempt}}
           restore-keys: |
                ccache-${{github.workflow}}-${{github.job}}-${{matrix.os}}-${{matrix.dim}}-${{matrix.build_type}}-git-
@@ -374,9 +340,7 @@ jobs:
           ccache -s
           du -hs ${{matrix.ccache_cache}}
       - name: Report
-        run: |
-          echo "::add-matcher::.github/problem-matchers/gcc.json"
-          .github/scripts/count_warnings.sh ${{runner.workspace}}/build-output.txt
+        run: .github/scripts/count_warnings.sh ${{runner.workspace}}/build-output.txt
       - name: Test
         working-directory: ${{runner.workspace}}/build
         run: ctest ${CTEST_ARGS} -VV --output-on-failure
@@ -428,30 +392,15 @@ jobs:
         if: env.DO_REF_COMPARE == 'true'
         working-directory: ${{runner.workspace}}/build-reference
         run: ctest ${CTEST_ARGS} -VV --output-on-failure
-      # Hits refresh an entry's mtime: drop what this run did not use, so the
-      # saved cache is the current working set rather than everything since it
-      # was first created. Only after a successful job (the default
-      # condition), since a failed one never reached some files.
-      - name: Trim Ccache
-        if: env.SAVE_CCACHE == 'true'
-        run: |
-          # A plain assignment, so a missing marker fails the step (bash -e)
-          # rather than silently trimming nothing.
-          start=$(date -r ${{runner.temp}}/ccache-start +%s)
-          ccache --evict-older-than $(( $(date +%s) - start + 60 ))s
-          du -hs ${{matrix.ccache_cache}}
-      - name: Save Ccache
-        if: env.SAVE_CCACHE == 'true'
-        uses: actions/cache/save@v5
-        with:
-          path: ${{matrix.ccache_cache}}
-          key: ccache-${{github.workflow}}-${{github.job}}-${{matrix.os}}-${{matrix.dim}}-${{matrix.build_type}}-git-${{github.sha}}-${{github.run_id}}-${{github.run_attempt}}
+      - *trim_ccache
+      - *save_ccache
 
   CPU-CMake-SINGLE:
     needs: Formatting
     runs-on: ubuntu-24.04
     env:
       CCACHE_MAXSIZE: 250M
+      CCACHE_PATH: ~/.cache/ccache
     strategy:
       fail-fast: false
       matrix:
@@ -476,12 +425,11 @@ jobs:
           touch ${{runner.temp}}/ccache-start
       - name: Install Ccache
         run: ${{github.workspace}}/Submodules/PelePhysics/Submodules/amrex/.github/workflows/dependencies/dependencies_ccache.sh
-      # Restore only; the cache is saved at the end of the job, and only from
-      # development (SAVE_CCACHE).
       - name: Set Up Ccache
+        id: ccache
         uses: actions/cache/restore@v5
         with:
-          path: ~/.cache/ccache
+          path: ${{env.CCACHE_PATH}}
           key: ccache-${{github.workflow}}-${{github.job}}-${{matrix.dim}}-single-git-${{github.sha}}-${{github.run_id}}-${{github.run_attempt}}
           restore-keys: |
                ccache-${{github.workflow}}-${{github.job}}-${{matrix.dim}}-single-git-
@@ -510,27 +458,9 @@ jobs:
           ccache -s
           du -hs ~/.cache/ccache
       - name: Report
-        run: |
-          echo "::add-matcher::.github/problem-matchers/gcc.json"
-          .github/scripts/count_warnings.sh ${{runner.workspace}}/build-output.txt
-      # Hits refresh an entry's mtime: drop what this run did not use, so the
-      # saved cache is the current working set rather than everything since it
-      # was first created. Only after a successful job (the default
-      # condition), since a failed one never reached some files.
-      - name: Trim Ccache
-        if: env.SAVE_CCACHE == 'true'
-        run: |
-          # A plain assignment, so a missing marker fails the step (bash -e)
-          # rather than silently trimming nothing.
-          start=$(date -r ${{runner.temp}}/ccache-start +%s)
-          ccache --evict-older-than $(( $(date +%s) - start + 60 ))s
-          du -hs ~/.cache/ccache
-      - name: Save Ccache
-        if: env.SAVE_CCACHE == 'true'
-        uses: actions/cache/save@v5
-        with:
-          path: ~/.cache/ccache
-          key: ccache-${{github.workflow}}-${{github.job}}-${{matrix.dim}}-single-git-${{github.sha}}-${{github.run_id}}-${{github.run_attempt}}
+        run: .github/scripts/count_warnings.sh ${{runner.workspace}}/build-output.txt
+      - *trim_ccache
+      - *save_ccache
 
   GPU-Nvidia:
     name: GPU-CUDA
@@ -538,6 +468,7 @@ jobs:
     runs-on: ubuntu-24.04
     env:
       CCACHE_MAXSIZE: 300M
+      CCACHE_PATH: ~/.cache/ccache
     steps:
       - name: Clone
         uses: actions/checkout@v6
@@ -562,12 +493,11 @@ jobs:
               libcublas-dev-12-6 libnvjitlink-12-6
       - name: Install Ccache
         run: ${{github.workspace}}/Submodules/PelePhysics/Submodules/amrex/.github/workflows/dependencies/dependencies_ccache.sh
-      # Restore only; the cache is saved at the end of the job, and only from
-      # development (SAVE_CCACHE).
       - name: Set Up Ccache
+        id: ccache
         uses: actions/cache/restore@v5
         with:
-          path: ~/.cache/ccache
+          path: ${{env.CCACHE_PATH}}
           key: ccache-${{github.workflow}}-${{github.job}}-git-${{github.sha}}-${{github.run_id}}-${{github.run_attempt}}
           restore-keys: |
                ccache-${{github.workflow}}-${{github.job}}-git-
@@ -593,30 +523,15 @@ jobs:
           cmake --build build-cuda --parallel ${{env.NPROCS}}
           ccache -s
           du -hs ~/.cache/ccache
-      # Hits refresh an entry's mtime: drop what this run did not use, so the
-      # saved cache is the current working set rather than everything since it
-      # was first created. Only after a successful job (the default
-      # condition), since a failed one never reached some files.
-      - name: Trim Ccache
-        if: env.SAVE_CCACHE == 'true'
-        run: |
-          # A plain assignment, so a missing marker fails the step (bash -e)
-          # rather than silently trimming nothing.
-          start=$(date -r ${{runner.temp}}/ccache-start +%s)
-          ccache --evict-older-than $(( $(date +%s) - start + 60 ))s
-          du -hs ~/.cache/ccache
-      - name: Save Ccache
-        if: env.SAVE_CCACHE == 'true'
-        uses: actions/cache/save@v5
-        with:
-          path: ~/.cache/ccache
-          key: ccache-${{github.workflow}}-${{github.job}}-git-${{github.sha}}-${{github.run_id}}-${{github.run_attempt}}
+      - *trim_ccache
+      - *save_ccache
   GPU-AMD:
     name: GPU-HIP
     needs: [Formatting, CPU-GNUmake]
     runs-on: ubuntu-24.04
     env:
       CCACHE_MAXSIZE: 250M
+      CCACHE_PATH: ~/.cache/ccache
     steps:
       - name: Clone
         uses: actions/checkout@v6
@@ -639,12 +554,11 @@ jobs:
           sudo apt-get install -y rocm-dev rocrand-dev rocprim-dev hiprand-dev
       - name: Install Ccache
         run: ${{github.workspace}}/Submodules/PelePhysics/Submodules/amrex/.github/workflows/dependencies/dependencies_ccache.sh
-      # Restore only; the cache is saved at the end of the job, and only from
-      # development (SAVE_CCACHE).
       - name: Set Up Ccache
+        id: ccache
         uses: actions/cache/restore@v5
         with:
-          path: ~/.cache/ccache
+          path: ${{env.CCACHE_PATH}}
           key: ccache-${{github.workflow}}-${{github.job}}-git-${{github.sha}}-${{github.run_id}}-${{github.run_attempt}}
           restore-keys: |
                ccache-${{github.workflow}}-${{github.job}}-git-
@@ -678,30 +592,15 @@ jobs:
           cmake --build ${{runner.workspace}}/build-hip --parallel ${{env.NPROCS}}
           ccache -s
           du -hs ~/.cache/ccache
-      # Hits refresh an entry's mtime: drop what this run did not use, so the
-      # saved cache is the current working set rather than everything since it
-      # was first created. Only after a successful job (the default
-      # condition), since a failed one never reached some files.
-      - name: Trim Ccache
-        if: env.SAVE_CCACHE == 'true'
-        run: |
-          # A plain assignment, so a missing marker fails the step (bash -e)
-          # rather than silently trimming nothing.
-          start=$(date -r ${{runner.temp}}/ccache-start +%s)
-          ccache --evict-older-than $(( $(date +%s) - start + 60 ))s
-          du -hs ~/.cache/ccache
-      - name: Save Ccache
-        if: env.SAVE_CCACHE == 'true'
-        uses: actions/cache/save@v5
-        with:
-          path: ~/.cache/ccache
-          key: ccache-${{github.workflow}}-${{github.job}}-git-${{github.sha}}-${{github.run_id}}-${{github.run_attempt}}
+      - *trim_ccache
+      - *save_ccache
   GPU-Intel:
     name: GPU-SYCL
     needs: [Formatting, CPU-GNUmake]
     runs-on: ubuntu-24.04
     env:
       CCACHE_MAXSIZE: 200M
+      CCACHE_PATH: ~/.cache/ccache
       CCACHE_DEPEND: 1
     steps:
       - name: Clone
@@ -723,12 +622,11 @@ jobs:
           sudo apt-get install -y intel-oneapi-compiler-dpcpp-cpp intel-oneapi-mkl-devel
       - name: Install Ccache
         run: ${{github.workspace}}/Submodules/PelePhysics/Submodules/amrex/.github/workflows/dependencies/dependencies_ccache.sh
-      # Restore only; the cache is saved at the end of the job, and only from
-      # development (SAVE_CCACHE).
       - name: Set Up Ccache
+        id: ccache
         uses: actions/cache/restore@v5
         with:
-          path: ~/.cache/ccache
+          path: ${{env.CCACHE_PATH}}
           key: ccache-${{github.workflow}}-${{github.job}}-git-${{github.sha}}-${{github.run_id}}-${{github.run_attempt}}
           restore-keys: |
                ccache-${{github.workflow}}-${{github.job}}-git-
@@ -758,24 +656,8 @@ jobs:
           cmake --build ${{runner.workspace}}/build-sycl --parallel ${{env.NPROCS}}
           ccache -s
           du -hs ~/.cache/ccache
-      # Hits refresh an entry's mtime: drop what this run did not use, so the
-      # saved cache is the current working set rather than everything since it
-      # was first created. Only after a successful job (the default
-      # condition), since a failed one never reached some files.
-      - name: Trim Ccache
-        if: env.SAVE_CCACHE == 'true'
-        run: |
-          # A plain assignment, so a missing marker fails the step (bash -e)
-          # rather than silently trimming nothing.
-          start=$(date -r ${{runner.temp}}/ccache-start +%s)
-          ccache --evict-older-than $(( $(date +%s) - start + 60 ))s
-          du -hs ~/.cache/ccache
-      - name: Save Ccache
-        if: env.SAVE_CCACHE == 'true'
-        uses: actions/cache/save@v5
-        with:
-          path: ~/.cache/ccache
-          key: ccache-${{github.workflow}}-${{github.job}}-git-${{github.sha}}-${{github.run_id}}-${{github.run_attempt}}
+      - *trim_ccache
+      - *save_ccache
   Lint-clang-tidy:
     needs: Formatting
     runs-on: ubuntu-24.04
@@ -784,6 +666,14 @@ jobs:
       # Unlike the build jobs, this cache is saved on PRs too: a cold
       # clang-tidy run takes hours, and the cache is small.
       CCACHE_COMPRESSLEVEL: 10
+      # clang-tidy-cache skips files whose preprocessed source, flags and
+      # resolved clang-tidy config are unchanged. SAVE_OUTPUT/SAVE_ALL store
+      # each file's diagnostics (clang-tidy's stdout) and exit code and replay
+      # them on a hit; stderr is not replayed. Comments are kept in the hash
+      # so that NOLINT edits invalidate the entry.
+      CTCACHE_SAVE_OUTPUT: 1
+      CTCACHE_SAVE_ALL: 1
+      CTCACHE_KEEP_COMMENTS: 1
     steps:
       - name: Clone
         uses: actions/checkout@v6
@@ -792,16 +682,8 @@ jobs:
       - name: Setup
         run: |
           echo "NPROCS=$(nproc)" >> $GITHUB_ENV
-          # clang-tidy-cache skips files whose preprocessed source, flags and
-          # resolved clang-tidy config are unchanged. SAVE_OUTPUT/SAVE_ALL
-          # store each file's diagnostics (clang-tidy's stdout) and exit code
-          # and replay them on a hit; stderr is not replayed. Keyed on the
-          # clang-tidy version, which the hash does not include. Comments are
-          # kept in the hash so that NOLINT edits invalidate the entry.
+          # Keyed on the clang-tidy version, which the ctcache hash does not include
           echo "CTCACHE_DIR=${HOME}/.cache/ctcache/$(clang-tidy --version | sha256sum | cut -c1-12)" >> $GITHUB_ENV
-          echo "CTCACHE_SAVE_OUTPUT=1" >> $GITHUB_ENV
-          echo "CTCACHE_SAVE_ALL=1" >> $GITHUB_ENV
-          echo "CTCACHE_KEEP_COMMENTS=1" >> $GITHUB_ENV
       - name: Install Ccache
         run: |
           ${{github.workspace}}/Submodules/PelePhysics/Submodules/amrex/.github/workflows/dependencies/dependencies_ccache.sh
@@ -812,6 +694,7 @@ jobs:
       # when the whole job passes, so a run that finds warnings would throw
       # away the cache it just filled.
       - name: Set Up Ccache
+        id: ccache
         uses: actions/cache/restore@v5
         with:
           path: ~/.cache
@@ -873,17 +756,17 @@ jobs:
         uses: actions/cache/save@v5
         with:
           path: ~/.cache
-          key: ccache-${{github.workflow}}-${{github.job}}-git-${{github.sha}}-${{github.run_id}}-${{github.run_attempt}}
+          key: ${{steps.ccache.outputs.cache-primary-key}}
       # Report on a failed Check too: that is when the warnings matter. The
       # full log is in the Check step.
       - name: Short report
         if: success() || steps.check.outcome == 'failure'
         working-directory: ${{runner.workspace}}/build-clang-tidy
-        run: |
-          echo "::add-matcher::.github/problem-matchers/gcc.json"
-          ${{github.workspace}}/.github/scripts/count_warnings.sh clang-tidy-full-report.txt
+        run: ${{github.workspace}}/.github/scripts/count_warnings.sh clang-tidy-full-report.txt
   Lint-codeql:
     needs: Formatting
+    # No cache to refresh: skipped on the scheduled runs.
+    if: github.event_name != 'schedule'
     runs-on: ubuntu-24.04
     steps:
       - name: Clone
@@ -931,6 +814,8 @@ jobs:
           sarif_file: sarif-results/cpp.sarif
   Lint-codespell:
     needs: Formatting
+    # No cache to refresh: skipped on the scheduled runs.
+    if: github.event_name != 'schedule'
     runs-on: ubuntu-latest
     steps:
       - name: Clone

@@ -15,14 +15,14 @@ jobs:
       contents: read
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      # gh reads the repository from here, so no checkout is needed.
+      GH_REPO: ${{ github.repository }}
     steps:
-      - uses: actions/checkout@v6
       - name: Clean up ccache
         # Event values go through the environment, not ${{ }} in the script:
         # a branch name is chosen by whoever pushed it (forks included), and
         # pasted into the script it could run shell commands.
         env:
-          REPO: ${{ github.repository }}
           HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
         run: |
           # For debugging cat ${GITHUB_EVENT_PATH} to see the payload.
@@ -36,10 +36,10 @@ jobs:
 
           # Note that `gh cache delete` has no ref filter, so we delete by
           # cache id, not by key.
-          ids=$(gh cache list -L 100 -R $REPO --ref $BRANCH --json id --jq '.[].id')
+          ids=$(gh cache list -L 100 --ref $BRANCH --json id --jq '.[].id')
           for i in $ids
           do
             # `|| true` so that a failed deletion does not fail the step: the
             # step's exit status is that of the last command run.
-            gh cache delete "$i" -R $REPO || true
+            gh cache delete "$i" || true
           done

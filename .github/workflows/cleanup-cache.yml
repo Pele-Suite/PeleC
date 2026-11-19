@@ -15,14 +15,14 @@ jobs:
       contents: read
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      # gh reads the repository from here, so no checkout is needed.
+      GH_REPO: ${{ github.repository }}
     steps:
-      - uses: actions/checkout@v6
       - name: Clean up ccache
         # Event values go through the environment, not ${{ }} in the script:
         # a branch name is chosen by whoever pushed it (forks included), and
         # pasted into the script it could run shell commands.
         env:
-          REPO: ${{ github.repository }}
           # push or pull_request or schedule or ...
           EVENT: ${{ github.event.workflow_run.event }}
           # Triggering workflow run name (e.g., PeleC-CI)
@@ -44,16 +44,16 @@ jobs:
           # Setting this to not fail the workflow while deleting cache keys.
           set +e
 
-          # In our cache keys, substring after `-git-` is the git hash, run id
-          # and attempt (so a scheduled run on an unchanged commit, or a re-run,
-          # can save), substring
-          # before that is a unique id for jobs (e.g., `ccache-PeleC-CI-CPU-GNUmake`).
+          # In our cache keys, the substring after `-git-` is the git hash, run
+          # id and attempt (so a scheduled run on an unchanged commit, or a
+          # re-run, can save); the substring before it is a unique id for jobs
+          # (e.g., `ccache-PeleC-CI-CPU-GNUmake`).
           # The goal is to keep the newest key of each job and delete all others.
 
           # something like ccache-PeleC-CI-
           keyprefix="ccache-${WORKFLOW_NAME}-"
 
-          cached_jobs=$(gh cache list -L 100 -R $REPO --ref $BRANCH --key "$keyprefix" --json key --jq '.[].key' | awk -F '-git-' '{print $1}' | sort | uniq)
+          cached_jobs=$(gh cache list -L 100 --ref $BRANCH --key "$keyprefix" --json key --jq '.[].key' | awk -F '-git-' '{print $1}' | sort | uniq)
 
           # cached_jobs is something like "ccache-PeleC-CI-CPU-CMake-ubuntu-24.04-2-Release ccache-PeleC-CI-CPU-GNUmake".
           # It might also contain spaces. Thus we set IFS to \n.
@@ -65,10 +65,10 @@ jobs:
             # restores the old key while this run's other jobs are still going
             # would otherwise make the old key win over the new one. Note that
             # `gh cache delete` has no ref filter, so we delete by cache id.
-            old_ids=$(gh cache list -L 100 -R $REPO --ref $BRANCH --key "${j}-git-" --sort created_at --order desc --json id --jq '.[].id' | tail -n +2)
+            old_ids=$(gh cache list -L 100 --ref $BRANCH --key "${j}-git-" --sort created_at --order desc --json id --jq '.[].id' | tail -n +2)
             for i in $old_ids
             do
-              gh cache delete "$i" -R $REPO || true
+              gh cache delete "$i" || true
             done
           done
           unset IFS
