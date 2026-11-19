@@ -27,9 +27,10 @@ if [ -n "${warnings}" ]; then
   matcher="$(cd "$(dirname "$0")/../problem-matchers" 2>/dev/null && pwd)/gcc.json"
   if [ -r "${matcher}" ]; then
     echo "::add-matcher::${matcher}"
+    # Removed only if added here: it may be registered for another step too.
+    trap 'echo "::remove-matcher owner=gcc-problem-matcher::"' EXIT
   fi
   printf '%s\n' "${warnings}"
-  echo "::remove-matcher owner=gcc-problem-matcher::"
   count=$(printf '%s\n' "${warnings}" | grep -c '')
 fi
 echo "Warnings: ${count}"

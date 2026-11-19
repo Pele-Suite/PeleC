@@ -51,7 +51,7 @@ jobs:
     runs-on: ubuntu-24.04
     env:
       CCACHE_MAXSIZE: 500M
-      CCACHE_PATH: ~/.cache/ccache
+      COMPILER_CACHE_DIR: ~/.cache/ccache
     steps:
       - name: Clone
         uses: actions/checkout@v6
@@ -76,7 +76,7 @@ jobs:
         id: ccache
         uses: actions/cache/restore@v5
         with:
-          path: ${{env.CCACHE_PATH}}
+          path: ${{env.COMPILER_CACHE_DIR}}
           key: ccache-${{github.workflow}}-${{github.job}}-git-${{github.sha}}-${{github.run_id}}-${{github.run_attempt}}
           restore-keys: |
                ccache-${{github.workflow}}-${{github.job}}-git-
@@ -91,7 +91,7 @@ jobs:
           ccache -z
           make -j ${{env.NPROCS}} KEEP_BUILDINFO_CPP=TRUE USE_CCACHE=TRUE COMP=gnu USE_MPI=FALSE DEBUG=TRUE USE_LCT_TRANSPORT=TRUE 2>&1 | tee -a build-output.txt
           ccache -s
-          du -hs ~/.cache/ccache
+          du -hs ${{env.COMPILER_CACHE_DIR}}
       - name: PMF debug test
         working-directory: ./Exec/RegTests/PMF
         run: ./PeleC3d.gnu.DEBUG.ex pmf-lidryer-arkode.inp max_step=2 amr.plot_files_output=0 amr.checkpoint_files_output=0
@@ -107,7 +107,7 @@ jobs:
           ccache -z
           make -j ${{env.NPROCS}} KEEP_BUILDINFO_CPP=TRUE USE_CCACHE=TRUE COMP=gnu USE_MPI=FALSE DEBUG=TRUE 2>&1 | tee -a build-output.txt
           ccache -s
-          du -hs ~/.cache/ccache
+          du -hs ${{env.COMPILER_CACHE_DIR}}
       - name: EB debug test
         working-directory: ./Exec/RegTests/EB-C10
         run: ./PeleC3d.gnu.DEBUG.ex eb-c10.inp max_step=2 amr.plot_files_output=0 amr.checkpoint_files_output=0
@@ -120,7 +120,7 @@ jobs:
           ccache -z
           make -j ${{env.NPROCS}} KEEP_BUILDINFO_CPP=TRUE USE_CCACHE=TRUE COMP=gnu USE_MPI=FALSE DEBUG=TRUE USE_OMP=TRUE 2>&1 | tee -a build-output.txt
           ccache -s
-          du -hs ~/.cache/ccache
+          du -hs ${{env.COMPILER_CACHE_DIR}}
       - name: EB OMP debug test
         working-directory: ./Exec/RegTests/EB-C10
         run: ./PeleC3d.gnu.DEBUG.OMP.ex eb-c10.inp max_step=2 amr.plot_files_output=0 amr.checkpoint_files_output=0
@@ -133,7 +133,7 @@ jobs:
           ccache -z
           make -j ${{env.NPROCS}} KEEP_BUILDINFO_CPP=TRUE USE_CCACHE=TRUE COMP=llvm USE_MPI=FALSE DEBUG=TRUE PRECISION=FLOAT 2>&1 | tee -a build-output.txt
           ccache -s
-          du -hs ~/.cache/ccache
+          du -hs ${{env.COMPILER_CACHE_DIR}}
       - name: TG debug single precision test
         working-directory: ./Exec/RegTests/TG
         run: ./PeleC3d.llvm.FLOAT.DEBUG.ex tg-2.inp max_step=2 amr.plot_files_output=0 amr.checkpoint_files_output=0
@@ -146,7 +146,7 @@ jobs:
           ccache -z
           make -j ${{env.NPROCS}} KEEP_BUILDINFO_CPP=TRUE USE_CCACHE=TRUE COMP=gnu USE_MPI=FALSE DEBUG=TRUE 2>&1 | tee -a build-output.txt
           ccache -s
-          du -hs ~/.cache/ccache
+          du -hs ${{env.COMPILER_CACHE_DIR}}
       - name: Soot debug report
         working-directory: ./Exec/RegTests/Soot-Flame
         run: ${{github.workspace}}/.github/scripts/count_warnings.sh build-output.txt "GNUmakefile|ThirdParty"
@@ -156,7 +156,7 @@ jobs:
           ccache -z
           make -j ${{env.NPROCS}} KEEP_BUILDINFO_CPP=TRUE USE_CCACHE=TRUE COMP=gnu USE_MPI=FALSE DEBUG=TRUE 2>&1 | tee -a build-output.txt
           ccache -s
-          du -hs ~/.cache/ccache
+          du -hs ${{env.COMPILER_CACHE_DIR}}
       - name: Spray debug report
         working-directory: ./Exec/RegTests/Spray-Conv
         run: ${{github.workspace}}/.github/scripts/count_warnings.sh build-output.txt "GNUmakefile|ThirdParty"
@@ -167,7 +167,7 @@ jobs:
           ccache -z
           make -j ${{env.NPROCS}} KEEP_BUILDINFO_CPP=TRUE USE_CCACHE=TRUE COMP=gnu USE_MPI=FALSE 2>&1 | tee -a build-output.txt
           ccache -s
-          du -hs ~/.cache/ccache
+          du -hs ${{env.COMPILER_CACHE_DIR}}
       - name: TurbInflowGenerator set up
         working-directory: ./Submodules/PelePhysics/Support/TurbInflowGenerator
         run: |
@@ -183,7 +183,7 @@ jobs:
           ccache -z
           make -j ${{env.NPROCS}} KEEP_BUILDINFO_CPP=TRUE USE_CCACHE=TRUE COMP=gnu USE_MPI=FALSE 2>&1 | tee -a build-output.txt
           ccache -s
-          du -hs ~/.cache/ccache
+          du -hs ${{env.COMPILER_CACHE_DIR}}
       - name: EB-ConvergingNozzle TurbInflow run
         working-directory: ./Exec/RegTests/EB-ConvergingNozzle
         run: |
@@ -202,7 +202,8 @@ jobs:
       # was first created. Only after a successful job (the default
       # condition), since a failed one never reached some files. Defined once
       # here and reused (*trim_ccache, *save_ccache) by the other build jobs,
-      # which set CCACHE_PATH and give their restore step id: ccache.
+      # which set COMPILER_CACHE_DIR (not CCACHE_PATH: ccache reads that as
+      # where to find the compiler) and give their restore step id: ccache.
       - &trim_ccache
         name: Trim Ccache
         if: env.SAVE_CCACHE == 'true'
@@ -211,13 +212,13 @@ jobs:
           # rather than silently trimming nothing.
           start=$(date -r ${{runner.temp}}/ccache-start +%s)
           ccache --evict-older-than $(( $(date +%s) - start + 60 ))s
-          du -hs ${{env.CCACHE_PATH}}
+          du -hs ${{env.COMPILER_CACHE_DIR}}
       - &save_ccache
         name: Save Ccache
         if: env.SAVE_CCACHE == 'true'
         uses: actions/cache/save@v5
         with:
-          path: ${{env.CCACHE_PATH}}
+          path: ${{env.COMPILER_CACHE_DIR}}
           key: ${{steps.ccache.outputs.cache-primary-key}}
   CPU-CMake:
     needs: Formatting
@@ -252,7 +253,7 @@ jobs:
       # Compare with development, except on development itself.
       DO_REF_COMPARE: ${{matrix.reference_comparison == 'ON' && github.ref != 'refs/heads/development'}}
       CCACHE_MAXSIZE: ${{matrix.ccache_size}}
-      CCACHE_PATH: ${{matrix.ccache_cache}}
+      COMPILER_CACHE_DIR: ${{matrix.ccache_cache}}
       CTEST_ARGS: ${{matrix.ctest_args}}
     steps:
       - name: Clone
@@ -294,7 +295,7 @@ jobs:
         id: ccache
         uses: actions/cache/restore@v5
         with:
-          path: ${{env.CCACHE_PATH}}
+          path: ${{env.COMPILER_CACHE_DIR}}
           key: ccache-${{github.workflow}}-${{github.job}}-${{matrix.os}}-${{matrix.dim}}-${{matrix.build_type}}-git-${{github.sha}}-${{github.run_id}}-${{github.run_attempt}}
           restore-keys: |
                ccache-${{github.workflow}}-${{github.job}}-${{matrix.os}}-${{matrix.dim}}-${{matrix.build_type}}-git-
@@ -344,7 +345,7 @@ jobs:
           cmake --build ${{runner.workspace}}/build \
             --parallel ${{env.NPROCS}} 2>&1 | tee -a ${{runner.workspace}}/build-output.txt
           ccache -s
-          du -hs ${{matrix.ccache_cache}}
+          du -hs ${{env.COMPILER_CACHE_DIR}}
       - name: Report
         run: .github/scripts/count_warnings.sh ${{runner.workspace}}/build-output.txt
       - name: Test
@@ -393,7 +394,7 @@ jobs:
           echo "Building: ${TARGETS:-all targets}"
           cmake --build ${BUILD_DIR} --parallel ${{env.NPROCS}} ${TARGETS:+--target ${TARGETS}}
           ccache -s
-          du -hs ${{matrix.ccache_cache}}
+          du -hs ${{env.COMPILER_CACHE_DIR}}
       - name: Test Reference and Compare
         if: env.DO_REF_COMPARE == 'true'
         working-directory: ${{runner.workspace}}/build-reference
@@ -406,7 +407,7 @@ jobs:
     runs-on: ubuntu-24.04
     env:
       CCACHE_MAXSIZE: 250M
-      CCACHE_PATH: ~/.cache/ccache
+      COMPILER_CACHE_DIR: ~/.cache/ccache
     strategy:
       fail-fast: false
       matrix:
@@ -437,7 +438,7 @@ jobs:
         id: ccache
         uses: actions/cache/restore@v5
         with:
-          path: ${{env.CCACHE_PATH}}
+          path: ${{env.COMPILER_CACHE_DIR}}
           key: ccache-${{github.workflow}}-${{github.job}}-${{matrix.dim}}-single-git-${{github.sha}}-${{github.run_id}}-${{github.run_attempt}}
           restore-keys: |
                ccache-${{github.workflow}}-${{github.job}}-${{matrix.dim}}-single-git-
@@ -464,7 +465,7 @@ jobs:
           cmake --build ${{runner.workspace}}/build-${{matrix.dim}}d-single \
             --parallel ${{env.NPROCS}} 2>&1 | tee -a ${{runner.workspace}}/build-output.txt
           ccache -s
-          du -hs ~/.cache/ccache
+          du -hs ${{env.COMPILER_CACHE_DIR}}
       - name: Report
         run: .github/scripts/count_warnings.sh ${{runner.workspace}}/build-output.txt
       - *trim_ccache
@@ -476,7 +477,7 @@ jobs:
     runs-on: ubuntu-24.04
     env:
       CCACHE_MAXSIZE: 300M
-      CCACHE_PATH: ~/.cache/ccache
+      COMPILER_CACHE_DIR: ~/.cache/ccache
     steps:
       - name: Clone
         uses: actions/checkout@v6
@@ -507,7 +508,7 @@ jobs:
         id: ccache
         uses: actions/cache/restore@v5
         with:
-          path: ${{env.CCACHE_PATH}}
+          path: ${{env.COMPILER_CACHE_DIR}}
           key: ccache-${{github.workflow}}-${{github.job}}-git-${{github.sha}}-${{github.run_id}}-${{github.run_attempt}}
           restore-keys: |
                ccache-${{github.workflow}}-${{github.job}}-git-
@@ -532,7 +533,7 @@ jobs:
           ccache -z
           cmake --build build-cuda --parallel ${{env.NPROCS}}
           ccache -s
-          du -hs ~/.cache/ccache
+          du -hs ${{env.COMPILER_CACHE_DIR}}
       - *trim_ccache
       - *save_ccache
   GPU-AMD:
@@ -541,7 +542,7 @@ jobs:
     runs-on: ubuntu-24.04
     env:
       CCACHE_MAXSIZE: 250M
-      CCACHE_PATH: ~/.cache/ccache
+      COMPILER_CACHE_DIR: ~/.cache/ccache
     steps:
       - name: Clone
         uses: actions/checkout@v6
@@ -570,7 +571,7 @@ jobs:
         id: ccache
         uses: actions/cache/restore@v5
         with:
-          path: ${{env.CCACHE_PATH}}
+          path: ${{env.COMPILER_CACHE_DIR}}
           key: ccache-${{github.workflow}}-${{github.job}}-git-${{github.sha}}-${{github.run_id}}-${{github.run_attempt}}
           restore-keys: |
                ccache-${{github.workflow}}-${{github.job}}-git-
@@ -603,7 +604,7 @@ jobs:
           ccache -z
           cmake --build ${{runner.workspace}}/build-hip --parallel ${{env.NPROCS}}
           ccache -s
-          du -hs ~/.cache/ccache
+          du -hs ${{env.COMPILER_CACHE_DIR}}
       - *trim_ccache
       - *save_ccache
   GPU-Intel:
@@ -612,7 +613,7 @@ jobs:
     runs-on: ubuntu-24.04
     env:
       CCACHE_MAXSIZE: 200M
-      CCACHE_PATH: ~/.cache/ccache
+      COMPILER_CACHE_DIR: ~/.cache/ccache
       CCACHE_DEPEND: 1
     steps:
       - name: Clone
@@ -640,7 +641,7 @@ jobs:
         id: ccache
         uses: actions/cache/restore@v5
         with:
-          path: ${{env.CCACHE_PATH}}
+          path: ${{env.COMPILER_CACHE_DIR}}
           key: ccache-${{github.workflow}}-${{github.job}}-git-${{github.sha}}-${{github.run_id}}-${{github.run_attempt}}
           restore-keys: |
                ccache-${{github.workflow}}-${{github.job}}-git-
@@ -669,7 +670,7 @@ jobs:
           ccache -z
           cmake --build ${{runner.workspace}}/build-sycl --parallel ${{env.NPROCS}}
           ccache -s
-          du -hs ~/.cache/ccache
+          du -hs ${{env.COMPILER_CACHE_DIR}}
       - *trim_ccache
       - *save_ccache
   Lint-clang-tidy:
@@ -713,7 +714,9 @@ jobs:
         id: ccache
         uses: actions/cache/restore@v5
         with:
-          path: ~/.cache
+          path: |
+            ~/.cache/ccache
+            ~/.cache/ctcache
           key: ccache-${{github.workflow}}-${{github.job}}-git-${{github.sha}}-${{github.run_id}}-${{github.run_attempt}}
           restore-keys: |
                ccache-${{github.workflow}}-${{github.job}}-git-
@@ -771,7 +774,9 @@ jobs:
       - name: Save Ccache
         uses: actions/cache/save@v5
         with:
-          path: ~/.cache
+          path: |
+            ~/.cache/ccache
+            ~/.cache/ctcache
           key: ${{steps.ccache.outputs.cache-primary-key}}
       # Report on a failed Check too: that is when the warnings matter. The
       # full log is in the Check step.

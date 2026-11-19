@@ -29,12 +29,23 @@ jobs:
           WORKFLOW_NAME: ${{ github.event.workflow_run.name }}
           HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
           HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
+          pr_number: ${{ github.event.workflow_run.pull_requests[0].number }}
         run: |
 
           # For debugging, cat ${GITHUB_EVENT_PATH} to see the payload.
 
           if [[ $EVENT == "pull_request" ]]; then
-            pr_number=$(gh pr list --search "${HEAD_SHA}" --json number --jq '.[0].number')
+            # The run's own PR when it has one (same-repo PRs); otherwise search,
+            # keeping only the PR whose head is this commit (a stacked PR also
+            # contains it). Closed PRs too: one can close before this runs.
+            if [ -z "${pr_number}" ]; then
+              pr_number=$(gh pr list --state all --search "${HEAD_SHA}" --json number,headRefOid \
+                --jq "map(select(.headRefOid == \"${HEAD_SHA}\")) | .[0].number // empty") || true
+            fi
+            if [ -z "${pr_number}" ]; then
+              echo "No PR for ${HEAD_SHA}; nothing to clean up."
+              exit 0
+            fi
             echo "Clean up cache for PR ${pr_number}"
             BRANCH=refs/pull/${pr_number}/merge
           else
