@@ -32,6 +32,10 @@ env:
   # Compress hard only when the cache is kept; a PR's new entries are
   # discarded at the end of the job.
   CCACHE_COMPRESSLEVEL: ${{github.ref == 'refs/heads/development' && 10 || 1}}
+  # The scheduled runs only refresh the ccaches: they build (which also
+  # trims the caches to what is used) but skip the tests, which already
+  # ran on this commit.
+  RUN_TESTS: ${{github.event_name != 'schedule'}}
 
 jobs:
   Formatting:
@@ -74,6 +78,11 @@ jobs:
         working-directory: ${{runner.temp}}
         run: |
           touch ${{runner.temp}}/ccache-start
+          # Paths under the workspace are hashed relative to the compile's
+          # directory, so a build directory's name (e.g. the reference
+          # build's) does not stop it hitting another's entries. Set here as
+          # the runner context is not available in env:.
+          echo "CCACHE_BASEDIR=${{runner.workspace}}" >> $GITHUB_ENV
           if [ "${RUNNER_OS}" = Linux ]; then
             ${{github.workspace}}/Submodules/PelePhysics/Submodules/amrex/.github/workflows/dependencies/dependencies_ccache.sh
           fi
@@ -101,9 +110,11 @@ jobs:
           make -j ${{env.NPROCS}} KEEP_BUILDINFO_CPP=TRUE USE_CCACHE=TRUE COMP=gnu USE_MPI=FALSE DEBUG=TRUE USE_LCT_TRANSPORT=TRUE 2>&1 | tee -a build-output.txt
           ccache -s
       - name: PMF debug test
+        if: env.RUN_TESTS == 'true'
         working-directory: ./Exec/RegTests/PMF
         run: ./PeleC3d.gnu.DEBUG.ex pmf-lidryer-arkode.inp max_step=2 amr.plot_files_output=0 amr.checkpoint_files_output=0
       - name: PMF multicomponent diffusion debug test
+        if: env.RUN_TESTS == 'true'
         working-directory: ./Exec/RegTests/PMF
         run: ./PeleC3d.gnu.DEBUG.ex pmf-lidryer-multicomp.inp max_step=2 amr.plot_files_output=0 amr.checkpoint_files_output=0
       - name: PMF debug report
@@ -116,6 +127,7 @@ jobs:
           make -j ${{env.NPROCS}} KEEP_BUILDINFO_CPP=TRUE USE_CCACHE=TRUE COMP=gnu USE_MPI=FALSE DEBUG=TRUE 2>&1 | tee -a build-output.txt
           ccache -s
       - name: EB debug test
+        if: env.RUN_TESTS == 'true'
         working-directory: ./Exec/RegTests/EB-C10
         run: ./PeleC3d.gnu.DEBUG.ex eb-c10.inp max_step=2 amr.plot_files_output=0 amr.checkpoint_files_output=0
       - name: EB debug report
@@ -128,6 +140,7 @@ jobs:
           make -j ${{env.NPROCS}} KEEP_BUILDINFO_CPP=TRUE USE_CCACHE=TRUE COMP=gnu USE_MPI=FALSE DEBUG=TRUE USE_OMP=TRUE 2>&1 | tee -a build-output.txt
           ccache -s
       - name: EB OMP debug test
+        if: env.RUN_TESTS == 'true'
         working-directory: ./Exec/RegTests/EB-C10
         run: ./PeleC3d.gnu.DEBUG.OMP.ex eb-c10.inp max_step=2 amr.plot_files_output=0 amr.checkpoint_files_output=0
       - name: EB OMP debug report
@@ -140,6 +153,7 @@ jobs:
           make -j ${{env.NPROCS}} KEEP_BUILDINFO_CPP=TRUE USE_CCACHE=TRUE COMP=llvm USE_MPI=FALSE DEBUG=TRUE PRECISION=FLOAT 2>&1 | tee -a build-output.txt
           ccache -s
       - name: TG debug single precision test
+        if: env.RUN_TESTS == 'true'
         working-directory: ./Exec/RegTests/TG
         run: ./PeleC3d.llvm.FLOAT.DEBUG.ex tg-2.inp max_step=2 amr.plot_files_output=0 amr.checkpoint_files_output=0
       - name: TG debug single precision report
@@ -186,6 +200,7 @@ jobs:
           make -j ${{env.NPROCS}} KEEP_BUILDINFO_CPP=TRUE USE_CCACHE=TRUE COMP=gnu USE_MPI=FALSE 2>&1 | tee -a build-output.txt
           ccache -s
       - name: EB-ConvergingNozzle TurbInflow run
+        if: env.RUN_TESTS == 'true'
         working-directory: ./Exec/RegTests/EB-ConvergingNozzle
         run: |
           # Create and run with synthetic turbulent fluctuation inflow
@@ -333,15 +348,16 @@ jobs:
       - name: Report
         run: .github/scripts/count_warnings.sh ${{runner.workspace}}/build-output.txt
       - name: Test
+        if: env.RUN_TESTS == 'true'
         working-directory: ${{runner.workspace}}/build
         run: ctest ${CTEST_ARGS} -VV --output-on-failure
       - name: Checkout Reference Version
         if: env.DO_REF_COMPARE == 'true'
         run: |
-          # Development is checked out over this work tree, not into its own
-          # directory: ccache hashes absolute paths, so only the same paths hit
-          # this build's and development's cache entries. Keep the target
-          # helper, which development may not have.
+          # Development is checked out over this work tree, so the reference
+          # build sits next to it exactly as development's own build does and,
+          # with CCACHE_BASEDIR, hits development's cache entries. Keep the
+          # target helper, which development may not have.
           cp ${{github.workspace}}/.github/scripts/ctest_targets.py ${{runner.temp}}/
           git fetch --depth=1 https://github.com/Pele-Suite/PeleC.git development
           git checkout FETCH_HEAD
