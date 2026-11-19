@@ -23,8 +23,11 @@ fi
 warnings=$(grep -E 'Warning:|Error:|warning:|error:' "${log}" | grep -Ev "${exclude}" | sort -u)
 count=0
 if [ -n "${warnings}" ]; then
-  matchers=$(cd "$(dirname "$0")/../problem-matchers" && pwd)
-  echo "::add-matcher::${matchers}/gcc.json"
+  # Annotate only if the matcher is there; the list and count print anyway.
+  matcher="$(dirname "$0")/../problem-matchers/gcc.json"
+  if [ -r "${matcher}" ]; then
+    echo "::add-matcher::$(cd "$(dirname "${matcher}")" && pwd)/gcc.json"
+  fi
   printf '%s\n' "${warnings}"
   echo "::remove-matcher owner=gcc-problem-matcher::"
   count=$(printf '%s\n' "${warnings}" | grep -c '')
