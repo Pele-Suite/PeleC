@@ -12,10 +12,11 @@ on:
     branches: [development]
 
 concurrency:
-  # The event is in the group so that a scheduled run and a push to
-  # development do not cancel each other.
-  group: ${{github.ref}}-${{github.head_ref}}-${{github.event_name}}-ci
-  cancel-in-progress: true
+  # Only PR runs cancel an older run: on development a cancelled run would
+  # not save its caches, so runs (pushes and scheduled) queue, one at a time
+  # (GitHub keeps only the newest pending one).
+  group: ${{github.ref}}-${{github.head_ref}}-ci
+  cancel-in-progress: ${{github.event_name == 'pull_request'}}
 
 # Run steps with bash -eo pipefail, so `build | tee log` fails with the build.
 defaults:
@@ -23,13 +24,14 @@ defaults:
     shell: bash
 
 env:
-  # Only development (pushes, scheduled and manual runs) saves the
-  # ccaches; PRs restore development's. A PR's own runs would each store a
-  # full copy (~1.6 GB per PR) and push development's out of the 10 GB limit.
-  SAVE_CCACHE: ${{github.event_name != 'pull_request' && github.ref == 'refs/heads/development'}}
+  # Only development saves the ccaches (the scheduled runs keep them from
+  # being evicted); PRs restore development's. A PR's own runs would each
+  # store a full copy (~1.6 GB per PR) and push development's out of the
+  # 10 GB limit.
+  SAVE_CCACHE: ${{github.ref == 'refs/heads/development'}}
   # Compress hard only when the cache is kept; a PR's new entries are
   # discarded at the end of the job.
-  CCACHE_COMPRESSLEVEL: ${{(github.event_name != 'pull_request' && github.ref == 'refs/heads/development') && 10 || 1}}
+  CCACHE_COMPRESSLEVEL: ${{github.ref == 'refs/heads/development' && 10 || 1}}
 
 jobs:
   Formatting:
@@ -65,6 +67,8 @@ jobs:
           make COMP=gnu USE_MPI=FALSE DEBUG=FALSE TPL
           make COMP=llvm USE_MPI=FALSE DEBUG=TRUE PRECISION=FLOAT TPL
       - name: Install Ccache
+        # Outside the checkout: AMReX's script downloads into the current directory.
+        working-directory: ${{runner.temp}}
         run: ${{github.workspace}}/Submodules/PelePhysics/Submodules/amrex/.github/workflows/dependencies/dependencies_ccache.sh
       # Restore only; the cache is saved at the end of the job, and only from
       # development (SAVE_CCACHE).
@@ -283,6 +287,8 @@ jobs:
           pip install pynose numpy pandas setuptools
       - name: Install Ccache
         if: runner.os == 'Linux'
+        # Outside the checkout: AMReX's script downloads into the current directory.
+        working-directory: ${{runner.temp}}
         run: ${{github.workspace}}/Submodules/PelePhysics/Submodules/amrex/.github/workflows/dependencies/dependencies_ccache.sh
       - name: Set Up Ccache
         id: ccache
@@ -424,6 +430,8 @@ jobs:
           # Marks the start of the run for Trim Ccache
           touch ${{runner.temp}}/ccache-start
       - name: Install Ccache
+        # Outside the checkout: AMReX's script downloads into the current directory.
+        working-directory: ${{runner.temp}}
         run: ${{github.workspace}}/Submodules/PelePhysics/Submodules/amrex/.github/workflows/dependencies/dependencies_ccache.sh
       - name: Set Up Ccache
         id: ccache
@@ -492,6 +500,8 @@ jobs:
               libcusolver-dev-12-6 libcusparse-dev-12-6 \
               libcublas-dev-12-6 libnvjitlink-12-6
       - name: Install Ccache
+        # Outside the checkout: AMReX's script downloads into the current directory.
+        working-directory: ${{runner.temp}}
         run: ${{github.workspace}}/Submodules/PelePhysics/Submodules/amrex/.github/workflows/dependencies/dependencies_ccache.sh
       - name: Set Up Ccache
         id: ccache
@@ -553,6 +563,8 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y rocm-dev rocrand-dev rocprim-dev hiprand-dev
       - name: Install Ccache
+        # Outside the checkout: AMReX's script downloads into the current directory.
+        working-directory: ${{runner.temp}}
         run: ${{github.workspace}}/Submodules/PelePhysics/Submodules/amrex/.github/workflows/dependencies/dependencies_ccache.sh
       - name: Set Up Ccache
         id: ccache
@@ -621,6 +633,8 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y intel-oneapi-compiler-dpcpp-cpp intel-oneapi-mkl-devel
       - name: Install Ccache
+        # Outside the checkout: AMReX's script downloads into the current directory.
+        working-directory: ${{runner.temp}}
         run: ${{github.workspace}}/Submodules/PelePhysics/Submodules/amrex/.github/workflows/dependencies/dependencies_ccache.sh
       - name: Set Up Ccache
         id: ccache
@@ -685,6 +699,8 @@ jobs:
           # Keyed on the clang-tidy version, which the ctcache hash does not include
           echo "CTCACHE_DIR=${HOME}/.cache/ctcache/$(clang-tidy --version | sha256sum | cut -c1-12)" >> $GITHUB_ENV
       - name: Install Ccache
+        # Outside the checkout: AMReX's script downloads into the current directory.
+        working-directory: ${{runner.temp}}
         run: |
           ${{github.workspace}}/Submodules/PelePhysics/Submodules/amrex/.github/workflows/dependencies/dependencies_ccache.sh
           # ctcache 1.2.0; the module is a self-contained script
