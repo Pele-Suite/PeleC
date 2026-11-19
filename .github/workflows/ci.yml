@@ -52,6 +52,7 @@ jobs:
     env:
       CCACHE_MAXSIZE: 500M
       COMPILER_CACHE_DIR: ~/.cache/ccache
+      CACHE_KEY: ccache-${{github.workflow}}-${{github.job}}
     steps:
       - name: Clone
         uses: actions/checkout@v6
@@ -61,25 +62,33 @@ jobs:
         working-directory: ./Exec/RegTests/PMF
         run: |
           echo "NPROCS=$(nproc)" >> $GITHUB_ENV
-          # Marks the start of the run for Trim Ccache
-          touch ${{runner.temp}}/ccache-start
           make COMP=gnu USE_MPI=FALSE DEBUG=TRUE TPL
           make COMP=gnu USE_MPI=FALSE DEBUG=FALSE TPL
           make COMP=llvm USE_MPI=FALSE DEBUG=TRUE PRECISION=FLOAT TPL
-      - name: Install Ccache
-        # Outside the checkout: AMReX's script downloads into the current directory.
+      # Marks the start of the run for Trim Ccache and installs ccache: AMReX's
+      # script on Linux (macOS gets it from brew in Dependencies), run outside
+      # the checkout since it downloads into the current directory. Defined
+      # once here and reused (*install_ccache) by the other jobs.
+      - &install_ccache
+        name: Install Ccache
         working-directory: ${{runner.temp}}
-        run: ${{github.workspace}}/Submodules/PelePhysics/Submodules/amrex/.github/workflows/dependencies/dependencies_ccache.sh
+        run: |
+          touch ${{runner.temp}}/ccache-start
+          if [ "${RUNNER_OS}" = Linux ]; then
+            ${{github.workspace}}/Submodules/PelePhysics/Submodules/amrex/.github/workflows/dependencies/dependencies_ccache.sh
+          fi
       # Restore only; the cache is saved at the end of the job, and only from
-      # development (SAVE_CCACHE).
-      - name: Set Up Ccache
+      # development (SAVE_CCACHE). Reused (*restore_ccache) by the other build
+      # jobs, which each set COMPILER_CACHE_DIR and CACHE_KEY.
+      - &restore_ccache
+        name: Set Up Ccache
         id: ccache
         uses: actions/cache/restore@v5
         with:
           path: ${{env.COMPILER_CACHE_DIR}}
-          key: ccache-${{github.workflow}}-${{github.job}}-git-${{github.sha}}-${{github.run_id}}-${{github.run_attempt}}
+          key: ${{env.CACHE_KEY}}-git-${{github.sha}}-${{github.run_id}}-${{github.run_attempt}}
           restore-keys: |
-               ccache-${{github.workflow}}-${{github.job}}-git-
+               ${{env.CACHE_KEY}}-git-
       - name: Python
         uses: actions/setup-python@v6
         with:
@@ -91,7 +100,6 @@ jobs:
           ccache -z
           make -j ${{env.NPROCS}} KEEP_BUILDINFO_CPP=TRUE USE_CCACHE=TRUE COMP=gnu USE_MPI=FALSE DEBUG=TRUE USE_LCT_TRANSPORT=TRUE 2>&1 | tee -a build-output.txt
           ccache -s
-          du -hs ${{env.COMPILER_CACHE_DIR}}
       - name: PMF debug test
         working-directory: ./Exec/RegTests/PMF
         run: ./PeleC3d.gnu.DEBUG.ex pmf-lidryer-arkode.inp max_step=2 amr.plot_files_output=0 amr.checkpoint_files_output=0
@@ -107,7 +115,6 @@ jobs:
           ccache -z
           make -j ${{env.NPROCS}} KEEP_BUILDINFO_CPP=TRUE USE_CCACHE=TRUE COMP=gnu USE_MPI=FALSE DEBUG=TRUE 2>&1 | tee -a build-output.txt
           ccache -s
-          du -hs ${{env.COMPILER_CACHE_DIR}}
       - name: EB debug test
         working-directory: ./Exec/RegTests/EB-C10
         run: ./PeleC3d.gnu.DEBUG.ex eb-c10.inp max_step=2 amr.plot_files_output=0 amr.checkpoint_files_output=0
@@ -120,7 +127,6 @@ jobs:
           ccache -z
           make -j ${{env.NPROCS}} KEEP_BUILDINFO_CPP=TRUE USE_CCACHE=TRUE COMP=gnu USE_MPI=FALSE DEBUG=TRUE USE_OMP=TRUE 2>&1 | tee -a build-output.txt
           ccache -s
-          du -hs ${{env.COMPILER_CACHE_DIR}}
       - name: EB OMP debug test
         working-directory: ./Exec/RegTests/EB-C10
         run: ./PeleC3d.gnu.DEBUG.OMP.ex eb-c10.inp max_step=2 amr.plot_files_output=0 amr.checkpoint_files_output=0
@@ -133,7 +139,6 @@ jobs:
           ccache -z
           make -j ${{env.NPROCS}} KEEP_BUILDINFO_CPP=TRUE USE_CCACHE=TRUE COMP=llvm USE_MPI=FALSE DEBUG=TRUE PRECISION=FLOAT 2>&1 | tee -a build-output.txt
           ccache -s
-          du -hs ${{env.COMPILER_CACHE_DIR}}
       - name: TG debug single precision test
         working-directory: ./Exec/RegTests/TG
         run: ./PeleC3d.llvm.FLOAT.DEBUG.ex tg-2.inp max_step=2 amr.plot_files_output=0 amr.checkpoint_files_output=0
@@ -146,7 +151,6 @@ jobs:
           ccache -z
           make -j ${{env.NPROCS}} KEEP_BUILDINFO_CPP=TRUE USE_CCACHE=TRUE COMP=gnu USE_MPI=FALSE DEBUG=TRUE 2>&1 | tee -a build-output.txt
           ccache -s
-          du -hs ${{env.COMPILER_CACHE_DIR}}
       - name: Soot debug report
         working-directory: ./Exec/RegTests/Soot-Flame
         run: ${{github.workspace}}/.github/scripts/count_warnings.sh build-output.txt "GNUmakefile|ThirdParty"
@@ -156,7 +160,6 @@ jobs:
           ccache -z
           make -j ${{env.NPROCS}} KEEP_BUILDINFO_CPP=TRUE USE_CCACHE=TRUE COMP=gnu USE_MPI=FALSE DEBUG=TRUE 2>&1 | tee -a build-output.txt
           ccache -s
-          du -hs ${{env.COMPILER_CACHE_DIR}}
       - name: Spray debug report
         working-directory: ./Exec/RegTests/Spray-Conv
         run: ${{github.workspace}}/.github/scripts/count_warnings.sh build-output.txt "GNUmakefile|ThirdParty"
@@ -167,7 +170,6 @@ jobs:
           ccache -z
           make -j ${{env.NPROCS}} KEEP_BUILDINFO_CPP=TRUE USE_CCACHE=TRUE COMP=gnu USE_MPI=FALSE 2>&1 | tee -a build-output.txt
           ccache -s
-          du -hs ${{env.COMPILER_CACHE_DIR}}
       - name: TurbInflowGenerator set up
         working-directory: ./Submodules/PelePhysics/Support/TurbInflowGenerator
         run: |
@@ -183,7 +185,6 @@ jobs:
           ccache -z
           make -j ${{env.NPROCS}} KEEP_BUILDINFO_CPP=TRUE USE_CCACHE=TRUE COMP=gnu USE_MPI=FALSE 2>&1 | tee -a build-output.txt
           ccache -s
-          du -hs ${{env.COMPILER_CACHE_DIR}}
       - name: EB-ConvergingNozzle TurbInflow run
         working-directory: ./Exec/RegTests/EB-ConvergingNozzle
         run: |
@@ -197,13 +198,12 @@ jobs:
       - name: EB-ConvergingNozzle TurbInflow debug report
         working-directory: ./Exec/RegTests/EB-ConvergingNozzle
         run: ${{github.workspace}}/.github/scripts/count_warnings.sh build-output.txt "GNUmakefile|ThirdParty"
-      # Hits refresh an entry's mtime: drop what this run did not use, so the
-      # saved cache is the current working set rather than everything since it
-      # was first created. Only after a successful job (the default
-      # condition), since a failed one never reached some files. Defined once
-      # here and reused (*trim_ccache, *save_ccache) by the other build jobs,
-      # which set COMPILER_CACHE_DIR (not CCACHE_PATH: ccache reads that as
-      # where to find the compiler) and give their restore step id: ccache.
+      # Drop the entries this run did not use (hits refresh an entry's mtime),
+      # so the saved cache is the current working set; only after a successful
+      # job (the default condition), since a failed one never reached some
+      # files. Reused (*trim_ccache, *save_ccache) by the other build jobs.
+      # COMPILER_CACHE_DIR and CACHE_KEY are not CCACHE_* names on purpose:
+      # ccache reads those (CCACHE_PATH is where it looks for the compiler).
       - &trim_ccache
         name: Trim Ccache
         if: env.SAVE_CCACHE == 'true'
@@ -212,7 +212,7 @@ jobs:
           # rather than silently trimming nothing.
           start=$(date -r ${{runner.temp}}/ccache-start +%s)
           ccache --evict-older-than $(( $(date +%s) - start + 60 ))s
-          du -hs ${{env.COMPILER_CACHE_DIR}}
+          ccache -s
       - &save_ccache
         name: Save Ccache
         if: env.SAVE_CCACHE == 'true'
@@ -254,6 +254,7 @@ jobs:
       DO_REF_COMPARE: ${{matrix.reference_comparison == 'ON' && github.ref != 'refs/heads/development'}}
       CCACHE_MAXSIZE: ${{matrix.ccache_size}}
       COMPILER_CACHE_DIR: ${{matrix.ccache_cache}}
+      CACHE_KEY: ccache-${{github.workflow}}-${{github.job}}-${{matrix.os}}-${{matrix.dim}}-${{matrix.build_type}}
       CTEST_ARGS: ${{matrix.ctest_args}}
     steps:
       - name: Clone
@@ -271,11 +272,6 @@ jobs:
       - name: Setup
         run: |
           echo "NPROCS=${{matrix.procs}}" >> $GITHUB_ENV
-          # Marks the start of the run for Trim Ccache
-          touch ${{runner.temp}}/ccache-start
-          # Keep the helper outside the work tree: the reference comparison
-          # checks out development, which may not have it.
-          cp ${{github.workspace}}/.github/scripts/ctest_targets.py ${{runner.temp}}/
       - name: Dependencies
         env:
           HOMEBREW_NO_AUTO_UPDATE: 1
@@ -286,19 +282,8 @@ jobs:
           # Install Python packages
           python -m pip install --upgrade pip
           pip install pynose numpy pandas setuptools
-      - name: Install Ccache
-        if: runner.os == 'Linux'
-        # Outside the checkout: AMReX's script downloads into the current directory.
-        working-directory: ${{runner.temp}}
-        run: ${{github.workspace}}/Submodules/PelePhysics/Submodules/amrex/.github/workflows/dependencies/dependencies_ccache.sh
-      - name: Set Up Ccache
-        id: ccache
-        uses: actions/cache/restore@v5
-        with:
-          path: ${{env.COMPILER_CACHE_DIR}}
-          key: ccache-${{github.workflow}}-${{github.job}}-${{matrix.os}}-${{matrix.dim}}-${{matrix.build_type}}-git-${{github.sha}}-${{github.run_id}}-${{github.run_attempt}}
-          restore-keys: |
-               ccache-${{github.workflow}}-${{github.job}}-${{matrix.os}}-${{matrix.dim}}-${{matrix.build_type}}-git-
+      - *install_ccache
+      - *restore_ccache
       - name: MASA
         run: |
           DEPS=${{runner.workspace}}/deps
@@ -345,7 +330,6 @@ jobs:
           cmake --build ${{runner.workspace}}/build \
             --parallel ${{env.NPROCS}} 2>&1 | tee -a ${{runner.workspace}}/build-output.txt
           ccache -s
-          du -hs ${{env.COMPILER_CACHE_DIR}}
       - name: Report
         run: .github/scripts/count_warnings.sh ${{runner.workspace}}/build-output.txt
       - name: Test
@@ -354,6 +338,11 @@ jobs:
       - name: Checkout Reference Version
         if: env.DO_REF_COMPARE == 'true'
         run: |
+          # Development is checked out over this work tree, not into its own
+          # directory: ccache hashes absolute paths, so only the same paths hit
+          # this build's and development's cache entries. Keep the target
+          # helper, which development may not have.
+          cp ${{github.workspace}}/.github/scripts/ctest_targets.py ${{runner.temp}}/
           git fetch --depth=1 https://github.com/Pele-Suite/PeleC.git development
           git checkout FETCH_HEAD
           git submodule update --recursive --depth=1
@@ -394,7 +383,6 @@ jobs:
           echo "Building: ${TARGETS:-all targets}"
           cmake --build ${BUILD_DIR} --parallel ${{env.NPROCS}} ${TARGETS:+--target ${TARGETS}}
           ccache -s
-          du -hs ${{env.COMPILER_CACHE_DIR}}
       - name: Test Reference and Compare
         if: env.DO_REF_COMPARE == 'true'
         working-directory: ${{runner.workspace}}/build-reference
@@ -408,6 +396,7 @@ jobs:
     env:
       CCACHE_MAXSIZE: 250M
       COMPILER_CACHE_DIR: ~/.cache/ccache
+      CACHE_KEY: ccache-${{github.workflow}}-${{github.job}}-${{matrix.dim}}-single
     strategy:
       fail-fast: false
       matrix:
@@ -428,20 +417,8 @@ jobs:
       - name: Setup
         run: |
           echo "NPROCS=$(nproc)" >> $GITHUB_ENV
-          # Marks the start of the run for Trim Ccache
-          touch ${{runner.temp}}/ccache-start
-      - name: Install Ccache
-        # Outside the checkout: AMReX's script downloads into the current directory.
-        working-directory: ${{runner.temp}}
-        run: ${{github.workspace}}/Submodules/PelePhysics/Submodules/amrex/.github/workflows/dependencies/dependencies_ccache.sh
-      - name: Set Up Ccache
-        id: ccache
-        uses: actions/cache/restore@v5
-        with:
-          path: ${{env.COMPILER_CACHE_DIR}}
-          key: ccache-${{github.workflow}}-${{github.job}}-${{matrix.dim}}-single-git-${{github.sha}}-${{github.run_id}}-${{github.run_attempt}}
-          restore-keys: |
-               ccache-${{github.workflow}}-${{github.job}}-${{matrix.dim}}-single-git-
+      - *install_ccache
+      - *restore_ccache
       - name: Configure
         run: |
           cmake -B${{runner.workspace}}/build-${{matrix.dim}}d-single \
@@ -465,7 +442,6 @@ jobs:
           cmake --build ${{runner.workspace}}/build-${{matrix.dim}}d-single \
             --parallel ${{env.NPROCS}} 2>&1 | tee -a ${{runner.workspace}}/build-output.txt
           ccache -s
-          du -hs ${{env.COMPILER_CACHE_DIR}}
       - name: Report
         run: .github/scripts/count_warnings.sh ${{runner.workspace}}/build-output.txt
       - *trim_ccache
@@ -478,6 +454,7 @@ jobs:
     env:
       CCACHE_MAXSIZE: 300M
       COMPILER_CACHE_DIR: ~/.cache/ccache
+      CACHE_KEY: ccache-${{github.workflow}}-${{github.job}}
     steps:
       - name: Clone
         uses: actions/checkout@v6
@@ -486,32 +463,12 @@ jobs:
       - name: Setup
         run: |
           echo "NPROCS=$(nproc)" >> $GITHUB_ENV
-          # Marks the start of the run for Trim Ccache
-          touch ${{runner.temp}}/ccache-start
       - name: Dependencies
         run: |
           ${{github.workspace}}/Submodules/PelePhysics/Submodules/amrex/.github/workflows/dependencies/ubuntu_free_disk_space.sh
-          wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2404/x86_64/cuda-keyring_1.1-1_all.deb
-          sudo dpkg -i cuda-keyring_1.1-1_all.deb
-          sudo apt-get update
-          sudo apt-get install -y cuda-command-line-tools-12-6 \
-              cuda-compiler-12-6 cuda-minimal-build-12-6 \
-              cuda-nvml-dev-12-6 cuda-nvtx-12-6 \
-              libcurand-dev-12-6 cuda-cupti-dev-12-6 \
-              libcusolver-dev-12-6 libcusparse-dev-12-6 \
-              libcublas-dev-12-6 libnvjitlink-12-6
-      - name: Install Ccache
-        # Outside the checkout: AMReX's script downloads into the current directory.
-        working-directory: ${{runner.temp}}
-        run: ${{github.workspace}}/Submodules/PelePhysics/Submodules/amrex/.github/workflows/dependencies/dependencies_ccache.sh
-      - name: Set Up Ccache
-        id: ccache
-        uses: actions/cache/restore@v5
-        with:
-          path: ${{env.COMPILER_CACHE_DIR}}
-          key: ccache-${{github.workflow}}-${{github.job}}-git-${{github.sha}}-${{github.run_id}}-${{github.run_attempt}}
-          restore-keys: |
-               ccache-${{github.workflow}}-${{github.job}}-git-
+          ${{github.workspace}}/Submodules/PelePhysics/.github/workflows/dependencies/dependencies_cuda.sh
+      - *install_ccache
+      - *restore_ccache
       - name: Configure
         run: |
           export PATH=/usr/local/nvidia/bin:/usr/local/cuda-12.6/bin:${PATH}
@@ -533,7 +490,6 @@ jobs:
           ccache -z
           cmake --build build-cuda --parallel ${{env.NPROCS}}
           ccache -s
-          du -hs ${{env.COMPILER_CACHE_DIR}}
       - *trim_ccache
       - *save_ccache
   GPU-AMD:
@@ -543,6 +499,7 @@ jobs:
     env:
       CCACHE_MAXSIZE: 250M
       COMPILER_CACHE_DIR: ~/.cache/ccache
+      CACHE_KEY: ccache-${{github.workflow}}-${{github.job}}
     steps:
       - name: Clone
         uses: actions/checkout@v6
@@ -551,8 +508,6 @@ jobs:
       - name: Setup
         run: |
           echo "NPROCS=$(nproc)" >> $GITHUB_ENV
-          # Marks the start of the run for Trim Ccache
-          touch ${{runner.temp}}/ccache-start
       - name: Dependencies
         run: |
           ${{github.workspace}}/Submodules/PelePhysics/Submodules/amrex/.github/workflows/dependencies/ubuntu_free_disk_space.sh
@@ -563,18 +518,8 @@ jobs:
           echo 'export PATH=/opt/rocm/llvm/bin:/opt/rocm/bin:/opt/rocm/profiler/bin:/opt/rocm/opencl/bin:$PATH' | sudo tee -a /etc/profile.d/rocm.sh
           sudo apt-get update
           sudo apt-get install -y rocm-dev rocrand-dev rocprim-dev hiprand-dev
-      - name: Install Ccache
-        # Outside the checkout: AMReX's script downloads into the current directory.
-        working-directory: ${{runner.temp}}
-        run: ${{github.workspace}}/Submodules/PelePhysics/Submodules/amrex/.github/workflows/dependencies/dependencies_ccache.sh
-      - name: Set Up Ccache
-        id: ccache
-        uses: actions/cache/restore@v5
-        with:
-          path: ${{env.COMPILER_CACHE_DIR}}
-          key: ccache-${{github.workflow}}-${{github.job}}-git-${{github.sha}}-${{github.run_id}}-${{github.run_attempt}}
-          restore-keys: |
-               ccache-${{github.workflow}}-${{github.job}}-git-
+      - *install_ccache
+      - *restore_ccache
       - name: Configure
         run: |
           source /etc/profile.d/rocm.sh
@@ -604,7 +549,6 @@ jobs:
           ccache -z
           cmake --build ${{runner.workspace}}/build-hip --parallel ${{env.NPROCS}}
           ccache -s
-          du -hs ${{env.COMPILER_CACHE_DIR}}
       - *trim_ccache
       - *save_ccache
   GPU-Intel:
@@ -614,6 +558,7 @@ jobs:
     env:
       CCACHE_MAXSIZE: 200M
       COMPILER_CACHE_DIR: ~/.cache/ccache
+      CACHE_KEY: ccache-${{github.workflow}}-${{github.job}}
       CCACHE_DEPEND: 1
     steps:
       - name: Clone
@@ -623,8 +568,6 @@ jobs:
       - name: Setup
         run: |
           echo "NPROCS=$(nproc)" >> $GITHUB_ENV
-          # Marks the start of the run for Trim Ccache
-          touch ${{runner.temp}}/ccache-start
       - name: Dependencies
         run: |
           ${{github.workspace}}/Submodules/PelePhysics/Submodules/amrex/.github/workflows/dependencies/ubuntu_free_disk_space.sh
@@ -633,18 +576,8 @@ jobs:
           echo "deb https://apt.repos.intel.com/oneapi all main" | sudo tee /etc/apt/sources.list.d/oneAPI.list
           sudo apt-get update
           sudo apt-get install -y intel-oneapi-compiler-dpcpp-cpp intel-oneapi-mkl-devel
-      - name: Install Ccache
-        # Outside the checkout: AMReX's script downloads into the current directory.
-        working-directory: ${{runner.temp}}
-        run: ${{github.workspace}}/Submodules/PelePhysics/Submodules/amrex/.github/workflows/dependencies/dependencies_ccache.sh
-      - name: Set Up Ccache
-        id: ccache
-        uses: actions/cache/restore@v5
-        with:
-          path: ${{env.COMPILER_CACHE_DIR}}
-          key: ccache-${{github.workflow}}-${{github.job}}-git-${{github.sha}}-${{github.run_id}}-${{github.run_attempt}}
-          restore-keys: |
-               ccache-${{github.workflow}}-${{github.job}}-git-
+      - *install_ccache
+      - *restore_ccache
       - name: Configure
         run: |
           # setvars.sh returns nonzero under errexit; || suspends errexit.
@@ -670,7 +603,6 @@ jobs:
           ccache -z
           cmake --build ${{runner.workspace}}/build-sycl --parallel ${{env.NPROCS}}
           ccache -s
-          du -hs ${{env.COMPILER_CACHE_DIR}}
       - *trim_ccache
       - *save_ccache
   Lint-clang-tidy:
@@ -699,11 +631,9 @@ jobs:
           echo "NPROCS=$(nproc)" >> $GITHUB_ENV
           # Keyed on the clang-tidy version, which the ctcache hash does not include
           echo "CTCACHE_DIR=${HOME}/.cache/ctcache/$(clang-tidy --version | sha256sum | cut -c1-12)" >> $GITHUB_ENV
-      - name: Install Ccache
-        # Outside the checkout: AMReX's script downloads into the current directory.
-        working-directory: ${{runner.temp}}
+      - *install_ccache
+      - name: Install ctcache
         run: |
-          ${{github.workspace}}/Submodules/PelePhysics/Submodules/amrex/.github/workflows/dependencies/dependencies_ccache.sh
           # ctcache 1.2.0; the module is a self-contained script
           sudo curl -fsSL https://raw.githubusercontent.com/matus-chochlik/ctcache/e33c063ca6e52b48bcefbc45d46d8c150ffa81ca/src/ctcache/clang_tidy_cache.py -o /usr/local/bin/clang-tidy-cache
           sudo chmod +x /usr/local/bin/clang-tidy-cache

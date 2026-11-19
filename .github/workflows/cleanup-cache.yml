@@ -67,8 +67,6 @@ jobs:
           cached_jobs=$(gh cache list -L 100 --ref $BRANCH --key "$keyprefix" --json key --jq '.[].key' | awk -F '-git-' '{print $1}' | sort | uniq)
 
           # cached_jobs is something like "ccache-PeleC-CI-CPU-CMake-ubuntu-24.04-2-Release ccache-PeleC-CI-CPU-GNUmake".
-          # It might also contain spaces. Thus we set IFS to \n.
-          IFS=$'\n'
           for j in $cached_jobs
           do
             # Delete all entries except the most recently created one. Not the
@@ -82,4 +80,3 @@ jobs:
               gh cache delete "$i" || true
             done
           done
-          unset IFS
