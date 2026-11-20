@@ -18,10 +18,11 @@ jobs:
     - name: Clone
       uses: actions/checkout@v6
     - name: Check formatting
+      shell: bash  # -eo pipefail: a failed git ls-files fails the step
       run: |
         pipx install clang-format==20.1.8
         git ls-files -z -- '*.[Hh]' '*.cpp' | grep -zE '^(Source|Exec)/' |
-          xargs -0 clang-format --dry-run --Werror
+          xargs -0 -P "$(nproc)" -n 8 clang-format --dry-run --Werror
   CPU-GNUmake:
     needs: Formatting
     runs-on: ubuntu-24.04

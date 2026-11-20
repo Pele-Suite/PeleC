@@ -50,7 +50,7 @@ jobs:
           cat build-output-warnings.txt
           exit $(tail -n 1 build-output-warnings.txt | awk '{print $2}')
       - name: Upload the site
-        if: github.event_name == 'push' && github.ref == 'refs/heads/development'
+        if: github.event_name == 'push' && github.ref == 'refs/heads/development' && !github.event.repository.fork
         uses: actions/upload-pages-artifact@v5
         with:
           path: ${{runner.workspace}}/build-docs/sphinx/html
@@ -59,7 +59,7 @@ jobs:
   # Source: GitHub Actions), with no gh-pages branch or repo write token.
   Deploy:
     needs: Docs
-    if: github.event_name == 'push' && github.ref == 'refs/heads/development'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/development' && !github.event.repository.fork
     runs-on: ubuntu-latest
     permissions:
       pages: write
