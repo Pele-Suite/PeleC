@@ -819,3 +819,24 @@ jobs:
           pip install codespell
       - name: Run codespell
         run: codespell
+
+  # The one check for branch protection to require. A job skipped by its own
+  # `if:` (docs-only changes) does not expand its matrix, so the per-entry
+  # checks such as "CPU-CMake (ubuntu-24.04, ...)" never report and a PR
+  # requiring them waits forever; skipped jobs pass here. It also fails when
+  # Detect-Changes fails, which would otherwise skip every build.
+  # CPU-CMake-SINGLE is left out, as it is not a required check.
+  CI-Status:
+    needs: [Detect-Changes, Formatting, CPU-GNUmake, CPU-CMake, GPU-Nvidia,
+            GPU-AMD, GPU-Intel, Lint-clang-tidy, Lint-codeql, Lint-codespell]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check the job results
+        env:
+          RESULTS: ${{ join(needs.*.result, ' ') }}
+        run: |
+          echo "${RESULTS}"
+          for r in ${RESULTS}; do
+            [ "$r" = success ] || [ "$r" = skipped ] || exit 1
+          done
