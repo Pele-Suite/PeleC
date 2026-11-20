@@ -5,7 +5,7 @@ on:
   schedule:
     # Twice a week, so the ccaches are refreshed before GitHub evicts them
     # after 7 days without access, with a margin for late scheduled starts.
-    # Jobs without a cache skip the scheduled runs (run-checks).
+    # Jobs without a cache (CodeQL, codespell) skip the scheduled runs.
     - cron: '0 3 * * 1,4'
   push:
     branches: [development]
@@ -37,6 +37,9 @@ env:
   # trims the caches to what is used) but skip the tests, which already
   # ran on this commit.
   RUN_TESTS: ${{github.event_name != 'schedule'}}
+  # The ccache directory the cache steps save and restore (ccache's default
+  # on Linux; CPU-CMake sets its own per OS).
+  COMPILER_CACHE_DIR: ~/.cache/ccache
 
 jobs:
   Detect-Changes:
@@ -49,7 +52,9 @@ jobs:
 
   Formatting:
     needs: Detect-Changes
-    if: needs['Detect-Changes'].outputs['run-checks'] == 'true'
+    # Also on the scheduled runs (it takes seconds), so the build jobs that
+    # need it run there to refresh their caches.
+    if: needs['Detect-Changes'].outputs['has-source-changes'] == 'true'
     runs-on: ubuntu-latest
     steps:
     - name: Clone
@@ -63,26 +68,24 @@ jobs:
         clangFormatVersion: 20
   CPU-GNUmake:
     needs: [Detect-Changes, Formatting]
-    # !failure(): after Formatting, or without it on the scheduled runs,
-    # which skip it. The same condition gates every build job below.
-    if: ${{ !failure() && !cancelled() && needs['Detect-Changes'].outputs['has-source-changes'] == 'true' }}
+    if: needs['Detect-Changes'].outputs['has-source-changes'] == 'true'
     runs-on: ubuntu-24.04
     env:
       CCACHE_MAXSIZE: 500M
-      COMPILER_CACHE_DIR: ~/.cache/ccache
       CACHE_KEY: ccache-${{github.workflow}}-${{github.job}}
+      # What the warning reports leave out, on top of count_warnings.sh's own.
+      WARNINGS_EXCLUDE: GNUmakefile|ThirdParty
+      # ccache for the CMake-built TPLs (SUNDIALS) too: CMake reads these as
+      # the default compiler launchers.
+      CMAKE_C_COMPILER_LAUNCHER: ccache
+      CMAKE_CXX_COMPILER_LAUNCHER: ccache
     steps:
       - name: Clone
         uses: actions/checkout@v6
         with:
           submodules: 'recursive'
       - name: Setup
-        working-directory: ./Exec/RegTests/PMF
-        run: |
-          echo "NPROCS=$(nproc)" >> $GITHUB_ENV
-          make COMP=gnu USE_MPI=FALSE DEBUG=TRUE TPL
-          make COMP=gnu USE_MPI=FALSE DEBUG=FALSE TPL
-          make COMP=llvm USE_MPI=FALSE DEBUG=TRUE PRECISION=FLOAT TPL
+        run: echo "NPROCS=$(nproc)" >> $GITHUB_ENV
       # Marks the start of the run for Trim Ccache and installs ccache: AMReX's
       # script on Linux (macOS gets it from brew in Dependencies), run outside
       # the checkout since it downloads into the current directory. Defined
@@ -102,7 +105,7 @@ jobs:
           fi
       # Restore only; the cache is saved at the end of the job, and only from
       # development (SAVE_CCACHE). Reused (*restore_ccache) by the other build
-      # jobs, which each set COMPILER_CACHE_DIR and CACHE_KEY.
+      # jobs, which each set CACHE_KEY.
       - &restore_ccache
         name: Set Up Ccache
         id: ccache
@@ -112,6 +115,12 @@ jobs:
           key: ${{env.CACHE_KEY}}-git-${{github.sha}}-${{github.run_id}}-${{github.run_attempt}}
           restore-keys: |
                ${{env.CACHE_KEY}}-git-
+      - name: TPL
+        working-directory: ./Exec/RegTests/PMF
+        run: |
+          make COMP=gnu USE_MPI=FALSE DEBUG=TRUE TPL
+          make COMP=gnu USE_MPI=FALSE DEBUG=FALSE TPL
+          make COMP=llvm USE_MPI=FALSE DEBUG=TRUE PRECISION=FLOAT TPL
       - name: Python
         uses: actions/setup-python@v6
         with:
@@ -133,7 +142,7 @@ jobs:
         run: ./PeleC3d.gnu.DEBUG.ex pmf-lidryer-multicomp.inp max_step=2 amr.plot_files_output=0 amr.checkpoint_files_output=0
       - name: PMF debug report
         working-directory: ./Exec/RegTests/PMF
-        run: ${{github.workspace}}/.github/scripts/count_warnings.sh build-output.txt "GNUmakefile|ThirdParty"
+        run: ${{github.workspace}}/.github/scripts/count_warnings.sh build-output.txt "${WARNINGS_EXCLUDE}"
       - name: EB debug build
         working-directory: ./Exec/RegTests/EB-C10
         run: |
@@ -146,7 +155,7 @@ jobs:
         run: ./PeleC3d.gnu.DEBUG.ex eb-c10.inp max_step=2 amr.plot_files_output=0 amr.checkpoint_files_output=0
       - name: EB debug report
         working-directory: ./Exec/RegTests/EB-C10
-        run: ${{github.workspace}}/.github/scripts/count_warnings.sh build-output.txt "GNUmakefile|ThirdParty"
+        run: ${{github.workspace}}/.github/scripts/count_warnings.sh build-output.txt "${WARNINGS_EXCLUDE}"
       - name: EB OMP debug build
         working-directory: ./Exec/RegTests/EB-C10
         run: |
@@ -159,7 +168,7 @@ jobs:
         run: ./PeleC3d.gnu.DEBUG.OMP.ex eb-c10.inp max_step=2 amr.plot_files_output=0 amr.checkpoint_files_output=0
       - name: EB OMP debug report
         working-directory: ./Exec/RegTests/EB-C10
-        run: ${{github.workspace}}/.github/scripts/count_warnings.sh build-output.txt "GNUmakefile|ThirdParty"
+        run: ${{github.workspace}}/.github/scripts/count_warnings.sh build-output.txt "${WARNINGS_EXCLUDE}"
       - name: TG debug single precision build
         working-directory: ./Exec/RegTests/TG
         run: |
@@ -172,7 +181,7 @@ jobs:
         run: ./PeleC3d.llvm.FLOAT.DEBUG.ex tg-2.inp max_step=2 amr.plot_files_output=0 amr.checkpoint_files_output=0
       - name: TG debug single precision report
         working-directory: ./Exec/RegTests/TG
-        run: ${{github.workspace}}/.github/scripts/count_warnings.sh build-output.txt "GNUmakefile|ThirdParty"
+        run: ${{github.workspace}}/.github/scripts/count_warnings.sh build-output.txt "${WARNINGS_EXCLUDE}"
       - name: Soot debug build
         working-directory: ./Exec/RegTests/Soot-Flame
         run: |
@@ -181,7 +190,7 @@ jobs:
           ccache -s
       - name: Soot debug report
         working-directory: ./Exec/RegTests/Soot-Flame
-        run: ${{github.workspace}}/.github/scripts/count_warnings.sh build-output.txt "GNUmakefile|ThirdParty"
+        run: ${{github.workspace}}/.github/scripts/count_warnings.sh build-output.txt "${WARNINGS_EXCLUDE}"
       - name: Spray debug build
         working-directory: ./Exec/RegTests/Spray-Conv
         run: |
@@ -190,7 +199,7 @@ jobs:
           ccache -s
       - name: Spray debug report
         working-directory: ./Exec/RegTests/Spray-Conv
-        run: ${{github.workspace}}/.github/scripts/count_warnings.sh build-output.txt "GNUmakefile|ThirdParty"
+        run: ${{github.workspace}}/.github/scripts/count_warnings.sh build-output.txt "${WARNINGS_EXCLUDE}"
 
       - name: TurbInflowGenerator build
         working-directory: ./Submodules/PelePhysics/Support/TurbInflowGenerator
@@ -208,7 +217,7 @@ jobs:
           mv hit_ic_4_128.dat PeleTurb3d.gnu.ex ${{github.workspace}}/Exec/RegTests/EB-ConvergingNozzle
       - name: TurbInflowGenerator report
         working-directory: ./Submodules/PelePhysics/Support/TurbInflowGenerator
-        run: ${{github.workspace}}/.github/scripts/count_warnings.sh build-output.txt "GNUmakefile|ThirdParty"
+        run: ${{github.workspace}}/.github/scripts/count_warnings.sh build-output.txt "${WARNINGS_EXCLUDE}"
       - name: EB-ConvergingNozzle TurbInflow build
         working-directory: ./Exec/RegTests/EB-ConvergingNozzle
         run: |
@@ -228,7 +237,7 @@ jobs:
           ./PeleC3d.gnu.ex turb_inflow_base.inp FILE=run_with_inflow.inp
       - name: EB-ConvergingNozzle TurbInflow debug report
         working-directory: ./Exec/RegTests/EB-ConvergingNozzle
-        run: ${{github.workspace}}/.github/scripts/count_warnings.sh build-output.txt "GNUmakefile|ThirdParty"
+        run: ${{github.workspace}}/.github/scripts/count_warnings.sh build-output.txt "${WARNINGS_EXCLUDE}"
       # Drop the entries this run did not use (hits refresh an entry's mtime),
       # so the saved cache is the current working set; only after a successful
       # job (the default condition), since a failed one never reached some
@@ -253,7 +262,7 @@ jobs:
           key: ${{steps.ccache.outputs.cache-primary-key}}
   CPU-CMake:
     needs: [Detect-Changes, Formatting]
-    if: ${{ !failure() && !cancelled() && needs['Detect-Changes'].outputs['has-source-changes'] == 'true' }}
+    if: needs['Detect-Changes'].outputs['has-source-changes'] == 'true'
     runs-on: ${{matrix.os}}
     strategy:
       fail-fast: false
@@ -311,9 +320,10 @@ jobs:
         run: |
           # Install MPI
           ${{matrix.install_deps}}
-          # Install Python packages
-          python -m pip install --upgrade pip
-          pip install pynose numpy pandas setuptools
+      - name: Python packages
+        # Only the tests use them.
+        if: env.RUN_TESTS == 'true'
+        run: pip install pynose numpy pandas setuptools
       - *install_ccache
       - *restore_ccache
       - name: MASA
@@ -425,11 +435,10 @@ jobs:
 
   CPU-CMake-SINGLE:
     needs: [Detect-Changes, Formatting]
-    if: ${{ !failure() && !cancelled() && needs['Detect-Changes'].outputs['has-source-changes'] == 'true' }}
+    if: needs['Detect-Changes'].outputs['has-source-changes'] == 'true'
     runs-on: ubuntu-24.04
     env:
       CCACHE_MAXSIZE: 250M
-      COMPILER_CACHE_DIR: ~/.cache/ccache
       CACHE_KEY: ccache-${{github.workflow}}-${{github.job}}-${{matrix.dim}}-single
     strategy:
       fail-fast: false
@@ -440,14 +449,10 @@ jobs:
         uses: actions/checkout@v6
         with:
           submodules: 'recursive'
-      - name: Python
-        uses: actions/setup-python@v6
-        with:
-          python-version: '3.12'
       - name: Dependencies
         run: |
           # Install MPI
-          sudo apt-get update && sudo apt-get install -y libopenmpi-dev openmpi-bin libtool-bin
+          sudo apt-get update && sudo apt-get install -y libopenmpi-dev openmpi-bin
       - name: Setup
         run: |
           echo "NPROCS=$(nproc)" >> $GITHUB_ENV
@@ -484,11 +489,10 @@ jobs:
   GPU-Nvidia:
     name: GPU-CUDA
     needs: [Detect-Changes, Formatting, CPU-GNUmake]
-    if: ${{ !failure() && !cancelled() && needs['Detect-Changes'].outputs['has-source-changes'] == 'true' }}
+    if: needs['Detect-Changes'].outputs['has-source-changes'] == 'true'
     runs-on: ubuntu-24.04
     env:
       CCACHE_MAXSIZE: 300M
-      COMPILER_CACHE_DIR: ~/.cache/ccache
       CACHE_KEY: ccache-${{github.workflow}}-${{github.job}}
     steps:
       - name: Clone
@@ -531,11 +535,10 @@ jobs:
   GPU-AMD:
     name: GPU-HIP
     needs: [Detect-Changes, Formatting, CPU-GNUmake]
-    if: ${{ !failure() && !cancelled() && needs['Detect-Changes'].outputs['has-source-changes'] == 'true' }}
+    if: needs['Detect-Changes'].outputs['has-source-changes'] == 'true'
     runs-on: ubuntu-24.04
     env:
       CCACHE_MAXSIZE: 250M
-      COMPILER_CACHE_DIR: ~/.cache/ccache
       CACHE_KEY: ccache-${{github.workflow}}-${{github.job}}
     steps:
       - name: Clone
@@ -591,11 +594,10 @@ jobs:
   GPU-Intel:
     name: GPU-SYCL
     needs: [Detect-Changes, Formatting, CPU-GNUmake]
-    if: ${{ !failure() && !cancelled() && needs['Detect-Changes'].outputs['has-source-changes'] == 'true' }}
+    if: needs['Detect-Changes'].outputs['has-source-changes'] == 'true'
     runs-on: ubuntu-24.04
     env:
       CCACHE_MAXSIZE: 200M
-      COMPILER_CACHE_DIR: ~/.cache/ccache
       CACHE_KEY: ccache-${{github.workflow}}-${{github.job}}
       CCACHE_DEPEND: 1
     steps:
@@ -645,7 +647,7 @@ jobs:
       - *save_ccache
   Lint-clang-tidy:
     needs: [Detect-Changes, Formatting]
-    if: ${{ !failure() && !cancelled() && needs['Detect-Changes'].outputs['has-source-changes'] == 'true' }}
+    if: needs['Detect-Changes'].outputs['has-source-changes'] == 'true'
     runs-on: ubuntu-24.04
     env:
       CCACHE_MAXSIZE: 100M
