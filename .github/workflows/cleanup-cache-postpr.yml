@@ -9,35 +9,48 @@ on:
 jobs:
   CleanUpCcacheCachePostPR:
     name: Clean Up Ccache Cache Post PR
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     permissions:
       actions: write
       contents: read
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      # gh reads the repository from here, so no checkout is needed.
+      GH_REPO: ${{ github.repository }}
     steps:
-      - uses: actions/checkout@v6
       - name: Clean up ccache
+        # Event values go through the environment, not ${{ }} in the script:
+        # a branch name is chosen by whoever pushed it (forks included), and
+        # pasted into the script it could run shell commands.
+        env:
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+          pr_number: ${{ github.event.workflow_run.pull_requests[0].number }}
         run: |
-          gh extension install actions/gh-actions-cache
-
-          REPO=${{ github.repository }}
-
           # For debugging cat ${GITHUB_EVENT_PATH} to see the payload.
 
-          pr_head_sha=${{ github.event.workflow_run.head_sha }}
-          pr_number=$(gh pr list --state all --search $pr_head_sha --json number --jq '.[0].number')
+          # The run's own PR when it has one (same-repo PRs); otherwise search,
+          # keeping only the PR whose head is this commit (a stacked PR also
+          # contains it). Closed PRs too: one can close before this runs.
+          if [ -z "${pr_number}" ]; then
+            pr_number=$(gh pr list --state all --search "${HEAD_SHA}" --json number,headRefOid \
+              --jq "map(select(.headRefOid == \"${HEAD_SHA}\")) | .[0].number // empty") || true
+          fi
+          if [ -z "${pr_number}" ]; then
+            echo "No PR for ${HEAD_SHA}; nothing to clean up."
+            exit 0
+          fi
           echo "Post-PR cache cleanup for PR ${pr_number}"
           BRANCH=refs/pull/${pr_number}/merge
 
           # Setting this to not fail the workflow while deleting cache keys.
           set +e
 
-          keys=$(gh actions-cache list -L 100 -R $REPO -B $BRANCH | cut -f 1)
-          # $keys might contain spaces. Thus we set IFS to \n.
-          IFS=$'\n'
-          for k in $keys
+          # Note that `gh cache delete` has no ref filter, so we delete by
+          # cache id, not by key.
+          ids=$(gh cache list -L 100 --ref $BRANCH --json id --jq '.[].id')
+          for i in $ids
           do
-            gh actions-cache delete "$k" -R $REPO -B $BRANCH --confirm
+            # `|| true` so that a failed deletion does not fail the step: the
+            # step's exit status is that of the last command run.
+            gh cache delete "$i" || true
           done
-          unset IFS
