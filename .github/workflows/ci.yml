@@ -18,7 +18,7 @@ jobs:
     - name: Clone
       uses: actions/checkout@v6
     - name: Check formatting
-      uses: DoozyX/clang-format-lint-action@v0.20
+      uses: DoozyX/clang-format-lint-action@bcb4eb2cb0d707ee4f3e5cc3b456eb075f12cf73 # v0.20
       with:
         source: './Source ./Exec'
         exclude: '.'
@@ -878,7 +878,7 @@ jobs:
           upload: False
           output: sarif-results
       - name: Filter CodeQL sarif
-        uses: advanced-security/filter-sarif@v1
+        uses: advanced-security/filter-sarif@f3b8118a9349d88f7b1c0c488476411145b6270d # v1.0.1
         with:
           patterns: |
             -**/Submodules/sundials/**

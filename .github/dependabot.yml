@@ -7,3 +7,10 @@ updates:
     directory: /
     allow:
       - dependency-name: "Submodules/PelePhysics"
+  # The actions the workflows use: version tags for actions/* and github/*,
+  # commit SHAs (with the version as a comment) for third-party ones, which
+  # Dependabot updates together.
+  - package-ecosystem: github-actions
+    schedule:
+        interval: "monthly"
+    directory: /

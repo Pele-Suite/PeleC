@@ -49,7 +49,7 @@ jobs:
           exit $(tail -n 1 build-output-warnings.txt | awk '{print $2}')
       - name: Deploy
         if: github.event_name == 'push' && github.ref == 'refs/heads/development'
-        uses: JamesIves/github-pages-deploy-action@releases/v4
+        uses: JamesIves/github-pages-deploy-action@fa24774553152dd7873cd16ebd8d959b010c5445 # v4.9.0
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           branch: gh-pages
