@@ -1,0 +1,57 @@
+name: Detect-Changes
+
+# Used by PeleC-CI (the same file as PelePhysics', apart from the filter
+# list): whether this run touches anything but docs, so that docs-only
+# changes skip the builds, and whether the jobs without a cache run (not on
+# the scheduled cache refreshes).
+on:
+  workflow_call:
+    outputs:
+      has-source-changes:
+        description: "'true' when source files changed, or the run is not filtered"
+        value: ${{ jobs.filter.outputs['has-source-changes'] }}
+      run-checks:
+        description: "has-source-changes, except on scheduled runs"
+        value: ${{ jobs.filter.outputs['run-checks'] }}
+
+jobs:
+  filter:
+    runs-on: ubuntu-latest
+    # paths-filter lists a PR's changed files through the API, which needs
+    # pull-requests: read; without it the filter fails open and builds all.
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      # Empty when the filter did not run or failed, so those runs build.
+      has-source-changes: ${{ steps.changes.outputs.src || 'true' }}
+      run-checks: ${{ github.event_name != 'schedule' && (steps.changes.outputs.src || 'true') == 'true' }}
+    steps:
+      # On PRs the filter lists the changed files through the API instead.
+      - uses: actions/checkout@v6
+        if: github.event_name == 'push'
+        with:
+          fetch-depth: 0
+      # Only pushes and PRs are filtered. Scheduled and manual runs always
+      # build, so they refresh the ccaches whatever the last commit touched;
+      # without a push there is no previous commit to compare against.
+      - uses: dorny/paths-filter@v3
+        if: github.event_name == 'push' || github.event_name == 'pull_request'
+        id: changes
+        # Fail open: if the filter errors, its output is empty and everything
+        # builds. Otherwise the jobs that need it are skipped, and a skipped
+        # required check counts as passing.
+        continue-on-error: true
+        with:
+          # A file counts only if it matches every pattern, so the '!'
+          # patterns exclude: with the default 'some', '**' matches every
+          # file and a docs-only change still ran everything.
+          predicate-quantifier: 'every'
+          filters: |
+            src:
+              - '**'
+              - '!**/*.rst'
+              - '!Docs/**'
+              - '!license.txt'
+              - '!.codespell*'
+              - '!.gitignore'

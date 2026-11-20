@@ -5,6 +5,7 @@ on:
   schedule:
     # Twice a week, so the ccaches are refreshed before GitHub evicts them
     # after 7 days without access, with a margin for late scheduled starts.
+    # Jobs without a cache skip the scheduled runs (run-checks).
     - cron: '0 3 * * 1,4'
   push:
     branches: [development]
@@ -38,7 +39,17 @@ env:
   RUN_TESTS: ${{github.event_name != 'schedule'}}
 
 jobs:
+  Detect-Changes:
+    # A called workflow can only narrow the caller's token permissions, so
+    # grant here what its filter job needs.
+    permissions:
+      contents: read
+      pull-requests: read
+    uses: ./.github/workflows/detect-changes.yml
+
   Formatting:
+    needs: Detect-Changes
+    if: needs['Detect-Changes'].outputs['run-checks'] == 'true'
     runs-on: ubuntu-latest
     steps:
     - name: Clone
@@ -51,7 +62,10 @@ jobs:
         extensions: 'H,h,cpp'
         clangFormatVersion: 20
   CPU-GNUmake:
-    needs: Formatting
+    needs: [Detect-Changes, Formatting]
+    # !failure(): after Formatting, or without it on the scheduled runs,
+    # which skip it. The same condition gates every build job below.
+    if: ${{ !failure() && !cancelled() && needs['Detect-Changes'].outputs['has-source-changes'] == 'true' }}
     runs-on: ubuntu-24.04
     env:
       CCACHE_MAXSIZE: 500M
@@ -238,7 +252,8 @@ jobs:
           path: ${{env.COMPILER_CACHE_DIR}}
           key: ${{steps.ccache.outputs.cache-primary-key}}
   CPU-CMake:
-    needs: Formatting
+    needs: [Detect-Changes, Formatting]
+    if: ${{ !failure() && !cancelled() && needs['Detect-Changes'].outputs['has-source-changes'] == 'true' }}
     runs-on: ${{matrix.os}}
     strategy:
       fail-fast: false
@@ -409,7 +424,8 @@ jobs:
       - *save_ccache
 
   CPU-CMake-SINGLE:
-    needs: Formatting
+    needs: [Detect-Changes, Formatting]
+    if: ${{ !failure() && !cancelled() && needs['Detect-Changes'].outputs['has-source-changes'] == 'true' }}
     runs-on: ubuntu-24.04
     env:
       CCACHE_MAXSIZE: 250M
@@ -467,7 +483,8 @@ jobs:
 
   GPU-Nvidia:
     name: GPU-CUDA
-    needs: [Formatting, CPU-GNUmake]
+    needs: [Detect-Changes, Formatting, CPU-GNUmake]
+    if: ${{ !failure() && !cancelled() && needs['Detect-Changes'].outputs['has-source-changes'] == 'true' }}
     runs-on: ubuntu-24.04
     env:
       CCACHE_MAXSIZE: 300M
@@ -513,7 +530,8 @@ jobs:
       - *save_ccache
   GPU-AMD:
     name: GPU-HIP
-    needs: [Formatting, CPU-GNUmake]
+    needs: [Detect-Changes, Formatting, CPU-GNUmake]
+    if: ${{ !failure() && !cancelled() && needs['Detect-Changes'].outputs['has-source-changes'] == 'true' }}
     runs-on: ubuntu-24.04
     env:
       CCACHE_MAXSIZE: 250M
@@ -572,7 +590,8 @@ jobs:
       - *save_ccache
   GPU-Intel:
     name: GPU-SYCL
-    needs: [Formatting, CPU-GNUmake]
+    needs: [Detect-Changes, Formatting, CPU-GNUmake]
+    if: ${{ !failure() && !cancelled() && needs['Detect-Changes'].outputs['has-source-changes'] == 'true' }}
     runs-on: ubuntu-24.04
     env:
       CCACHE_MAXSIZE: 200M
@@ -625,7 +644,8 @@ jobs:
       - *trim_ccache
       - *save_ccache
   Lint-clang-tidy:
-    needs: Formatting
+    needs: [Detect-Changes, Formatting]
+    if: ${{ !failure() && !cancelled() && needs['Detect-Changes'].outputs['has-source-changes'] == 'true' }}
     runs-on: ubuntu-24.04
     env:
       CCACHE_MAXSIZE: 100M
@@ -734,9 +754,8 @@ jobs:
         working-directory: ${{runner.workspace}}/build-clang-tidy
         run: ${{github.workspace}}/.github/scripts/count_warnings.sh clang-tidy-full-report.txt
   Lint-codeql:
-    needs: Formatting
-    # No cache to refresh: skipped on the scheduled runs.
-    if: github.event_name != 'schedule'
+    needs: [Detect-Changes, Formatting]
+    if: needs['Detect-Changes'].outputs['run-checks'] == 'true'
     runs-on: ubuntu-24.04
     steps:
       - name: Clone
@@ -783,8 +802,8 @@ jobs:
         with:
           sarif_file: sarif-results/cpp.sarif
   Lint-codespell:
-    needs: Formatting
-    # No cache to refresh: skipped on the scheduled runs.
+    # Not filtered: docs-only changes are what it checks. No cache to
+    # refresh, so skipped on the scheduled runs.
     if: github.event_name != 'schedule'
     runs-on: ubuntu-latest
     steps:
