@@ -17,6 +17,11 @@ on:
 jobs:
   filter:
     runs-on: ubuntu-latest
+    # paths-filter lists a PR's changed files through the API, which needs
+    # pull-requests: read; without it the filter fails open and builds all.
+    permissions:
+      contents: read
+      pull-requests: read
     outputs:
       # Empty when the filter did not run or failed, so those runs build.
       has-source-changes: ${{ steps.changes.outputs.src || 'true' }}

@@ -40,6 +40,11 @@ env:
 
 jobs:
   Detect-Changes:
+    # A called workflow can only narrow the caller's token permissions, so
+    # grant here what its filter job needs.
+    permissions:
+      contents: read
+      pull-requests: read
     uses: ./.github/workflows/detect-changes.yml
 
   Formatting:
@@ -194,6 +199,8 @@ jobs:
           make -j ${{env.NPROCS}} KEEP_BUILDINFO_CPP=TRUE USE_CCACHE=TRUE COMP=gnu USE_MPI=FALSE 2>&1 | tee -a build-output.txt
           ccache -s
       - name: TurbInflowGenerator set up
+        # Only the TurbInflow run below uses its output.
+        if: env.RUN_TESTS == 'true'
         working-directory: ./Submodules/PelePhysics/Support/TurbInflowGenerator
         run: |
           python3 -m pip install --user scipy matplotlib numpy
@@ -499,8 +506,9 @@ jobs:
       - *restore_ccache
       - name: Configure
         run: |
-          export PATH=/usr/local/nvidia/bin:/usr/local/cuda-12.6/bin:${PATH}
-          export LD_LIBRARY_PATH=/usr/local/nvidia/lib:/usr/local/nvidia/lib64:/usr/local/cuda-12.6/lib:${LD_LIBRARY_PATH}
+          # /usr/local/cuda points at whichever version dependencies_cuda.sh installed.
+          export PATH=/usr/local/nvidia/bin:/usr/local/cuda/bin:${PATH}
+          export LD_LIBRARY_PATH=/usr/local/nvidia/lib:/usr/local/nvidia/lib64:/usr/local/cuda/lib64:${LD_LIBRARY_PATH}
           cmake -Bbuild-cuda \
             -DCMAKE_BUILD_TYPE:STRING=Release \
             -DCMAKE_VERBOSE_MAKEFILE:BOOL=ON \
