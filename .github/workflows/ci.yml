@@ -18,12 +18,10 @@ jobs:
     - name: Clone
       uses: actions/checkout@v6
     - name: Check formatting
-      uses: DoozyX/clang-format-lint-action@bcb4eb2cb0d707ee4f3e5cc3b456eb075f12cf73 # v0.20
-      with:
-        source: './Source ./Exec'
-        exclude: '.'
-        extensions: 'H,h,cpp'
-        clangFormatVersion: 20
+      run: |
+        pipx install clang-format==20.1.8
+        git ls-files -z -- '*.[Hh]' '*.cpp' | grep -zE '^(Source|Exec)/' |
+          xargs -0 clang-format --dry-run --Werror
   CPU-GNUmake:
     needs: Formatting
     runs-on: ubuntu-24.04
