@@ -569,7 +569,6 @@ jobs:
           ${{github.workspace}}
       - name: Build
         run: |
-          echo "::add-matcher::.github/problem-matchers/gcc.json"
           source /etc/profile.d/rocm.sh
           ccache -z
           cmake --build ${{runner.workspace}}/build-hip --parallel ${{env.NPROCS}}
@@ -801,7 +800,6 @@ jobs:
           python-version: '3.12'
       - name: Dependencies
         run: |
-          python -m pip install --upgrade pip
           pip install codespell
       - name: Run codespell
         run: codespell
