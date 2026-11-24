@@ -48,7 +48,7 @@ struct NSCBCCoveredMask
 {
   amrex::Box domain;
   amrex::Box band[2 * AMREX_SPACEDIM];
-  amrex::Gpu::DeviceVector<int> mask[2 * AMREX_SPACEDIM];
+  amrex::Gpu::DeviceVector<char> mask[2 * AMREX_SPACEDIM];
 };
 amrex::Vector<std::unique_ptr<NSCBCCoveredMask>>* nscbc_masks_p = nullptr;
 
@@ -95,7 +95,7 @@ struct PCHypFillExtDir
   // EB-covered mask of the depth-3 boundary band of each domain face at this
   // level (nonzero = covered), indexed 2*dir + side; empty without EB or on a
   // face that is not ext_dir.  See PeleC::nscbc_init_eb_mask().
-  amrex::GpuArray<amrex::Array4<const int>, 2 * AMREX_SPACEDIM> m_covered{};
+  amrex::GpuArray<amrex::Array4<const char>, 2 * AMREX_SPACEDIM> m_covered{};
 
   AMREX_GPU_HOST
   explicit PCHypFillExtDir(
@@ -107,7 +107,7 @@ struct PCHypFillExtDir
     amrex::GpuArray<amrex::Array4<const amrex::Real>, 2 * AMREX_SPACEDIM> const&
       turb = {},
     const bool has_turb = false,
-    amrex::GpuArray<amrex::Array4<const int>, 2 * AMREX_SPACEDIM> const&
+    amrex::GpuArray<amrex::Array4<const char>, 2 * AMREX_SPACEDIM> const&
       covered = {})
     : lprobparm(d_prob_parm),
       m_do_turb_inflow(do_turb_inflow),
@@ -591,13 +591,13 @@ pc_bcfill_hyp(
   }
   amrex::Long* diag = nscbc ? nscbc_diag().data() : nullptr;
 
-  amrex::GpuArray<amrex::Array4<const int>, 2 * AMREX_SPACEDIM> covered{};
+  amrex::GpuArray<amrex::Array4<const char>, 2 * AMREX_SPACEDIM> covered{};
   if (nscbc) {
     if (NSCBCCoveredMask const* m = nscbc_find_mask(geom.Domain())) {
       for (int f = 0; f < 2 * AMREX_SPACEDIM; ++f) {
         if (!m->mask[f].empty()) {
           covered[f] =
-            amrex::makeArray4<const int>(m->mask[f].data(), m->band[f], 1);
+            amrex::makeArray4<const char>(m->mask[f].data(), m->band[f], 1);
         }
       }
     } else {
@@ -834,11 +834,16 @@ PeleC::nscbc_init_eb_mask()
         });
       }
       amrex::ParallelDescriptor::ReduceIntMax(h.data(), static_cast<int>(npts));
+      // Stored one byte per cell: the mask is replicated on every rank.
+      amrex::Vector<char> hc(npts);
+      for (std::size_t i = 0; i < npts; ++i) {
+        hc[i] = static_cast<char>(h[i] != 0);
+      }
       const int f = 2 * dir + side;
       m->band[f] = band;
       m->mask[f].resize(npts);
       amrex::Gpu::copy(
-        amrex::Gpu::hostToDevice, h.begin(), h.end(), m->mask[f].begin());
+        amrex::Gpu::hostToDevice, hc.begin(), hc.end(), m->mask[f].begin());
     }
   }
   amrex::Gpu::streamSynchronize();
