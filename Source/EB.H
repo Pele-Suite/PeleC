@@ -35,7 +35,7 @@ AMREX_FORCE_INLINE
 int
 argmax(const amrex::Real array[AMREX_SPACEDIM])
 {
-  const amrex::Real max_num =
+  const auto max_num =
     amrex::max<amrex::Real>(AMREX_D_DECL(array[0], array[1], array[2]));
   for (int i = 0; i < AMREX_SPACEDIM; i++) {
     if (std::abs(max_num - array[i]) < constants::very_small_num()) {

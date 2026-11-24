@@ -94,6 +94,9 @@ These parameters, once read, are available in the `PeleC` object for use from c+
     pelec.diffuse_temp = 0           # enable thermal diffusion
     pelec.diffuse_vel  = 0           # enable viscous diffusion
     pelec.diffuse_spec = 0           # enable species diffusion
+    pelec.use_multicomponent_diffusion = 0  # full multicomponent species diffusion (Fuego EOS, Simple transport, no spray/soot)
+    pelec.use_soret = 0              # thermal diffusion (Soret) term, needs use_multicomponent_diffusion, transport.conductivity_model = lct1|lct3 and a build with USE_LCT_TRANSPORT=TRUE
+    pelec.use_dufour = 0             # Dufour heat flux, needs use_soret
 
     #------------------------
     # DIAGNOSTICS & VERBOSITY

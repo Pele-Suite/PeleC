@@ -17,6 +17,7 @@ option(PELE_ENABLE_PARTICLES "Enable particles in AMReX library and enables spra
 option(PELE_ENABLE_CLANG_TIDY "Enable clang-tidy analysis" OFF)
 option(PELE_ENABLE_CPPCHECK "Enable cppcheck analysis" OFF)
 option(PELE_ENABLE_MASA "Enable tests that require MASA" OFF)
+option(PELE_PHYSICS_ENABLE_LCT_TRANSPORT "Compile the multicomponent (LCT) conductivity models of Simple transport, needed by pelec.use_soret" OFF)
 option(PELE_ENABLE_FCOMPARE "Enable building fcompare when not testing" OFF)
 option(PELE_ENABLE_FCOMPARE_FOR_TESTS "Check test plots against gold files" OFF)
 option(PELE_SAVE_GOLDS "Enable saving of gold files to a specified directory" OFF)

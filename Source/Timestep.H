@@ -188,6 +188,92 @@ pc_estdt_tempdif(
   return dt;
 }
 
+#ifdef PELEC_MULTICOMPONENT_DIFFUSION
+// Multicomponent species diffusion: bound the spectral radius of the
+// linearized diffusion operator rho^-1 Dmat_kj (Wbar/W_j) acting on the mass
+// fractions by the smaller of its two Gershgorin norms. Returns the
+// diffusivity (cm^2/s) that enters the explicit stability limit.
+AMREX_GPU_HOST_DEVICE
+AMREX_FORCE_INLINE
+amrex::Real
+pc_mc_gershgorin_diffusivity(
+  const amrex::Real rho, const amrex::Real* massfrac, const amrex::Real* Dmat)
+{
+  auto eos = pele::physics::PhysicsType::eos();
+  amrex::Real wt[NUM_SPECIES], wbar = 0.0;
+  eos.molecular_weight(wt);
+  eos.Y2WBAR(massfrac, wbar);
+  amrex::Real norm_col = 0.0, norm_row = 0.0;
+  for (int n = 0; n < NUM_SPECIES; ++n) {
+    amrex::Real s_col = 0.0, s_row = 0.0;
+    for (int m = 0; m < NUM_SPECIES; ++m) {
+      const amrex::Real a = std::abs(Dmat[n * NUM_SPECIES + m]);
+      s_col += a * wbar / wt[m];
+      s_row += a;
+    }
+    norm_col = amrex::max(norm_col, s_col);
+    norm_row = amrex::max(norm_row, s_row * wbar / wt[n]);
+  }
+  amrex::Real D = amrex::min(norm_col, norm_row) / rho;
+  if (D == 0.0) {
+    D = constants::small_num();
+  }
+  return D;
+}
+
+// Species-diffusion time-step limit from a direct evaluation of the
+// multicomponent diffusion matrix in every cell. Used for the first estimate
+// on a level; afterwards PeleC::estTimeStep reuses the bound computed from
+// the coefficients of the last diffusion evaluation.
+AMREX_GPU_HOST_DEVICE
+AMREX_FORCE_INLINE
+amrex::Real
+pc_estdt_specdif_mc(
+  const amrex::Box& bx,
+  const amrex::Array4<const amrex::Real>& u,
+  const amrex::Array4<const amrex::EBCellFlag>& flags,
+  const amrex::GeometryData& geomdata,
+  pele::physics::transport::TransParm<
+    pele::physics::PhysicsType::eos_type,
+    pele::physics::PhysicsType::transport_type> const* trans_parm) noexcept
+{
+  amrex::Real dt = std::numeric_limits<amrex::Real>::max();
+
+  amrex::Loop(bx, [=, &dt](int i, int j, int k) {
+    if (!flags(i, j, k).isCovered()) {
+      const amrex::Real rho = u(i, j, k, URHO);
+      const amrex::Real rhoInv = 1.0 / rho;
+      amrex::Real massfrac[NUM_SPECIES];
+      for (int n = 0; n < NUM_SPECIES; ++n) {
+        massfrac[n] = u(i, j, k, n + UFS) * rhoInv;
+      }
+      const amrex::Real T = u(i, j, k, UTEMP);
+      amrex::Real Dmat[NUM_SPECIES * NUM_SPECIES] = {0.0};
+      pele::physics::transport::TransportRequest req;
+      req.Dmat = true;
+      pele::physics::transport::TransportOutputs out;
+      out.Dmat = Dmat;
+      auto trans = pele::physics::PhysicsType::transport();
+      trans.transport(req, T, rho, massfrac, out, trans_parm);
+
+      const amrex::Real D = pc_mc_gershgorin_diffusivity(rho, massfrac, Dmat);
+      AMREX_D_TERM(
+        const amrex::Real dt1 = 0.5 * geomdata.CellSize(0) *
+                                geomdata.CellSize(0) / (AMREX_SPACEDIM * D);
+        dt = amrex::min<amrex::Real>(dt, dt1);
+        , const amrex::Real dt2 = 0.5 * geomdata.CellSize(1) *
+                                  geomdata.CellSize(1) / (AMREX_SPACEDIM * D);
+        dt = amrex::min<amrex::Real>(dt, dt2);
+        , const amrex::Real dt3 = 0.5 * geomdata.CellSize(2) *
+                                  geomdata.CellSize(2) / (AMREX_SPACEDIM * D);
+        dt = amrex::min<amrex::Real>(dt, dt3););
+    }
+  });
+  AMREX_ALWAYS_ASSERT_WITH_MESSAGE(dt > 0.0, "ERROR: dt needs to be positive.");
+  return dt;
+}
+#endif
+
 // Diffusion Enthalpy
 AMREX_GPU_HOST_DEVICE
 AMREX_FORCE_INLINE

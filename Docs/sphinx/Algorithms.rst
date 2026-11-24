@@ -574,6 +574,26 @@ The pure species and mixture transport properties are evaluated with (thread-saf
 :math:`q_m` represents :math:`\eta_m`, :math:`\lambda_m` or :math:`D_{m,j}`. These fits are generated as part of a preprocessing step managed by the tool `FUEGO` based on the formula (and input data) discussed above. The role of `FUEGO` to preprocess the model parameters for transport as well as chemical kinetics and thermodynamics, is discussed in some detail in <Section FuegoDescr>.
 
 
+Multicomponent Diffusion
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+As an option for ideal gases, `PeleC` can replace the mixture-averaged species diffusion model by the full multicomponent model of Ern and Giovangigli, using the capabilities of the `Simple` transport model of `PelePhysics` (see the PelePhysics transport documentation). It is enabled at run time with ``pelec.use_multicomponent_diffusion = 1`` and requires the Fuego equation of state with `Simple` transport, no sprays and no soot, and explicit species and energy diffusion (``pelec.diffuse_spec = 1``, ``pelec.diffuse_enth = 1``, ``pelec.diffuse_temp = 1``). The species fluxes are then
+
+.. math::
+
+    \boldsymbol{\mathcal{F}}_{k} = - \sum_j \rho \widetilde{D}_{kj} \left( \boldsymbol{d}_j + \chi_j \frac{\nabla T}{T} \right), \qquad
+    \boldsymbol{d}_j = \nabla X_j + (X_j - Y_j) \frac{\nabla p}{p},
+
+where :math:`\rho \widetilde{D}_{kj} = \rho Y_k D_{kj}` is the multicomponent flux diffusion matrix (symmetric :math:`D_{kj}`, columns of :math:`\rho \widetilde{D}` summing to zero) and :math:`\chi_j = X_j \tilde{\chi}_j` are the thermal diffusion ratios. Because the columns of the matrix sum to zero, :math:`\sum_k \boldsymbol{\mathcal{F}}_{k} = 0` holds exactly and no correction flux is applied. The matrix and the thermal diffusion ratios are evaluated at cell centers by `PelePhysics` (``transport.matrix_diffusion_niter`` projected iterations for the matrix, default 2) and averaged arithmetically to the faces (the harmonic averaging selected by ``pelec.transport_harmonic_mean`` still applies to :math:`\mu`, :math:`\xi` and :math:`\lambda`). The heat flux becomes
+
+.. math::
+
+    \boldsymbol{\mathcal{Q}} = \sum_k h_k \boldsymbol{\mathcal{F}}_{k} - \lambda \nabla T + p \sum_k \chi_k \boldsymbol{V}_k ,
+
+where the last (Dufour) term is added when ``pelec.use_dufour = 1``. The thermal diffusion (Soret) term in :math:`\boldsymbol{\mathcal{F}}_{k}` is added when ``pelec.use_soret = 1``; it requires one of the multicomponent conductivity models of `PelePhysics`, ``transport.conductivity_model = lct1`` or ``lct3``, which then also provides :math:`\lambda` (for all PeleC diffusion fluxes, including isothermal walls) instead of the empirical mixture rule above. The sign convention of :math:`\tilde{\chi}` is that of EGlib: light species have :math:`\chi_k < 0` and drift towards hot regions. ``pelec.use_dufour`` requires ``pelec.use_soret``. The LCT models are opt-in in `PelePhysics`: build with ``USE_LCT_TRANSPORT=TRUE`` (GNU make) or ``PELE_PHYSICS_ENABLE_LCT_TRANSPORT=ON`` (CMake); without it ``pelec.use_soret`` aborts at setup. Note that selecting an LCT model changes the conductivity everywhere, not only where the Soret term matters: over flame compositions :math:`\lambda_{LCT}` differs from the mixture rule by -25 % to +7 % (hydrogen and methane mechanisms), and the isothermal-wall heat flux uses the same :math:`\lambda`. On the LiDryer premixed-flame regression case the conductivity model accounts for most of the temperature difference between the multicomponent and the mixture-averaged results (0.9 K of 1.2 K after 200 steps), the Soret term for most of the change in the H-atom profile (4 %).
+
+Note that the PelePhysics mixture-averaged Soret option ``transport.use_soret`` remains unsupported in `PeleC`. The multicomponent path stores :math:`N^2 + N + 1` additional transport coefficients per cell, ghost cells included (91 doubles per cell for the 9-species LiDryer mechanism, 2863 doubles or 23 KB per cell for 53 species), and its flux evaluation is :math:`\mathcal{O}(N^2)` per face, so it is intended for small to moderate mechanisms. In this mode ``problem_modify_transport_coeffs`` can modify :math:`\mu`, :math:`\xi` and :math:`\lambda` but not the species diffusivities. With this option a species diffusion time-step limit, based on a Gershgorin bound of the spectral radius of the diffusion matrix, is added to the explicit diffusion stability constraints (the mixture-averaged model relies on the thermal diffusion limit alone); the bound is evaluated together with the diffusion coefficients and reused by the time-step estimate of the following step, so it costs no additional transport evaluation (the matrix is evaluated directly only for the first estimate on a level, after initialization, restart or regridding). The regression test inputs ``Exec/RegTests/PMF/pmf-lidryer-multicomp.inp`` and ``pmf-lidryer-matrixdiff.inp`` show the option on a premixed hydrogen flame.
+
 Reaction
 --------
 

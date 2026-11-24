@@ -2,6 +2,7 @@
 #define INDEX_DEFINES_H
 
 #include "mechanism.H"
+#include "TransportTypes.H"
 
 #define URHO 0
 #define UMX 1
@@ -40,6 +41,27 @@
 #define dComp_mu (dComp_rhoD + NUM_SPECIES)
 #define dComp_xi (dComp_mu + 1)
 #define dComp_lambda (dComp_xi + 1)
+
+// Optional multicomponent diffusion (pelec.use_multicomponent_diffusion):
+// available for the ideal gas (Fuego) EOS with Simple transport, without
+// sprays or soot, and only when PelePhysics provides the extended transport
+// API (feature macro PELE_PHYSICS_TRANSPORT_EXTENDED_API in TransportTypes.H).
+// The Soret and Dufour terms additionally need the LCT conductivity models,
+// which PelePhysics compiles in with USE_LCT_TRANSPORT = TRUE (GNU make) or
+// PELE_PHYSICS_ENABLE_LCT_TRANSPORT (CMake), i.e. PELE_TRANSPORT_LCT.
+#if defined(USE_FUEGO_EOS) && defined(USE_SIMPLE_TRANSPORT) && \
+  !defined(PELE_USE_SPRAY) && !defined(PELE_USE_SOOT) &&       \
+  defined(PELE_PHYSICS_TRANSPORT_EXTENDED_API)
+#define PELEC_MULTICOMPONENT_DIFFUSION 1
+#endif
+// Additional transport coefficients used by the multicomponent path:
+// the flux diffusion matrix rho*Y_k*D_kj (row-major, k*NUM_SPECIES + j), the
+// rescaled thermal diffusion ratios and the Gershgorin diffusivity bound of
+// the multicomponent operator used by the species-diffusion time-step limit
+#define dComp_Dmat (dComp_lambda + 1)
+#define dComp_chit (dComp_Dmat + NUM_SPECIES * NUM_SPECIES)
+#define dComp_mcDgersh (dComp_chit + NUM_SPECIES)
+#define nCompTrMC (dComp_mcDgersh + 1)
 
 #define comp_Cs2 0
 #define comp_CI (comp_Cs2 + 1)

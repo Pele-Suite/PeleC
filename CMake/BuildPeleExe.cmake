@@ -37,6 +37,7 @@ function(build_pele_exe pele_exe_name pele_physics_lib_name)
        ${SRC_DIR}/Derive.H
        ${SRC_DIR}/Derive.cpp
        ${SRC_DIR}/Diffterm.H
+       ${SRC_DIR}/DifftermMC.H
        ${SRC_DIR}/Diffusion.H
        ${SRC_DIR}/Diffusion.cpp
        ${SRC_DIR}/EB.H

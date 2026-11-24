@@ -71,7 +71,7 @@ plm_slope(
            ? 2.0 * amrex::min<amrex::Real>(std::abs(dlft), std::abs(drgt))
            : 0.0;
 
-  dtemp = 4.0 / 3.0 * dcen - 1.0 / 6.0 * (dfp + dfm);
+  dtemp = (order == 2) ? dcen : 4.0 / 3.0 * dcen - 1.0 / 6.0 * (dfp + dfm);
 
   return flat * dsgn * amrex::min<amrex::Real>(dlim, std::abs(dtemp));
 }

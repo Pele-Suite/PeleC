@@ -66,7 +66,7 @@ jobs:
           echo "::add-matcher::.github/problem-matchers/gcc.json"
           set -eu -o pipefail
           ccache -z
-          make -j ${{env.NPROCS}} KEEP_BUILDINFO_CPP=TRUE USE_CCACHE=TRUE COMP=gnu USE_MPI=FALSE DEBUG=TRUE 2>&1 | tee -a build-output.txt
+          make -j ${{env.NPROCS}} KEEP_BUILDINFO_CPP=TRUE USE_CCACHE=TRUE COMP=gnu USE_MPI=FALSE DEBUG=TRUE USE_LCT_TRANSPORT=TRUE 2>&1 | tee -a build-output.txt
       - name: PMF ccache report
         working-directory: ./Exec/RegTests/PMF
         run: |
@@ -75,6 +75,9 @@ jobs:
       - name: PMF debug test
         working-directory: ./Exec/RegTests/PMF
         run: ./PeleC3d.gnu.DEBUG.ex pmf-lidryer-arkode.inp max_step=2 amr.plot_files_output=0 amr.checkpoint_files_output=0
+      - name: PMF multicomponent diffusion debug test
+        working-directory: ./Exec/RegTests/PMF
+        run: ./PeleC3d.gnu.DEBUG.ex pmf-lidryer-multicomp.inp max_step=2 amr.plot_files_output=0 amr.checkpoint_files_output=0
       - name: PMF debug report
         working-directory: ./Exec/RegTests/PMF
         run: |
@@ -793,9 +796,15 @@ jobs:
           restore-keys: |
                ccache-${{github.workflow}}-${{github.job}}-git-
       - name: Configure
+        # Same workaround as PelePhysics' downstream clang-tidy jobs: clang 18's
+        # optimizer crashes on AMReX_EB_STL_utils.cpp (-O3 with
+        # -ffp-exception-behavior=maytrap); -O0 sidesteps it while Release keeps
+        # NDEBUG. This job only compiles for the analysis.
         run: |
           cmake -B${{runner.workspace}}/build-clang-tidy \
           -DCMAKE_BUILD_TYPE:STRING=Release \
+          -DCMAKE_C_FLAGS_RELEASE:STRING="-O0 -DNDEBUG" \
+          -DCMAKE_CXX_FLAGS_RELEASE:STRING="-O0 -DNDEBUG" \
           -DCMAKE_VERBOSE_MAKEFILE:BOOL=ON \
           -DCMAKE_CXX_COMPILER:STRING=clang++ \
           -DCMAKE_C_COMPILER:STRING=clang \

@@ -921,7 +921,10 @@ PeleC::estTimeStep(amrex::Real /*dt_old*/)
   amrex::Real estdt_vdif = max_dt_over_cfl;
   amrex::Real estdt_tdif = max_dt_over_cfl;
   amrex::Real estdt_edif = max_dt_over_cfl;
-  if (do_hydro || do_mol || diffuse_vel || diffuse_temp || diffuse_enth) {
+  amrex::Real estdt_sdif = max_dt_over_cfl;
+  if (
+    do_hydro || do_mol || diffuse_vel || diffuse_temp || diffuse_enth ||
+    (use_multicomponent_diffusion && diffuse_spec)) {
 
     auto const& fact =
       dynamic_cast<amrex::EBFArrayBoxFactory const&>(stateMF.Factory());
@@ -990,10 +993,43 @@ PeleC::estTimeStep(amrex::Real /*dt_old*/)
       estdt_edif = amrex::min<amrex::Real>(estdt_edif, dt);
     }
 
+#ifdef PELEC_MULTICOMPONENT_DIFFUSION
+    if (use_multicomponent_diffusion && diffuse_spec) {
+      if (mc_specdif_dmax >= 0.0) {
+        // Reuse the Gershgorin bound evaluated with the coefficients of the
+        // last diffusion evaluation on this level (one step old at most)
+        const amrex::Real D =
+          amrex::max(mc_specdif_dmax, constants::small_num());
+        amrex::Real dxmin = geom.CellSize(0);
+        for (int d = 1; d < AMREX_SPACEDIM; ++d) {
+          dxmin = amrex::min(dxmin, geom.CellSize(d));
+        }
+        const amrex::Real dt = 0.5 * dxmin * dxmin / (AMREX_SPACEDIM * D);
+        estdt_sdif = amrex::min<amrex::Real>(estdt_sdif, dt);
+      } else {
+        // No diffusion evaluation on this level yet (initial step, restart,
+        // regrid): evaluate the matrix directly
+        auto const& geomdata = geom.data();
+        auto const* ltransparm = trans_parms.device_parm();
+        const amrex::Real dt = amrex::ReduceMin(
+          stateMF, flags, 0,
+          [=] AMREX_GPU_HOST_DEVICE(
+            amrex::Box const& bx,
+            const amrex::Array4<const amrex::Real>& fab_arr,
+            const amrex::Array4<const amrex::EBCellFlag>& flag_arr)
+            -> amrex::Real {
+            return pc_estdt_specdif_mc(
+              bx, fab_arr, flag_arr, geomdata, ltransparm);
+          });
+        estdt_sdif = amrex::min<amrex::Real>(estdt_sdif, dt);
+      }
+    }
+#endif
+
     estdt_hydro = amrex::min<amrex::Real>(
-      estdt_hydro,
-      amrex::min<amrex::Real>(
-        estdt_vdif, amrex::min<amrex::Real>(estdt_tdif, estdt_edif)));
+      estdt_hydro, amrex::min<amrex::Real>(
+                     amrex::min<amrex::Real>(estdt_vdif, estdt_sdif),
+                     amrex::min<amrex::Real>(estdt_tdif, estdt_edif)));
 
     amrex::ParallelDescriptor::ReduceRealMin(estdt_hydro);
     estdt_hydro *= cfl;

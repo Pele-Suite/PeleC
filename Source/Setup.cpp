@@ -128,6 +128,42 @@ PeleC::check_params()
     AMREX_ALWAYS_ASSERT_WITH_MESSAGE(
       do_mol, "Rotational frame simulations require use of MOL");
   }
+
+  // multicomponent diffusion
+  if (use_multicomponent_diffusion) {
+#ifndef PELEC_MULTICOMPONENT_DIFFUSION
+    amrex::Abort(
+      "pelec.use_multicomponent_diffusion requires the Fuego EOS with Simple "
+      "transport, no sprays or soot, and a PelePhysics with the "
+      "multicomponent transport extension");
+#else
+    AMREX_ALWAYS_ASSERT_WITH_MESSAGE(
+      diffuse_spec && diffuse_enth && diffuse_temp,
+      "pelec.use_multicomponent_diffusion requires explicit species and "
+      "energy diffusion: pelec.diffuse_spec, diffuse_enth and diffuse_temp");
+    AMREX_ALWAYS_ASSERT_WITH_MESSAGE(
+      !do_les, "pelec.use_multicomponent_diffusion is not compatible with LES");
+    if (use_soret) {
+#ifndef PELE_TRANSPORT_LCT
+      amrex::Abort(
+        "pelec.use_soret needs the LCT conductivity models of PelePhysics: "
+        "build with USE_LCT_TRANSPORT = TRUE (GNU make) or "
+        "PELE_PHYSICS_ENABLE_LCT_TRANSPORT=ON (CMake)");
+#endif
+      AMREX_ALWAYS_ASSERT_WITH_MESSAGE(
+        trans_parms.host_parm().conductivity_model !=
+          pele::physics::transport::ConductivityModel::Mixture,
+        "pelec.use_soret requires transport.conductivity_model = lct1 or "
+        "lct3");
+    }
+#endif
+  } else {
+    AMREX_ALWAYS_ASSERT_WITH_MESSAGE(
+      !use_soret,
+      "pelec.use_soret requires pelec.use_multicomponent_diffusion");
+  }
+  AMREX_ALWAYS_ASSERT_WITH_MESSAGE(
+    !use_dufour || use_soret, "pelec.use_dufour requires pelec.use_soret");
 }
 
 void
@@ -185,7 +221,10 @@ PeleC::variableSetUp()
     amrex::The_Arena()->alloc(sizeof(ProbParmDevice)));
   trans_parms.initialize();
   if (trans_parms.host_parm().use_soret) {
-    amrex::Abort("PeleC does not support Soret effects yet.");
+    amrex::Abort(
+      "PeleC does not support the mixture-averaged Soret model "
+      "(transport.use_soret); use pelec.use_soret together with "
+      "pelec.use_multicomponent_diffusion instead.");
   }
   turb_inflow.init(amrex::DefaultGeometry());
 
