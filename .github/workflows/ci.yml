@@ -77,7 +77,7 @@ jobs:
           submodules: 'recursive'
       - name: Setup
         run: echo "NPROCS=$(nproc)" >> $GITHUB_ENV
-      # Marks the start of the run for Trim Ccache and installs ccache: AMReX's
+      # Records the start of the run for Trim Ccache and installs ccache: AMReX's
       # script on Linux (macOS gets it from brew in Dependencies), run outside
       # the checkout since it downloads into the current directory. Defined
       # once here and reused (*install_ccache) by the other jobs.
@@ -85,7 +85,10 @@ jobs:
         name: Install Ccache
         working-directory: ${{runner.temp}}
         run: |
-          touch ${{runner.temp}}/ccache-start
+          # As seconds since the epoch, not a marker file: reading a file's
+          # time back portably would need GNU date -r on Linux and stat -f on
+          # macOS. Not a CCACHE_* name (see Trim Ccache).
+          echo "COMPILER_CACHE_START=$(date +%s)" >> $GITHUB_ENV
           # Paths under the workspace are hashed relative to the compile's
           # directory, so a build directory's name (e.g. the reference
           # build's) does not stop it hitting another's entries. Set here as
@@ -239,10 +242,9 @@ jobs:
         name: Trim Ccache
         if: env.SAVE_CCACHE == 'true'
         run: |
-          # A plain assignment, so a missing marker fails the step (bash -e)
-          # rather than silently trimming nothing.
-          start=$(date -r ${{runner.temp}}/ccache-start +%s)
-          ccache --evict-older-than $(( $(date +%s) - start + 60 ))s
+          # :? so an unset start fails the step rather than silently trimming
+          # nothing.
+          ccache --evict-older-than $(( $(date +%s) - ${COMPILER_CACHE_START:?} + 60 ))s
           ccache -s
       - &save_ccache
         name: Save Ccache
@@ -688,9 +690,16 @@ jobs:
         # optimizer crashes on AMReX_EB_STL_utils.cpp (-O3 with
         # -ffp-exception-behavior=maytrap); -O0 sidesteps it while Release keeps
         # NDEBUG. This job only compiles for the analysis.
+        #
+        # -dD: clang-tidy-cache hashes the preprocessed source (-E -P -C), in
+        # which macro definitions leave no trace unless they are used, so a
+        # new or changed but unused macro (a bugprone-macro-parentheses case)
+        # would hit a stale entry. -dD keeps the #define lines in the -E output
+        # and is ignored when compiling, so the real build is unchanged.
         run: |
           cmake -B${{runner.workspace}}/build-clang-tidy \
           -DCMAKE_BUILD_TYPE:STRING=Release \
+          -DCMAKE_CXX_FLAGS:STRING="-dD" \
           -DCMAKE_C_FLAGS_RELEASE:STRING="-O0 -DNDEBUG" \
           -DCMAKE_CXX_FLAGS_RELEASE:STRING="-O0 -DNDEBUG" \
           -DCMAKE_VERBOSE_MAKEFILE:BOOL=ON \
@@ -713,6 +722,7 @@ jobs:
           # The restored caches carry earlier runs' counts: report this run's
           ccache -z
           clang-tidy-cache --zero-stats || true
+          start=$(date +%s)
           touch ${{runner.temp}}/cache-start
           build_status=0
           cmake --build . --parallel ${{env.NPROCS}} 2>&1 | tee -a clang-tidy-full-report.txt || build_status=$?
@@ -722,7 +732,7 @@ jobs:
           if [ ${build_status} -eq 0 ]; then
             find ${CTCACHE_DIR} -type f ! -newer ${{runner.temp}}/cache-start -delete
             find ${HOME}/.cache/ctcache -mindepth 1 -maxdepth 1 ! -path ${CTCACHE_DIR} -exec rm -rf {} +
-            ccache --evict-older-than $(( $(date +%s) - $(date -r ${{runner.temp}}/cache-start +%s) + 60 ))s
+            ccache --evict-older-than $(( $(date +%s) - start + 60 ))s
           fi
           # Fail on a failed build: a replayed cache hit restores the exit
           # code but not clang-tidy's stderr, so the warning count alone can
