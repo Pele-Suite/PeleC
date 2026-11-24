@@ -114,8 +114,8 @@ bc_nscbc_pin_farfield       bool          false
 # of the Fortran in 2d3a6f6.  nscbc_adv defaulted to true, so leaving them in
 # place meant that reconnecting a live NSCBC would silently change the
 # behaviour of every Hard/UserBC case that did not explicitly opt out.
-# PeleC::read_params aborts with a migration message if either key is present
-# in an inputs file.
+# PeleC::read_params aborts with a migration message if either key is set to 1
+# in an inputs file, and warns and ignores it if set to 0.
 
 # if true, define an external source term
 add_ext_src                 bool           false

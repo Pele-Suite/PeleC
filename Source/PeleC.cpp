@@ -195,18 +195,27 @@ PeleC::read_params()
   pp.query("v", verbose);
 
   // Removed parameters. nscbc_adv/nscbc_diff controlled the Fortran
-  // Ghost-Cell NSCBC deleted in 2d3a6f6; they have had no effect since.
-  // Abort rather than ignore, so that an inputs file which believes it is
-  // configuring a characteristic boundary treatment is not silently wrong.
+  // Ghost-Cell NSCBC deleted in 2d3a6f6; they have had no effect since.  An
+  // inputs file that switches them OFF asks for exactly what the code does,
+  // so it runs with a deprecation warning.  One that switches them ON
+  // believes it is configuring a characteristic boundary treatment, which
+  // it is not getting: abort rather than run silently wrong.
   for (const char* removed : {"nscbc_adv", "nscbc_diff"}) {
     if (pp.contains(removed)) {
-      amrex::Abort(
+      bool on = false;
+      pp.query(removed, on);
+      const std::string msg =
         "pelec." + std::string(removed) +
         " has been removed: it has had no effect since the Fortran GC-NSCBC "
         "was deleted. Remove it from your inputs file. The characteristic "
-        "treatment is now enabled with pelec.bc_nscbc = 1 and a "
-        "bcnormal_nscbc hook in the problem's prob.H; see Source/NSCBC.H and "
-        "Source/ProblemSpecificFunctions.H.");
+        "treatment is now enabled with pelec.bc_nscbc = 1 and a static "
+        "bcnormal_nscbc member of the problem's ProblemSpecificFunctions "
+        "struct (prob.H); see Source/NSCBC.H and "
+        "Source/ProblemSpecificFunctions.H.";
+      if (on) {
+        amrex::Abort(msg);
+      }
+      amrex::Warning(msg + " (Ignored: it is set to 0.)");
     }
   }
 
@@ -342,10 +351,11 @@ PeleC::read_params()
 
   if (bc_nscbc) {
     nscbc_init_diagnostics();
-    const pc_nscbc::Params probe = nscbc_params(0);
-    std::string why;
-    if (!probe.validate(why)) {
-      amrex::Abort("pelec.bc_nscbc_*: " + why);
+    for (int dir = 0; dir < AMREX_SPACEDIM; ++dir) {
+      std::string why;
+      if (!nscbc_params(dir).validate(why)) {
+        amrex::Abort("pelec.bc_nscbc_*: " + why);
+      }
     }
     // The treatment only ever acts on ext_dir faces, i.e. Hard/UserBC.
     bool any_ext_dir = false;
@@ -369,19 +379,20 @@ PeleC::read_params()
         "integrated over grown tileboxes, which would advance chemistry in "
         "the ghost cells written by the boundary condition.");
     }
-    // The characteristic fill has no EBCellFlag: it detects covered stencil
-    // cells by their non-positive density.  The DEFAULT body state is a
-    // sampled fluid state (define_body_state) -- positive density,
-    // undetectable -- so without eb_zero_body_state the fill would silently
-    // read body values as if they were interior data.  Fatal rather than
-    // silent: that is the standing rule for this boundary condition.
-    if (eb_in_domain && !eb_zero_body_state) {
+    // EB needs no special setting: covered stencil cells are identified
+    // from the EB geometry (PeleC::nscbc_init_eb_mask), so the default body
+    // state is fine and so is a body state restored from a checkpoint.
+    //
+    // Rotating frame: PeleC stores UEDEN net of the centrifugal potential,
+    // rho e + rho |u|^2 / 2 - rho (omega r)^2 / 2, and the characteristic
+    // ghost is packed without it, so ctoprim would decode every ghost too hot
+    // and over-pressured by a margin growing with r^2.  Not supported in this
+    // limit.
+    if (do_rf) {
       amrex::Abort(
-        "pelec.bc_nscbc = 1 with EB geometry requires "
-        "pelec.eb_zero_body_state = 1: the characteristic fill detects "
-        "covered stencil cells by non-positive density, and the default "
-        "body state is a sampled fluid state it cannot distinguish from "
-        "interior data.");
+        "pelec.bc_nscbc = 1 is not supported with the rotating frame "
+        "(pelec.do_rf = 1): the characteristic ghost state does not carry "
+        "the centrifugal energy term.");
     }
     if (amrex::ParallelDescriptor::IOProcessor()) {
       amrex::Print()
@@ -1298,16 +1309,17 @@ PeleC::postCoarseTimeStep(amrex::Real cumtime)
 
   // The NSCBC counters must not stay silent: a boundary counting millions
   // of reversal fills must not look like one counting none.
-  // sum_integrated_quantities() reports them, but only with pelec.v > 0 and
-  // on the sum_interval / sum_per cadence; whenever that path cannot report,
-  // report here on a fixed cadence instead.  The report prints only when
-  // something counted (or pelec.v > 1), so healthy runs stay quiet.
-  constexpr int nscbc_report_every = 100; // coarse steps
-  const bool sum_path_reports =
-    (verbose > 0) && ((sum_interval > 0) || (sum_per > 0.0));
-  if (bc_nscbc && !sum_path_reports) {
-    if (parent->levelSteps(0) % nscbc_report_every == 0) {
-      nscbc_report_diagnostics();
+  // sum_integrated_quantities() reports them when it runs (pelec.v > 0, on
+  // the sum_interval / sum_per cadence); whatever that cadence, a report is
+  // also made here whenever 100 coarse steps have passed without one, and
+  // once more at the end of the run (from finalize).  The report prints
+  // only when something counted (or pelec.v > 1), so healthy runs stay
+  // quiet.
+  if (bc_nscbc) {
+    constexpr int nscbc_report_every = 100; // coarse steps
+    const int step = parent->levelSteps(0);
+    if (step - nscbc_last_report() >= nscbc_report_every) {
+      nscbc_report_diagnostics(step);
     }
   }
 }

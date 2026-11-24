@@ -167,7 +167,10 @@ struct DefaultProblemSpecificFunctions
   // Type::off, which leaves that point to the ordinary bcnormal() path, so
   // pelec.bc_nscbc = 1 is a no-op for a problem that does not override this.
   // Because the decision is per point, a single face may mix an inflow, an
-  // outflow and a wall.
+  // outflow and a wall.  Called only on Hard/UserBC (ext_dir) faces.  To
+  // override it, define it as a static member of the problem's struct derived
+  // from this one (the one prob.H aliases to ProblemSpecificFunctions); a
+  // free function of the same name is never called.
   //
   // Only the fields relevant to the returned type are read:
   //     Type::outflow -> p

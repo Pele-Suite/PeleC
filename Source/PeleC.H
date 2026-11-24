@@ -101,8 +101,19 @@ public:
   static bool nscbc_active() { return bc_nscbc; }
   static pc_nscbc::Params nscbc_params(int idir);
   // Report and reset the NSCBC fallback counters.  A silent fallback is a bug
-  // that will not be found; this is how it surfaces.
-  static void nscbc_report_diagnostics();
+  // that will not be found; this is how it surfaces.  `step` is the coarse
+  // step of the report (-1 for the end-of-run report from finalize).
+  static void nscbc_report_diagnostics(int step);
+  // Coarse step of the last report.
+  static int nscbc_last_report();
+  // True when the characteristic fill needs an EB covered-cell mask.
+  static bool nscbc_needs_eb_mask();
+  // Build, once for this level and collectively, the EB covered-cell mask
+  // of the boundary band the characteristic stencil reads.  Called from
+  // init_eb (level construction and restart).
+  void nscbc_init_eb_mask();
+  // Ghost depth of this level's advance FillPatch.
+  int nscbc_fill_depth() const;
   // Create the counters, once and host-side, from read_params: the fill runs
   // inside an OpenMP-parallel MFIter loop and must not allocate on first use.
   static void nscbc_init_diagnostics();
@@ -110,8 +121,8 @@ public:
   // Warn when THIS refined level's grids touch a domain face that the
   // characteristic treatment can reach (Hard/UserBC): the extrapolation
   // stencil is level-local, so a fine patch on such a face makes the
-  // boundary condition level-dependent.  Called from post_regrid and
-  // post_init; no-op on level 0 or when bc_nscbc is off.
+  // boundary condition level-dependent.  Called from post_regrid,
+  // post_init and post_restart; no-op on level 0 or when bc_nscbc is off.
   void nscbc_check_fine_faces() const;
 
   // Restart from a checkpoint file.

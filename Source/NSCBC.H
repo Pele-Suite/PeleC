@@ -59,6 +59,7 @@
 #include <AMReX_Algorithm.H>
 #include <AMReX_Math.H>
 #include <cmath>
+#include <limits>
 #include <string>
 
 #include "IndexDefines.H"
@@ -112,27 +113,35 @@ struct Params
   // quiescent reservoir; wrong for a through-flow duct.  sigma is ignored.
   bool pin_farfield = false;
 
+  // Every coefficient must be finite as well as non-negative: a `< 0` test
+  // alone lets NaN and inf through (ParmParse accepts both), and an infinite
+  // sigma or relax_u drives every ghost onto the pressure floor.
   AMREX_GPU_HOST bool validate(std::string& why) const
   {
-    if (sigma < 0.0) {
-      why = "bc_nscbc_sigma must be >= 0 (all NSCBC relaxation coefficients "
-            "are positive in PeleC; internal signs are handled by the kernel)";
+    auto bad = [](const amrex::Real x) {
+      return !(x >= 0.0) || !amrex::Math::isfinite(x);
+    };
+    if (bad(sigma)) {
+      why = "bc_nscbc_sigma must be finite and >= 0 (all NSCBC relaxation "
+            "coefficients are positive in PeleC; internal signs are handled by "
+            "the kernel; for a hard pressure outlet use "
+            "bc_nscbc_pin_farfield)";
       return false;
     }
-    if (relax_u < 0.0) {
-      why = "bc_nscbc_relax_u must be >= 0";
+    if (bad(relax_u)) {
+      why = "bc_nscbc_relax_u must be finite and >= 0";
       return false;
     }
-    if (relax_t < 0.0) {
-      why = "bc_nscbc_relax_t must be >= 0";
+    if (bad(relax_t)) {
+      why = "bc_nscbc_relax_t must be finite and >= 0";
       return false;
     }
     if ((order != 1) && (order != 2)) {
       why = "bc_nscbc_order must be 1 or 2";
       return false;
     }
-    if (L_ref <= 0.0) {
-      why = "NSCBC reference length must be > 0";
+    if (!(L_ref > 0.0) || !amrex::Math::isfinite(L_ref)) {
+      why = "NSCBC reference length must be finite and > 0";
       return false;
     }
     return true;
@@ -143,7 +152,8 @@ struct Params
 //  Target state returned per boundary point by the problem hook.  Only the
 //  entries relevant to `type` are read: outflow -> p; inflow -> u[], T, Y[]
 //  (and p where the inflow is supersonic; dudt and the passives are
-//  optional).  A missing p is counted (Diag::target_incomplete).
+//  optional).  A missing p, T or Y is counted (Diag::target_incomplete) and
+//  the interior value stands in for it.
 //  Deliberately no relaxation for composition: at an inflow every species
 //  characteristic is incoming (hard imposition is well posed), at an outflow
 //  all are outgoing (imposing would over-specify).
@@ -190,14 +200,22 @@ struct Target
 // ---------------------------------------------------------------------------
 //  Diagnostic counters.  Every fallback is counted; a silent fallback is a
 //  bug that will not be found.  Storage is amrex::Long, not int: the
-//  counters are reset only when reported (every sum_interval steps, or every
-//  100 coarse steps with the default sum_interval = -1), and the supersonic
-//  counter on a large 3-D run can pass 2^31 between two reports.
+//  counters are reset only when reported (at least every 100 coarse steps,
+//  and once more at the end of the run), and the supersonic counter on a
+//  large 3-D run can pass 2^31 between two reports.
+//
+//  The counters count FILL EVENTS, not distinct boundary cells: a ghost cell
+//  is counted every time a FillPatch fills it, including the fills done for
+//  tagging, derived quantities and plotfiles, and a periodic-seam ghost is
+//  counted once on each FAB that holds it.  Totals therefore scale with the
+//  number of fills; what carries meaning is whether a counter is zero, and
+//  whether it stays nonzero report after report.
 // ---------------------------------------------------------------------------
 namespace Diag {
 enum : int {
   supersonic = 0,    // |M| >= 1: zero-gradient copy is exact, not a failure
-  reversed,          // flow ran the wrong way through the face
+  reversed,          // flow ran the wrong way through the face (subsonic or
+                     // supersonic; beyond a roundoff deadband)
   body_state,        // an EB-covered cell was found in the stencil
   eos_failure,       // an EOS call returned a non-finite or non-positive value
   floored,           // a positivity floor was hit
@@ -205,14 +223,18 @@ enum : int {
                      // than the extrapolation order wants (the coarse patch
                      // under a fine grid on the face): the order dropped to
                      // what fits, and the ghost depends on the box layout.
-  target_incomplete, // the Target carries no pressure where one is required.
-                     // Outflow: nothing to relax toward, so the interior
-                     // pressure was substituted and the ghost pressure is not
-                     // anchored at all.  Supersonic inflow: every
-                     // characteristic is incoming, so the FULL state is
-                     // required; the interior pressure was substituted, which
-                     // makes the ghost depend on a domain it should be
-                     // causally upstream of.  Set Target.p in bcnormal_nscbc.
+  target_incomplete, // the Target lacks a value the boundary type needs.
+                     // Outflow without p: nothing to relax toward, so the
+                     // interior pressure was substituted and the ghost
+                     // pressure is not anchored at all.  Inflow without T
+                     // (T <= 0) or without a composition (Y summing to
+                     // zero): the interior value was substituted, so nothing
+                     // holds the inlet temperature/composition.  Supersonic
+                     // inflow without p: every characteristic is incoming, so
+                     // the FULL state is required; the interior pressure was
+                     // substituted, which makes the ghost depend on a domain
+                     // it should be causally upstream of.  Set the missing
+                     // field in bcnormal_nscbc.
   passive_unset,     // an inflow Target left its passive scalars unset
                      // (Target::passives): the interior values were kept, so
                      // nothing about them enters through the inflow.
@@ -239,10 +261,25 @@ minmod(const amrex::Real a, const amrex::Real b) noexcept
   return (std::abs(a) < std::abs(b)) ? a : b;
 }
 
-// True if a state looks like EB body state rather than fluid, detected by
-// non-positive density.  This is why read_params makes eb_zero_body_state = 1
-// mandatory under EB: PeleC's default body state is a sampled fluid state the
-// stencil cannot distinguish from interior data.
+// Roundoff deadband of the flow-reversal COUNTER, as a fraction of c.  1e-9
+// in double precision; in single precision one ulp of pressure across a cell
+// already drives |u| ~ 1e-8 c to 1e-6 c, so the band is widened with the
+// precision (100 epsilon) or a quiescent face would count roundoff as
+// reversals.  Only the counter reads this; the closure itself is unaffected.
+AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE constexpr amrex::Real
+reversal_deadband() noexcept
+{
+  constexpr amrex::Real eps100 =
+    amrex::Real(100.0) * std::numeric_limits<amrex::Real>::epsilon();
+  return (eps100 > amrex::Real(1.0e-9)) ? eps100 : amrex::Real(1.0e-9);
+}
+
+// True if a state cannot be fluid: non-positive or non-finite density or
+// energy (the zero EB body state of eb_zero_body_state = 1, say).  This is a
+// second line of defence only: under EB the caller (BCfill.cpp) identifies
+// covered stencil cells from the EB geometry itself, since PeleC's DEFAULT
+// body state is a sampled fluid state that no test on the data can tell from
+// interior data.
 AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE bool
 is_body_state(const amrex::Real s[NVAR]) noexcept
 {
@@ -424,6 +461,23 @@ inflow_passives(
 #endif
 }
 
+// ---------------------------------------------------------------------------
+//  Last-resort sanitiser shared by every path that packs a ghost: a
+//  non-finite slot takes the boundary cell's value, counted as floored.
+// ---------------------------------------------------------------------------
+template <typename Bump>
+AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE void
+sanitize_ghost(
+  const amrex::Real s_N[NVAR], amrex::Real s_ghost[NVAR], Bump const& bump)
+{
+  for (int n = 0; n < NVAR; n++) {
+    if (!amrex::Math::isfinite(s_ghost[n])) {
+      s_ghost[n] = s_N[n];
+      bump(Diag::floored);
+    }
+  }
+}
+
 // ===========================================================================
 //  apply() -- fill one ghost cell.
 //    s_N, s_Nm1, s_Nm2: interior stencil walking inward; tangential indexing
@@ -500,10 +554,23 @@ apply(
   // value shared by every stencil cell).
   const amrex::Real rho_c = qN.rho * c_N;
 
+  // An inflow Target's temperature, checked once for both inflow paths: an
+  // unset T (default 0) would relax the subsonic inlet toward 0 K -- far
+  // before any floor fires -- and make PYT2RE divide by zero on the
+  // supersonic one.  The interior temperature stands in, counted.
+  const bool inflow_tgt = (tgt.type == Type::inflow);
+  const bool T_tgt_ok = (tgt.T > 0.0) && amrex::Math::isfinite(tgt.T);
+  const amrex::Real T_tgt = T_tgt_ok ? tgt.T : qN.T;
+
   // ---- 2. Regimes with an exact answer ----------------------------------
   if (std::abs(mach) >= 1.0) {
     if (mach >= 1.0) {
       // Supersonic outflow: zero-gradient is exact, not an approximation.
+      // Through a face the problem declared an INFLOW it is also a flow
+      // reversal, counted as such (the subsonic path counts it too).
+      if (inflow_tgt) {
+        bump(Diag::reversed);
+      }
       bump(Diag::supersonic);
       copy_state(s_N, s_ghost);
       return true;
@@ -513,8 +580,8 @@ apply(
     // without a pressure under-specifies it: the interior pressure is
     // substituted and COUNTED (target_incomplete), because the ghost then
     // depends on a domain it should be causally upstream of.
-    if (tgt.type == Type::inflow) {
-      if (!(tgt.p > 0.0)) {
+    if (inflow_tgt) {
+      if (!(tgt.p > 0.0) || !T_tgt_ok) {
         bump(Diag::target_incomplete);
       }
       // The target composition is cleaned as the subsonic inflow cleans
@@ -524,24 +591,33 @@ apply(
         for (int n = 0; n < NUM_SPECIES; n++) {
           Y_g[n] = qN.Y[n];
         }
-        bump(Diag::floored);
+        bump(Diag::target_incomplete);
       }
       amrex::Real rho_g = 0.0, e_g = 0.0;
-      eos.PYT2RE(tgt.p > 0.0 ? tgt.p : qN.p, Y_g, tgt.T, rho_g, e_g);
+      eos.PYT2RE(tgt.p > 0.0 ? tgt.p : qN.p, Y_g, T_tgt, rho_g, e_g);
       if (
         amrex::Math::isfinite(rho_g) && (rho_g > 0.0) &&
         amrex::Math::isfinite(e_g)) {
         amrex::Real u_g[3] = {tgt.u[0], tgt.u[1], tgt.u[2]};
-        pack_ghost(rho_g, u_g, e_g, tgt.T, Y_g, s_N, s_ghost);
+        pack_ghost(rho_g, u_g, e_g, T_tgt, Y_g, s_N, s_ghost);
         if (tgt.passives) {
           inflow_passives(tgt, 1.0, s_ghost);
         } else if (NUM_ADV + NUM_AUX + NUM_LIN > 0) {
           bump(Diag::passive_unset);
         }
+        // The Target's velocity and passives go straight into the ghost on
+        // this path; sanitise them as the subsonic path does.
+        sanitize_ghost(s_N, s_ghost, bump);
         bump(Diag::supersonic);
         return true;
       }
       bump(Diag::eos_failure);
+    } else {
+      // Supersonic flow INTO the domain through a face the problem declared
+      // an outflow: every characteristic enters and the copy below is
+      // ill-posed.  A blast or detonation driven back through an outlet is a
+      // flow reversal and must show up as one.
+      bump(Diag::reversed);
     }
     bump(Diag::supersonic);
     copy_state(s_N, s_ghost);
@@ -578,16 +654,17 @@ apply(
     // dither and a spurious 0.3 atm chamber spike (the chamber case and
     // the 1-D driver's reversal tests, both later PRs in this series).
     //
-    // The COUNTER carries a roundoff deadband (the closure itself has no
-    // branch left to care): a face holding a quiescent charge sits at
-    // exactly u_out = 0 and the solver's noise dithers the sign, which read
-    // as 314k "reversals" in the first 100 steps of a chamber whose ignition
-    // wave was still a centimetre from the boundary.  Counting only
-    // |u_out| > 1e-9 c keeps "reversal count zero" meaning NO PHYSICAL
+    // The COUNTER carries a roundoff deadband (reversal_deadband()) (the
+    // closure itself has no branch left to care): a face holding a quiescent
+    // charge sits at exactly u_out = 0 and the solver's noise dithers the sign,
+    // which read as 314k "reversals" in the first 100 steps of a chamber whose
+    // ignition wave was still a centimetre from the boundary.  Counting only
+    // |u_out| > 1e-9 c (wider in single precision) keeps "reversal count
+    // zero" meaning NO PHYSICAL
     // BACKFLOW rather than "no roundoff", which is the semantics the
     // advice "a sustained nonzero count means a misplaced outflow"
     // depends on.
-    if (u_out_N < -1.0e-9 * c_N) {
+    if (u_out_N < -reversal_deadband() * c_N) {
       bump(Diag::reversed);
     }
   }
@@ -603,7 +680,7 @@ apply(
     (u_out_N <= 0.0)
       ? 1.0
       : amrex::max<amrex::Real>(0.0, 1.0 - u_out_N / (1.0e-3 * c_N));
-  if (!outflow_face && (u_out_N > 1.0e-9 * c_N)) {
+  if (!outflow_face && (u_out_N > reversal_deadband() * c_N)) {
     bump(Diag::reversed);
   }
 
@@ -792,17 +869,34 @@ apply(
     // Across the reversal band the Target's share w_tgt falls to zero and
     // the interior values take over (w_tgt = 1 for any true inflow).
     const amrex::Real wt = w_tgt * nu;
-    T_g = qN.T - wt * (qN.T - tgt.T);
+    // T_tgt is the interior temperature, counted, when the Target left T
+    // unset; counted only where the Target still has a share.
+    if (!T_tgt_ok && (w_tgt > 0.0)) {
+      bump(Diag::target_incomplete);
+    }
+    T_g = qN.T - wt * (qN.T - T_tgt);
     for (int d = 0; d < 3; d++) {
       if (d != idir) {
         u_g[d] = qN.u[d] - wt * (qN.u[d] - tgt.u[d]);
       }
     }
-    // Composition: hard.  Every species characteristic is incoming.
+    // Composition: hard.  Every species characteristic is incoming.  A
+    // Target carrying no composition at all is counted, and the interior
+    // composition stands in (without this, an unset Y would be swamped by
+    // the (1 - w_tgt) interior share inside the reversal band and land on
+    // the floored path at w_tgt = 1, under the wrong name).
+    amrex::Real Y_t[NUM_SPECIES];
+    if (!normalize_Y(tgt.Y, Y_t)) {
+      for (int n = 0; n < NUM_SPECIES; n++) {
+        Y_t[n] = qN.Y[n];
+      }
+      if (w_tgt > 0.0) {
+        bump(Diag::target_incomplete);
+      }
+    }
     amrex::Real Ysum = 0.0;
     for (int n = 0; n < NUM_SPECIES; n++) {
-      Y_g[n] = (1.0 - w_tgt) * qN.Y[n] +
-               w_tgt * amrex::max<amrex::Real>(tgt.Y[n], 0.0);
+      Y_g[n] = (1.0 - w_tgt) * qN.Y[n] + w_tgt * Y_t[n];
       Ysum += Y_g[n];
     }
     if (Ysum > constants::very_small_num()) {
@@ -843,12 +937,7 @@ apply(
     }
   }
 
-  for (int n = 0; n < NVAR; n++) {
-    if (!amrex::Math::isfinite(s_ghost[n])) {
-      s_ghost[n] = s_N[n];
-      bump(Diag::floored);
-    }
-  }
+  sanitize_ghost(s_N, s_ghost, bump);
   return true;
 }
 
