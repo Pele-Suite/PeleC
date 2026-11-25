@@ -11,6 +11,8 @@ PeleC::sum_integrated_quantities()
     return;
   }
 
+  nscbc_report_diagnostics(parent->levelSteps(0));
+
   bool local_flag = true;
 
   int finest_level = parent->finestLevel();

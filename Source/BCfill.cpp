@@ -1,20 +1,400 @@
+#include <limits>
+#include <memory>
+
 #include <AMReX_FArrayBox.H>
 #include <AMReX_Geometry.H>
+#include <AMReX_MultiFab.H>
 #include <AMReX_PhysBCFunct.H>
+#include <AMReX_Reduce.H>
+#include <AMReX_Loop.H>
+#ifdef AMREX_USE_EB
+#include <AMReX_EB2.H>
+#endif
 
 #include "PeleC.H"
 #include "prob.H"
+#include "NSCBC.H"
+
+namespace {
+// Device-resident fallback counters for the characteristic boundary
+// treatment.  Created once, host-side, by PeleC::nscbc_init_diagnostics()
+// from read_params (before any boundary fill can run); reduced and reported
+// by PeleC::nscbc_report_diagnostics().  Not created lazily from the fill:
+// the fill runs inside the OpenMP-parallel MFIter loop of
+// StateDataPhysBCFunct, where a first-use allocation would race.
+//
+// Held as a heap pointer released through amrex::ExecOnFinalize rather than as
+// a function-local static object.  A static Gpu::DeviceVector destructs at
+// program exit, which is AFTER amrex::Finalize() has torn down the arena it
+// allocated from -- harmless on a CPU build and a use-after-free of the device
+// allocator on a GPU one.
+amrex::Gpu::DeviceVector<amrex::Long>* nscbc_diag_p = nullptr;
+
+// Counter layout: the pc_nscbc::Diag fallbacks, then one count of
+// characteristic fills per domain face (2*dir + side).
+constexpr int nscbc_ncounters = pc_nscbc::Diag::count + 2 * AMREX_SPACEDIM;
+
+// Host bookkeeping for the report (host-only, touched from the report alone).
+amrex::Long nscbc_face_fills_total[2 * AMREX_SPACEDIM] = {0};
+bool nscbc_face_announced[2 * AMREX_SPACEDIM] = {false};
+bool nscbc_none_warned = false;
+int nscbc_last_report_step = 0;
+
+// EB-covered masks of the boundary bands, one set per AMR level, keyed by
+// the level's domain box (each level has its own).  Geometry-only, so built
+// once per level (PeleC::nscbc_init_eb_mask) and kept for the run; released
+// through ExecOnFinalize like the counters.
+struct NSCBCCoveredMask
+{
+  amrex::Box domain;
+  amrex::Box band[2 * AMREX_SPACEDIM];
+  amrex::Gpu::DeviceVector<char> mask[2 * AMREX_SPACEDIM];
+};
+amrex::Vector<std::unique_ptr<NSCBCCoveredMask>>* nscbc_masks_p = nullptr;
+
+NSCBCCoveredMask const*
+nscbc_find_mask(const amrex::Box& domain)
+{
+  if (nscbc_masks_p == nullptr) {
+    return nullptr;
+  }
+  for (const auto& m : *nscbc_masks_p) {
+    if (m->domain == domain) {
+      return m.get();
+    }
+  }
+  return nullptr;
+}
+
+amrex::Gpu::DeviceVector<amrex::Long>&
+nscbc_diag()
+{
+  AMREX_ALWAYS_ASSERT_WITH_MESSAGE(
+    nscbc_diag_p != nullptr,
+    "NSCBC counters used before PeleC::nscbc_init_diagnostics()");
+  return *nscbc_diag_p;
+}
+
+} // namespace
 
 struct PCHypFillExtDir
 {
   ProbParmDevice const* lprobparm;
   bool m_do_turb_inflow{false};
+  bool m_nscbc{false};
+  amrex::GpuArray<pc_nscbc::Params, AMREX_SPACEDIM> m_nscbc_prm;
+  amrex::Long* m_nscbc_diag{nullptr};
+  // TurbInflow fluctuations for the characteristic fill: a copy of the
+  // layer-1 ghost velocities add_turb wrote, taken before the launch (the
+  // fill overwrites those cells while other threads still need them).  One
+  // band per domain face, indexed 2*dir + side (0 = lo, 1 = hi); empty on a
+  // face that is not ext_dir or that this FAB does not touch.
+  amrex::GpuArray<amrex::Array4<const amrex::Real>, 2 * AMREX_SPACEDIM>
+    m_turb{};
+  bool m_has_turb{false};
+  // EB-covered mask of the depth-3 boundary band of each domain face at this
+  // level (nonzero = covered), indexed 2*dir + side; empty without EB or on a
+  // face that is not ext_dir.  See PeleC::nscbc_init_eb_mask().
+  amrex::GpuArray<amrex::Array4<const char>, 2 * AMREX_SPACEDIM> m_covered{};
 
   AMREX_GPU_HOST
-  constexpr explicit PCHypFillExtDir(
-    const ProbParmDevice* d_prob_parm, const bool do_turb_inflow)
-    : lprobparm(d_prob_parm), m_do_turb_inflow(do_turb_inflow)
+  explicit PCHypFillExtDir(
+    const ProbParmDevice* d_prob_parm,
+    const bool do_turb_inflow,
+    const bool nscbc,
+    const amrex::GpuArray<pc_nscbc::Params, AMREX_SPACEDIM>& nscbc_prm,
+    amrex::Long* nscbc_diag,
+    amrex::GpuArray<amrex::Array4<const amrex::Real>, 2 * AMREX_SPACEDIM> const&
+      turb = {},
+    const bool has_turb = false,
+    amrex::GpuArray<amrex::Array4<const char>, 2 * AMREX_SPACEDIM> const&
+      covered = {})
+    : lprobparm(d_prob_parm),
+      m_do_turb_inflow(do_turb_inflow),
+      m_nscbc(nscbc),
+      m_nscbc_prm(nscbc_prm),
+      m_nscbc_diag(nscbc_diag),
+      m_turb(turb),
+      m_has_turb(has_turb),
+      m_covered(covered)
   {
+  }
+
+  // -------------------------------------------------------------------------
+  //  Characteristic (NSCBC) fill for one ghost cell.
+  //
+  //  Returns true if this ghost cell was filled here, in which case the
+  //  ordinary bcnormal() path below is skipped for it entirely.
+  //
+  //  Corner ownership.  A ghost cell may lie outside the domain in more than
+  //  one direction.  Such a cell is owned by the LOWEST idir in which it is
+  //  outside on an ext_dir face whose problem hook returns a live target
+  //  and whose boundary cell holds fluid (not EB-covered); the state is
+  //  written exactly once.  With the tangential stencil row chosen below,
+  //  the fill is a pure function of data present before the launch, hence
+  //  independent of the order in which ghost cells are visited and identical
+  //  on CPU and GPU.
+  //
+  //  (The legacy bcnormal() path further down does NOT have this property:
+  //  at a corner it reads dest() at a tangential index that is itself a
+  //  ghost cell, filled by the face pass that AMReX runs before its edge and
+  //  corner passes, so its corner value depends on that pass order rather
+  //  than on interior data alone.  There is no race; that pre-existing
+  //  behaviour is left untouched so that no existing result moves.)
+  // -------------------------------------------------------------------------
+  AMREX_GPU_DEVICE
+  AMREX_FORCE_INLINE
+  bool nscbc_fill(
+    const amrex::IntVect& iv,
+    amrex::Array4<amrex::Real> const& dest,
+    amrex::GeometryData const& geom,
+    const amrex::Real time,
+    const amrex::BCRec* bcr) const
+  {
+    const int* bc = bcr[URHO].data();
+    const int* domlo = geom.Domain().loVect();
+    const int* domhi = geom.Domain().hiVect();
+    const amrex::Real* prob_lo = geom.ProbLo();
+    const amrex::Real* dx = geom.CellSize();
+
+    const amrex::Dim3 lo3 = amrex::lbound(dest);
+    const amrex::Dim3 hi3 = amrex::ubound(dest);
+    const int fab_lo[3] = {lo3.x, lo3.y, lo3.z};
+    const int fab_hi[3] = {hi3.x, hi3.y, hi3.z};
+
+    // Index of a cell's periodic image inside the domain (identity in a
+    // non-periodic direction).
+    auto wrap = [&](const int d, const int i) {
+      if (geom.isPeriodic(d) == 0) {
+        return i;
+      }
+      const int n_d = domhi[d] - domlo[d] + 1;
+      return domlo[d] + (((i - domlo[d]) % n_d) + n_d) % n_d;
+    };
+
+    for (int idir = 0; idir < AMREX_SPACEDIM; ++idir) {
+      int sgn = 0;
+      if ((bc[idir] == amrex::BCType::ext_dir) && (iv[idir] < domlo[idir])) {
+        sgn = +1;
+      } else if (
+        (bc[idir + AMREX_SPACEDIM] == amrex::BCType::ext_dir) &&
+        (iv[idir] > domhi[idir])) {
+        sgn = -1;
+      } else {
+        continue;
+      }
+      const int face = 2 * idir + ((sgn > 0) ? 0 : 1);
+
+      const int N_pos = (sgn > 0) ? domlo[idir] : domhi[idir];
+      const int layer = sgn * (N_pos - iv[idir]); // 1 = nearest the domain
+
+      // The tangential row the stencil walks along.  Per tangential
+      // direction d:
+      //
+      //  * PERIODIC: the row is read in place.  FillPatch has already filled
+      //    this FAB's cells beyond the seam with their periodic images
+      //    (ParallelCopy / FillBoundary run before the physical BC fill), so
+      //    in place IS the image, and the result agrees bit for bit with
+      //    the one AMReX's corner fix-up computes for the same cell on its
+      //    shifted strip FAB.  (A clamp to the boundary row here left the
+      //    corners outside in two periodic directions -- which the strip
+      //    fix-up never revisits -- built from the wrong row.)
+      //
+      //  * WALL or SYMMETRY (reflect_even scalars): the row is the mirror
+      //    image of iv across that face, and the reflect_odd components are
+      //    negated after the fill, so a corner ghost is the exact wall image
+      //    of the characteristic ghost at the mirrored row.
+      //
+      //  * anything else (FOExtrap, another Hard face, which owns the corner
+      //    only when it has the lower idir): clamped to the boundary row.
+      //
+      // Clamps are into the domain AND the FAB, so only valid cells are read.
+      // A FAB lying wholly beyond the domain in a non-periodic tangential
+      // direction has no valid row at all; it is left to the legacy path.
+      amrex::IntVect base(AMREX_D_DECL(iv[0], iv[1], iv[2]));
+      int mirror[AMREX_SPACEDIM] = {0}; // 0 none, 1 lo face, 2 hi face
+      bool usable = true;
+      for (int d = 0; d < AMREX_SPACEDIM; ++d) {
+        if ((d == idir) || (geom.isPeriodic(d) != 0)) {
+          continue;
+        }
+        const int lo_in = amrex::max<int>(domlo[d], fab_lo[d]);
+        const int hi_in = amrex::min<int>(domhi[d], fab_hi[d]);
+        if (lo_in > hi_in) {
+          usable = false;
+          break;
+        }
+        int b = iv[d];
+        if ((iv[d] < domlo[d]) && (bc[d] == amrex::BCType::reflect_even)) {
+          b = 2 * domlo[d] - 1 - iv[d];
+          mirror[d] = 1;
+        } else if (
+          (iv[d] > domhi[d]) &&
+          (bc[d + AMREX_SPACEDIM] == amrex::BCType::reflect_even)) {
+          b = 2 * domhi[d] + 1 - iv[d];
+          mirror[d] = 2;
+        }
+        base[d] = amrex::min<int>(amrex::max<int>(b, lo_in), hi_in);
+      }
+      if (!usable) {
+        continue;
+      }
+
+      // How deep a normal stencil is available, in the domain and in the FAB.
+      const int depth_domain = domhi[idir] - domlo[idir] + 1;
+      const int depth_fab =
+        (sgn > 0) ? (fab_hi[idir] - N_pos + 1) : (N_pos - fab_lo[idir] + 1);
+      int n_stencil =
+        amrex::min<int>(3, amrex::min<int>(depth_domain, depth_fab));
+      if (n_stencil < 1) {
+        continue;
+      }
+
+      auto stencil_iv = [&](const int step) {
+        amrex::IntVect r = base;
+        r[idir] = N_pos + sgn * amrex::min<int>(step, n_stencil - 1);
+        return r;
+      };
+
+      // EB: covered stencil cells are identified from the EB geometry (a
+      // per-level mask of the boundary band, built at level construction),
+      // not from the data -- PeleC's default body state is a sampled fluid
+      // state that no test on the data can tell from interior data.
+      auto covered = [&](const amrex::IntVect& c) {
+        const auto& m = m_covered[face];
+        if (!m) {
+          return false;
+        }
+        amrex::IntVect w = c;
+        for (int d = 0; d < AMREX_SPACEDIM; ++d) {
+          w[d] = wrap(d, c[d]);
+        }
+        const amrex::Dim3 w3 = w.dim3();
+        return m.contains(w3.x, w3.y, w3.z) && (m(w) != 0);
+      };
+
+      // A covered boundary cell is wall, not a characteristic boundary
+      // point: the legacy path fills it, as it would without bc_nscbc.
+      const amrex::IntVect ivN = stencil_iv(0);
+      if (covered(ivN)) {
+        continue;
+      }
+      amrex::Real s_N[NVAR], s_Nm1[NVAR], s_Nm2[NVAR];
+      for (int n = 0; n < NVAR; n++) {
+        s_N[n] = dest(ivN, n);
+      }
+
+      // Query the problem for this boundary POINT.  x is the location on the
+      // boundary plane, not the ghost cell centre: the target is a property
+      // of the boundary point and must not vary with the ghost layer, or the
+      // relaxation would be applied to a different target in each layer.
+      // Across a periodic direction it is the image's location.
+      amrex::Real x[AMREX_SPACEDIM];
+      for (int d = 0; d < AMREX_SPACEDIM; ++d) {
+        x[d] = prob_lo[d] +
+               (static_cast<amrex::Real>(wrap(d, base[d])) + 0.5) * dx[d];
+      }
+      x[idir] = prob_lo[idir] + static_cast<amrex::Real>(
+                                  (sgn > 0) ? domlo[idir] : (domhi[idir] + 1)) *
+                                  dx[idir];
+
+      // TurbInflow fluctuations at this boundary point, as bcnormal gets
+      // them; the hook decides how they enter its Target (added to the mean,
+      // or as the total velocity).
+      amrex::GpuArray<amrex::Real, AMREX_SPACEDIM> turb_fluc{0.0};
+      const auto& turb = m_turb[face];
+      if (m_has_turb && turb) {
+        amrex::IntVect ivt = base;
+        ivt[idir] = N_pos - sgn; // the layer-1 ghost, where add_turb wrote
+        // add_turb wrote only within the domain's tangential extent: across
+        // a periodic direction read the image (the turbulence is periodic
+        // too), and clamp into the band this FAB holds.
+        const amrex::Dim3 tlo = amrex::lbound(turb);
+        const amrex::Dim3 thi = amrex::ubound(turb);
+        const int t_lo[3] = {tlo.x, tlo.y, tlo.z};
+        const int t_hi[3] = {thi.x, thi.y, thi.z};
+        for (int d = 0; d < AMREX_SPACEDIM; ++d) {
+          if (d != idir) {
+            ivt[d] = amrex::min<int>(
+              amrex::max<int>(wrap(d, base[d]), t_lo[d]), t_hi[d]);
+          }
+        }
+        for (int n = 0; n < AMREX_SPACEDIM; n++) {
+          turb_fluc[n] = turb(ivt, n);
+        }
+      }
+
+      pc_nscbc::Target tgt = ProblemSpecificFunctions::bcnormal_nscbc(
+        x, s_N, idir, sgn, time, geom, *lprobparm, turb_fluc);
+      if (tgt.type == pc_nscbc::Type::off) {
+        continue; // this face is not characteristic here; try the next
+      }
+
+      // Covered cells deeper in the stencil shorten it (counted).
+      auto bump = [&](const int which) {
+        if (m_nscbc_diag != nullptr) {
+          amrex::HostDevice::Atomic::Add(&m_nscbc_diag[which], amrex::Long(1));
+        }
+      };
+      const int n_full = n_stencil;
+      if ((n_stencil > 2) && covered(stencil_iv(2))) {
+        n_stencil = 2;
+        bump(pc_nscbc::Diag::body_state);
+      }
+      if ((n_stencil > 1) && covered(stencil_iv(1))) {
+        n_stencil = 1;
+        bump(pc_nscbc::Diag::body_state);
+      }
+
+      // The rest of the stencil, now that this point is characteristic.
+      const amrex::IntVect ivNm1 = stencil_iv(1);
+      const amrex::IntVect ivNm2 = stencil_iv(2);
+      for (int n = 0; n < NVAR; n++) {
+        s_Nm1[n] = dest(ivNm1, n);
+        s_Nm2[n] = dest(ivNm2, n);
+      }
+
+      amrex::Real s_ghost[NVAR];
+      if (!pc_nscbc::apply(
+            s_N, s_Nm1, s_Nm2, n_stencil, dx[idir], idir, sgn, layer, tgt,
+            m_nscbc_prm[idir], s_ghost, m_nscbc_diag)) {
+        // The boundary cell's data is not fluid (zero EB body state): there
+        // is nothing to build a characteristic state from, so this face
+        // does not own the cell.  Another direction may; otherwise the
+        // ordinary bcnormal() path below fills it exactly as it would
+        // without the characteristic treatment.
+        continue;
+      }
+      // A FAB holding fewer interior cells along the normal than the
+      // extrapolation wants (the coarse patch of a two-level fill under a
+      // fine grid on this face, say) dropped the order to what fits.
+      // Counted, because the ghost then depends on the box layout; counted
+      // only once the fill is known to be this face's.
+      if (n_full < amrex::min<int>(3, depth_domain)) {
+        bump(pc_nscbc::Diag::stencil_short);
+      }
+      // Per-face count of characteristic fills, so the report can say which
+      // faces the treatment actually reached.
+      bump(pc_nscbc::Diag::count + face);
+
+      // Wall/symmetry image across a tangential face (see base above).
+      for (int d = 0; d < AMREX_SPACEDIM; ++d) {
+        if (mirror[d] != 0) {
+          for (int n = UMX; n < UMX + AMREX_SPACEDIM; ++n) {
+            const int t = (mirror[d] == 1) ? bcr[n].lo(d) : bcr[n].hi(d);
+            if (t == amrex::BCType::reflect_odd) {
+              s_ghost[n] = -s_ghost[n];
+            }
+          }
+        }
+      }
+
+      for (int n = 0; n < NVAR; n++) {
+        dest(iv, n) = s_ghost[n];
+      }
+      return true;
+    }
+    return false;
   }
 
   AMREX_GPU_DEVICE
@@ -42,6 +422,11 @@ struct PCHypFillExtDir
       prob_lo[2] + static_cast<amrex::Real>(iv[2] + 0.5) * dx[2])};
 
     const int* bc = bcr->data();
+
+    // Characteristic boundary treatment, where the problem asks for it.
+    if (m_nscbc && nscbc_fill(iv, dest, geom, time, bcr)) {
+      return;
+    }
 
     amrex::Real s_int[NVAR] = {0.0};
     amrex::Real s_ext[NVAR] = {0.0};
@@ -196,8 +581,67 @@ pc_bcfill_hyp(
   }
 
   const ProbParmDevice* lprobparm = PeleC::d_prob_parm_device;
+
+  // Capture the NSCBC parameters HOST-side (a device kernel must
+  // never touch ParmParse or a class static).
+  const bool nscbc = PeleC::nscbc_active();
+  amrex::GpuArray<pc_nscbc::Params, AMREX_SPACEDIM> nscbc_prm;
+  for (int d = 0; d < AMREX_SPACEDIM; ++d) {
+    nscbc_prm[d] = PeleC::nscbc_params(d);
+  }
+  amrex::Long* diag = nscbc ? nscbc_diag().data() : nullptr;
+
+  amrex::GpuArray<amrex::Array4<const char>, 2 * AMREX_SPACEDIM> covered{};
+  if (nscbc) {
+    if (NSCBCCoveredMask const* m = nscbc_find_mask(geom.Domain())) {
+      for (int f = 0; f < 2 * AMREX_SPACEDIM; ++f) {
+        if (!m->mask[f].empty()) {
+          covered[f] =
+            amrex::makeArray4<const char>(m->mask[f].data(), m->band[f], 1);
+        }
+      }
+    } else {
+      // Every level of an EB run registers its mask at construction; a
+      // fill at a geometry without one would read covered cells as fluid.
+      AMREX_ALWAYS_ASSERT_WITH_MESSAGE(
+        !PeleC::nscbc_needs_eb_mask(),
+        "NSCBC: no EB covered-cell mask for this level's domain");
+    }
+  }
+
+  // The characteristic fill reads the TurbInflow fluctuations from a copy
+  // (see PCHypFillExtDir::m_turb): only the one-cell band add_turb wrote on
+  // each ext_dir face, not the whole FAB.  Async arena: freed in stream
+  // order.
+  amrex::Array<amrex::FArrayBox, 2 * AMREX_SPACEDIM> turb_copy;
+  amrex::GpuArray<amrex::Array4<const amrex::Real>, 2 * AMREX_SPACEDIM>
+    turb_arr{};
+  const bool has_turb = nscbc && PeleC::turb_inflow.is_initialized();
+  if (has_turb) {
+    for (int dir = 0; dir < AMREX_SPACEDIM; ++dir) {
+      for (int side = 0; side < 2; ++side) {
+        const bool ext_dir = (side == 0)
+                               ? (bcr[1].lo()[dir] == amrex::BCType::ext_dir)
+                               : (bcr[1].hi()[dir] == amrex::BCType::ext_dir);
+        const amrex::Box band =
+          ((side == 0) ? amrex::adjCellLo(geom.Domain(), dir)
+                       : amrex::adjCellHi(geom.Domain(), dir)) &
+          data.box();
+        if (ext_dir && band.ok()) {
+          auto& fab = turb_copy[2 * dir + side];
+          fab.resize(band, AMREX_SPACEDIM, amrex::The_Async_Arena());
+          fab.copy<amrex::RunOn::Device>(
+            data, band, UMX, band, 0, AMREX_SPACEDIM);
+          turb_arr[2 * dir + side] = fab.const_array();
+        }
+      }
+    }
+  }
+
   amrex::GpuBndryFuncFab<PCHypFillExtDir> hyp_bndry_func(
-    PCHypFillExtDir{lprobparm, PeleC::turb_inflow.is_initialized()});
+    PCHypFillExtDir{
+      lprobparm, PeleC::turb_inflow.is_initialized(), nscbc, nscbc_prm, diag,
+      turb_arr, has_turb, covered});
   hyp_bndry_func(bx, data, dcomp, numcomp, geom, time, bcr, bcomp, scomp);
 }
 
@@ -230,4 +674,285 @@ pc_nullfill(
   const int /*bcomp*/,
   const int /*scomp*/)
 {
+}
+
+void
+PeleC::nscbc_check_fine_faces() const
+{
+  if (!bc_nscbc || level == 0) {
+    return;
+  }
+  const amrex::Box& dom = geom.Domain();
+  for (int dir = 0; dir < AMREX_SPACEDIM; ++dir) {
+    for (int side = 0; side < 2; ++side) {
+      const int t = (side == 0) ? phys_bc.lo(dir) : phys_bc.hi(dir);
+      if ((t != PCPhysBCType::inflow) && (t != PCPhysBCType::user_bc)) {
+        continue; // not a face the characteristic treatment can reach
+      }
+      const int face = (side == 0) ? dom.smallEnd(dir) : dom.bigEnd(dir);
+      // A box touches when its FILLED region reaches the face, not only its
+      // valid region: a box ending a few cells short still has its ghost
+      // band crossing the face, and the characteristic fill then builds
+      // those ghosts from coarse-interpolated stencil cells.
+      const int ng = nscbc_fill_depth();
+      bool touches = false;
+      for (int i = 0; i < grids.size(); ++i) {
+        const amrex::Box b = amrex::grow(grids[i], dir, ng);
+        if (
+          ((side == 0) && (b.smallEnd(dir) <= face)) ||
+          ((side == 1) && (b.bigEnd(dir) >= face))) {
+          touches = true;
+          break;
+        }
+      }
+      // Once per face per run: regridding can recur every few steps, and a
+      // warning repeated 1600 times is a warning nobody reads.
+      static bool warned[AMREX_SPACEDIM][2] = {};
+      if (
+        touches && !warned[dir][side] &&
+        amrex::ParallelDescriptor::IOProcessor()) {
+        warned[dir][side] = true;
+        // A warning rather than an abort: the problem hook decides per
+        // boundary POINT whether a face is characteristic, and the host
+        // cannot know what it will return.  But if any point of this face
+        // is characteristic, the fill's extrapolation stencil is
+        // level-local, so the fine patch imposes a DIFFERENT boundary
+        // condition than the coarse level does on the same face -- a
+        // level-dependent artefact that refining cannot remove.
+        amrex::Warning(
+          "NSCBC: level " + std::to_string(level) +
+          " grids (with their ghost cells) reach the domain " +
+          (side == 0 ? "lo" : "hi") + " face in direction " +
+          std::to_string(dir) +
+          ", which is a Hard/UserBC face with pelec.bc_nscbc = 1. The "
+          "characteristic fill's stencil is level-local, so a refined patch "
+          "on a characteristic face makes the boundary condition "
+          "level-dependent. Keep refinement away from characteristic faces "
+          "(see Source/NSCBC.H). (This warning is printed once per face.)");
+      }
+    }
+  }
+}
+
+pc_nscbc::Params
+PeleC::nscbc_params(const int idir)
+{
+  pc_nscbc::Params p;
+  p.sigma = bc_nscbc_sigma;
+  p.relax_u = bc_nscbc_relax_u;
+  p.relax_t = bc_nscbc_relax_t;
+  p.order = bc_nscbc_order;
+  p.pin_farfield = bc_nscbc_pin_farfield;
+  // Only the ratio sigma/L_ref is physical.  L_ref is fixed to the domain
+  // extent along the boundary normal so that sigma keeps the meaning it has
+  // in the literature, rather than being one of two dials for one degree of
+  // freedom.  Uses probhi - problo, not probhi: the legacy Fortran used
+  // probhi(idir) and was therefore silently wrong for any domain not
+  // anchored at the origin.
+  const auto& geom = amrex::DefaultGeometry();
+  p.L_ref = geom.ProbHi(idir) - geom.ProbLo(idir);
+  return p;
+}
+
+int
+PeleC::nscbc_fill_depth() const
+{
+  // The ghost depth of the level's advance FillPatch: the state's own ghost
+  // cells, the hydro + explicit-filter border, and Sborder (which also
+  // carries the spray ghosts).
+  return amrex::max<int>(
+    get_new_data(State_Type).nGrow(),
+    amrex::max<int>(numGrow() + nGrowF, Sborder.nGrow()));
+}
+
+int
+PeleC::nscbc_last_report()
+{
+  return nscbc_last_report_step;
+}
+
+bool
+PeleC::nscbc_needs_eb_mask()
+{
+  return bc_nscbc && eb_in_domain;
+}
+
+void
+PeleC::nscbc_init_eb_mask()
+{
+#ifdef AMREX_USE_EB
+  if (!nscbc_needs_eb_mask() || (nscbc_find_mask(geom.Domain()) != nullptr)) {
+    return;
+  }
+  if (nscbc_masks_p == nullptr) {
+    nscbc_masks_p = new amrex::Vector<std::unique_ptr<NSCBCCoveredMask>>();
+    amrex::ExecOnFinalize([]() {
+      delete nscbc_masks_p;
+      nscbc_masks_p = nullptr;
+    });
+  }
+  auto m = std::make_unique<NSCBCCoveredMask>();
+  const amrex::Box& dom = geom.Domain();
+  m->domain = dom;
+  const auto& eb_level = amrex::EB2::IndexSpace::top().getLevel(geom);
+  for (int dir = 0; dir < AMREX_SPACEDIM; ++dir) {
+    for (int side = 0; side < 2; ++side) {
+      const int t = (side == 0) ? phys_bc.lo(dir) : phys_bc.hi(dir);
+      if ((t != PCPhysBCType::inflow) && (t != PCPhysBCType::user_bc)) {
+        continue; // not a face the characteristic treatment can reach
+      }
+      // The stencil's cells: three deep along the normal, the whole domain
+      // across it (the fill only ever reads in-domain rows; a periodic
+      // index is wrapped into the domain before the lookup).
+      amrex::Box band = dom;
+      if (side == 0) {
+        band.setBig(
+          dir, amrex::min<int>(dom.smallEnd(dir) + 2, dom.bigEnd(dir)));
+      } else {
+        band.setSmall(
+          dir, amrex::max<int>(dom.bigEnd(dir) - 2, dom.smallEnd(dir)));
+      }
+      // Collective: every rank fills its share of the band's volume
+      // fraction from the EB index space, and an all-reduce assembles the
+      // whole band on every rank (a boundary fill may need any part of it).
+      amrex::BoxArray ba(band);
+      ba.maxSize(64);
+      const amrex::DistributionMapping dm(ba);
+      amrex::MultiFab vf(ba, dm, 1, 0);
+      eb_level.fillVolFrac(vf, geom);
+      const auto npts = static_cast<std::size_t>(band.numPts());
+      amrex::Vector<int> h(npts, 0);
+      for (amrex::MFIter mfi(vf); mfi.isValid(); ++mfi) {
+        const amrex::Box& b = mfi.validbox();
+        amrex::FArrayBox hf(b, 1, amrex::The_Pinned_Arena());
+        hf.copy<amrex::RunOn::Device>(vf[mfi], b, 0, b, 0, 1);
+        amrex::Gpu::streamSynchronize();
+        const auto ha = hf.const_array();
+        const auto ma = amrex::makeArray4<int>(h.data(), band, 1);
+        amrex::LoopOnCpu(b, [&](int i, int j, int k) {
+          ma(i, j, k) = (ha(i, j, k) > 0.0) ? 0 : 1;
+        });
+      }
+      amrex::ParallelDescriptor::ReduceIntMax(h.data(), static_cast<int>(npts));
+      // Stored one byte per cell: the mask is replicated on every rank.
+      amrex::Vector<char> hc(npts);
+      for (std::size_t i = 0; i < npts; ++i) {
+        hc[i] = static_cast<char>(h[i] != 0);
+      }
+      const int f = 2 * dir + side;
+      m->band[f] = band;
+      m->mask[f].resize(npts);
+      amrex::Gpu::copy(
+        amrex::Gpu::hostToDevice, hc.begin(), hc.end(), m->mask[f].begin());
+    }
+  }
+  amrex::Gpu::streamSynchronize();
+  nscbc_masks_p->push_back(std::move(m));
+#endif
+}
+
+void
+PeleC::nscbc_init_diagnostics()
+{
+  if (nscbc_diag_p != nullptr) {
+    return;
+  }
+  nscbc_diag_p = new amrex::Gpu::DeviceVector<amrex::Long>(nscbc_ncounters, 0);
+  amrex::ExecOnFinalize([]() {
+    // Whatever counted since the last report is reported here, before the
+    // counters go: a run that ends between two reports, or before the
+    // first, must not drop its fallbacks.  The finalize callbacks run before
+    // AMReX tears down the arenas and MPI.
+    nscbc_report_diagnostics(-1);
+    delete nscbc_diag_p;
+    nscbc_diag_p = nullptr;
+  });
+}
+
+void
+PeleC::nscbc_report_diagnostics(const int step)
+{
+  if (!bc_nscbc || (nscbc_diag_p == nullptr)) {
+    return;
+  }
+  if (step >= 0) {
+    nscbc_last_report_step = step;
+  }
+  // Settle any counter atomics still in flight BEFORE the copy: the fills
+  // bump these counters from MFIter's rotating streams, and the blocking
+  // Gpu::copy below synchronises only its own stream.  A count landing
+  // between the copy and the reset would never be reported.
+  amrex::Gpu::Device::synchronize();
+  std::vector<amrex::Long> h(nscbc_ncounters, 0);
+  amrex::Gpu::copy(
+    amrex::Gpu::deviceToHost, nscbc_diag().begin(), nscbc_diag().end(),
+    h.begin());
+  amrex::ParallelDescriptor::ReduceLongSum(h.data(), nscbc_ncounters);
+
+  // Which faces the treatment actually reached.  bc_nscbc = 1 with a hook
+  // that is never called (an outlet left FOExtrap, or a bcnormal_nscbc that
+  // is not a static member of the problem's ProblemSpecificFunctions) or
+  // that returns off everywhere would otherwise look exactly like a healthy
+  // boundary: only fallbacks print.
+  static const char* face_name[6] = {"x-lo", "x-hi", "y-lo",
+                                     "y-hi", "z-lo", "z-hi"};
+  amrex::Long all_fills = 0;
+  for (int f = 0; f < 2 * AMREX_SPACEDIM; ++f) {
+    nscbc_face_fills_total[f] += h[pc_nscbc::Diag::count + f];
+    all_fills += nscbc_face_fills_total[f];
+    if (
+      (nscbc_face_fills_total[f] > 0) && !nscbc_face_announced[f] &&
+      amrex::ParallelDescriptor::IOProcessor()) {
+      nscbc_face_announced[f] = true;
+      amrex::Print() << "  NSCBC: characteristic fills active on the "
+                     << face_name[f] << " face\n";
+    }
+  }
+  // Warn once the run has advanced past the first report (the end-of-run
+  // report passes -1) without a single characteristic fill.
+  static int first_step = -2;
+  if (first_step == -2) {
+    first_step = step;
+  }
+  if (
+    ((step < 0) || (step > first_step)) && (all_fills == 0) &&
+    !nscbc_none_warned) {
+    nscbc_none_warned = true;
+    if (amrex::ParallelDescriptor::IOProcessor()) {
+      amrex::Warning(
+        "NSCBC: pelec.bc_nscbc = 1 but no boundary point has been filled by "
+        "the characteristic treatment. It acts only on Hard/UserBC faces, "
+        "and only where ProblemSpecificFunctions::bcnormal_nscbc -- a static "
+        "member of the struct the problem's prob.H aliases to "
+        "ProblemSpecificFunctions -- returns a type other than off.");
+    }
+  }
+
+  // The supersonic path is exact, not a degradation, so it is reported but is
+  // not a warning.  The others mean the boundary is being asked for something
+  // it cannot cleanly provide.
+  const amrex::Long total =
+    h[pc_nscbc::Diag::reversed] + h[pc_nscbc::Diag::body_state] +
+    h[pc_nscbc::Diag::eos_failure] + h[pc_nscbc::Diag::floored] +
+    h[pc_nscbc::Diag::stencil_short] + h[pc_nscbc::Diag::target_incomplete] +
+    h[pc_nscbc::Diag::passive_unset];
+  if (amrex::ParallelDescriptor::IOProcessor() && (total > 0 || verbose > 1)) {
+    amrex::Print() << "  NSCBC fallbacks since last report:" << "  supersonic "
+                   << h[pc_nscbc::Diag::supersonic] << ",  flow reversal "
+                   << h[pc_nscbc::Diag::reversed] << ",  EB covered stencil "
+                   << h[pc_nscbc::Diag::body_state] << ",  EOS failure "
+                   << h[pc_nscbc::Diag::eos_failure] << ",  floored "
+                   << h[pc_nscbc::Diag::floored] << ",  short stencil "
+                   << h[pc_nscbc::Diag::stencil_short]
+                   << ",  target incomplete "
+                   << h[pc_nscbc::Diag::target_incomplete]
+                   << ",  inflow passives unset "
+                   << h[pc_nscbc::Diag::passive_unset] << "\n";
+  }
+  nscbc_diag().assign(nscbc_ncounters, 0);
+  // The reset itself is a device fill on the current stream; the next
+  // advance's fills bump these counters from MFIter's rotating streams,
+  // which are not ordered against it.  Settle the reset before returning
+  // so a zero can never land on top of a fresh count.
+  amrex::Gpu::streamSynchronize();
 }
