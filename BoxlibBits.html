@@ -1,0 +1,284 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Development Reference &mdash; PeleC 0.1 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=03e43079" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=9edc463e" />
+
+  
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=2709fde1"></script>
+      <script src="_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="prev" title="PelePhysics" href="PelePhysics.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            PeleC
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="Introduction.html">Introduction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="Equations.html">Equations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="Algorithms.html">Numerical Treatment and Algorithms</a></li>
+<li class="toctree-l1"><a class="reference internal" href="GettingStarted.html">Getting Started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="BoundaryConditions.html">Boundary Conditions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="geometry/EB.html">Geometry treatment in PeleC</a></li>
+<li class="toctree-l1"><a class="reference internal" href="LES.html">LES and Hybrid LES/DNS Support</a></li>
+<li class="toctree-l1"><a class="reference internal" href="VandV.html">Correctness - Verification and Validation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="PelePhysics.html">PelePhysics</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Development Reference</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#amrex-functions-useful-for-pele-development">AMReX functions useful for Pele development</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#solution-environment">Solution environment</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#data-structures">Data structures</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#pelec-implementation">PeleC Implementation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#multilevel-tools">Multilevel tools</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#contributing-to-pelec">Contributing to PeleC</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#development-model">Development Model</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#building-regression-test-suite-locally">Building Regression Test Suite Locally</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">PeleC</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Development Reference</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/BoxlibBits.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="development-reference">
+<h1>Development Reference<a class="headerlink" href="#development-reference" title="Link to this heading"></a></h1>
+<p>#Function Listing for PeleC
+#————————–
+#
+#When built, the full doxygen documentation for PeleC can be found
+#`here &lt;../../../doxygen_output/html/index.html&gt;`_.</p>
+<section id="amrex-functions-useful-for-pele-development">
+<h2>AMReX functions useful for Pele development<a class="headerlink" href="#amrex-functions-useful-for-pele-development" title="Link to this heading"></a></h2>
+<p>Pele is built on AMReX (available at <a class="reference external" href="https://github.com/AMReX-Codes/amrex">https://github.com/AMReX-Codes/amrex</a>), an adaptive mesh refinement software framework, which provides the underlying software infrastructure for block structured AMR operations. Below is a quick reference list with links to many of the AMReX tools used to build up PeleC. The full AMReX documentation can be found <a class="reference external" href="https://amrex-codes.github.io/AMReXUsersGuide.pdf">here</a>.</p>
+<section id="solution-environment">
+<h3>Solution environment<a class="headerlink" href="#solution-environment" title="Link to this heading"></a></h3>
+<ul class="simple">
+<li><p><a class="reference external" href="https://amrex-codes.github.io/amrex/docs_html/Basics.html#boxarray">amrex::BoxArray</a></p></li>
+<li><p><a class="reference external" href="https://amrex-codes.github.io/amrex/docs_html/AmrLevel.html?highlight=statedata#statedata">amrex::StateData</a></p>
+<ul>
+<li><p>amrex::StateData::copyOld</p></li>
+<li><p>amrex::StateData::setTimeLevel</p></li>
+<li><p>amrex::StateData::hasOldData</p></li>
+<li><p>amrex::StateData::swapTimeLevels</p></li>
+</ul>
+</li>
+</ul>
+</section>
+<section id="data-structures">
+<h3>Data structures<a class="headerlink" href="#data-structures" title="Link to this heading"></a></h3>
+<ul class="simple">
+<li><p><a class="reference external" href="https://amrex-codes.github.io/amrex/docs_html/Basics.html#vector-and-array">amrex::Array</a></p></li>
+<li><p><a class="reference external" href="https://amrex-codes.github.io/amrex/docs_html/Basics.html#basefab-farraybox-and-iarraybox">amrex::FArrayBox</a></p>
+<ul>
+<li><p>BaseFab&lt; T &gt;::dataPtr</p></li>
+<li><p>BaseFab&lt; T &gt;::loVect</p></li>
+<li><p>BaseFab&lt; T &gt;::hiVect</p></li>
+<li><p>BaseFab&lt; T &gt;::nComp</p></li>
+<li><p>BaseFab&lt; T &gt;::setVal(Real)</p></li>
+<li><p>amrex::FArrayBox::resize</p></li>
+<li><p>amrex::FArrayBox::plus</p></li>
+</ul>
+</li>
+<li><p><a class="reference external" href="https://amrex-codes.github.io/amrex/docs_html/AmrCore.html?highlight=tagbox#tagbox-and-cluster">TagBox</a></p></li>
+<li><p><a class="reference external" href="https://amrex-codes.github.io/amrex/docs_html/Basics.html#box-intvect-and-indextype">Box</a></p>
+<ul>
+<li><p>amrex::Box::surroundingNodes(const Box&amp;, int)</p></li>
+<li><p>amrex::grow(const Box&amp;, int)</p></li>
+</ul>
+</li>
+<li><dl class="simple">
+<dt><a class="reference external" href="https://amrex-codes.github.io/amrex/docs_html/Basics.html#fabarray-multifab-and-imultifab">iMultiFab, amrex::MultiFab&lt;FArraybox&gt;</a></dt><dd><ul>
+<li><p>amrex::MultiFab::SumBoundary(int, int, const Periodicity&amp;)</p></li>
+<li><p>amrex::MultiFab::setVal(value_type)</p></li>
+<li><p>amrex::MultiFab::Copy</p></li>
+<li><p>amrex::MultiFab::Add</p></li>
+<li><p>amrex::MultiFab::define(const BoxArray&amp;, int, int, FabAlloc, const IntVect&amp;, ParallelDescriptor::Color)</p></li>
+<li><p>amrex::MultiFab::sum</p></li>
+<li><p>amrex::MultiFab::clear</p></li>
+<li><p>amrex::MultiFab::FillBoundary</p></li>
+<li><p>amrex::MultiFab::Saxpy</p></li>
+<li><p>amrex::RealBox</p></li>
+</ul>
+</dd>
+</dl>
+</li>
+</ul>
+</section>
+<section id="pelec-implementation">
+<h3>PeleC Implementation<a class="headerlink" href="#pelec-implementation" title="Link to this heading"></a></h3>
+<ul class="simple">
+<li><p><a class="reference external" href="https://amrex-codes.github.io/amrex/docs_html/AmrLevel.html#amrlevel-class">amrex::AmrLevel</a></p></li>
+<li><p>StateDescriptor</p></li>
+<li><p><a class="reference external" href="https://amrex-codes.github.io/amrex/docs_html/Basics.html#mfiter-and-tiling">MFIter</a></p></li>
+<li><p><a class="reference external" href="https://amrex-codes.github.io/amrex/docs_html/AsyncIter.html?highlight=fillpatch">FillPatch(AmrLevel&amp;, MultiFab&amp;, int, Real, int, int, int, int)</a></p></li>
+</ul>
+</section>
+<section id="multilevel-tools">
+<h3>Multilevel tools<a class="headerlink" href="#multilevel-tools" title="Link to this heading"></a></h3>
+<ul class="simple">
+<li><p><a class="reference external" href="https://amrex-codes.github.io/amrex/docs_html/AmrCore.html?highlight=averagedown">amrex::average_down(MultiFab&amp;, MultiFab&amp;, const Geometry&amp;, const Geometry&amp;, int, int, const int)</a></p></li>
+<li><dl class="simple">
+<dt><a class="reference external" href="https://amrex-codes.github.io/amrex/docs_html/AmrCore.html?highlight=fluxregister#using-fluxregisters">FluxRegister</a></dt><dd><ul>
+<li><p>FluxRegister::FineAdd(const MultiFab&amp;, int, int, int, int, Real)</p></li>
+<li><p>FluxRegister::CrseInit(const MultiFab&amp;, int, int, int, int, Real, FrOp)</p></li>
+</ul>
+</dd>
+</dl>
+</li>
+</ul>
+</section>
+</section>
+<section id="contributing-to-pelec">
+<h2>Contributing to PeleC<a class="headerlink" href="#contributing-to-pelec" title="Link to this heading"></a></h2>
+<section id="development-model">
+<h3>Development Model<a class="headerlink" href="#development-model" title="Link to this heading"></a></h3>
+<p>To add a new feature to PeleC, the procedure is:</p>
+<ol class="arabic">
+<li><p>Create a branch for the new feature (locally)</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">git</span> <span class="n">checkout</span> <span class="o">-</span><span class="n">b</span> <span class="n">AmazingNewFeature</span>
+</pre></div>
+</div>
+</li>
+<li><p>Develop the feature, merging changes often from the development branch into your AmazingNewFeature branch</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">git</span> <span class="n">commit</span> <span class="o">-</span><span class="n">m</span> <span class="s2">"Developed AmazingNewFeature"</span>
+<span class="n">git</span> <span class="n">checkout</span> <span class="n">development</span>
+<span class="n">git</span> <span class="n">pull</span>                     <span class="p">[</span><span class="n">fix</span> <span class="nb">any</span> <span class="n">identified</span> <span class="n">conflicts</span> <span class="n">between</span> <span class="n">local</span> <span class="ow">and</span> <span class="n">remote</span> <span class="n">branches</span> <span class="n">of</span> <span class="s2">"development"</span><span class="p">]</span>
+<span class="n">git</span> <span class="n">checkout</span> <span class="n">AmazingNewFeature</span>
+<span class="n">git</span> <span class="n">merge</span> <span class="n">development</span>        <span class="p">[</span><span class="n">fix</span> <span class="nb">any</span> <span class="n">identified</span> <span class="n">conflicts</span> <span class="n">between</span> <span class="s2">"development"</span> <span class="ow">and</span> <span class="s2">"AmazingNewFeature"</span><span class="p">]</span>
+</pre></div>
+</div>
+</li>
+<li><p>Push feature branch to PeleC repository</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">git</span> <span class="n">push</span> <span class="o">-</span><span class="n">u</span> <span class="n">origin</span> <span class="n">AmazingNewFeature</span> <span class="p">[</span><span class="n">Note</span><span class="p">:</span> <span class="o">-</span><span class="n">u</span> <span class="n">option</span> <span class="n">required</span> <span class="n">only</span> <span class="k">for</span> <span class="n">the</span> <span class="n">first</span> <span class="n">push</span> <span class="n">of</span> <span class="n">new</span> <span class="n">branch</span><span class="p">]</span>
+
+<span class="n">Check</span> <span class="n">that</span> <span class="n">Travis</span> <span class="n">CI</span> <span class="n">build</span> <span class="n">passed</span><span class="o">.</span> <span class="n">Currently</span> <span class="n">to</span> <span class="n">reduce</span> <span class="n">load</span> <span class="n">on</span> <span class="n">the</span> <span class="n">CI</span> <span class="n">framework</span> <span class="n">this</span> <span class="ow">is</span> <span class="n">just</span> <span class="n">a</span> <span class="n">test</span> <span class="n">that</span> <span class="n">one</span> <span class="n">of</span> <span class="n">the</span> <span class="n">regression</span> <span class="n">tests</span> <span class="n">will</span> <span class="nb">compile</span><span class="o">.</span>
+</pre></div>
+</div>
+</li>
+<li><p>Submit a merge request through <a class="reference external" href="mailto:git&#37;&#52;&#48;github&#46;com">git<span>&#64;</span>github<span>&#46;</span>com</a>:Pele-Suite/PeleC.git - be sure you are requesting to merge your branch to the development branch.</p></li>
+</ol>
+</section>
+<section id="building-regression-test-suite-locally">
+<h3>Building Regression Test Suite Locally<a class="headerlink" href="#building-regression-test-suite-locally" title="Link to this heading"></a></h3>
+<p>It is possibly—and desirable—to create the regression testing framework locally and ensure that all tests pass successfully. This is also a good way to ensure all is properly installed on a new machine to be used for PeleC calculations. The initial setup is somewhat tedious but is worth the effort. What needs to be done is: (1) make a scratch area on the local machine where you manually run the regression tests.  As part of the process, a set of “gold” solutions will be generated using code from the current versions of PeleC, PelePhysics and amrex.  Regression tests afterwards will compare to those solutions and indicate binary compatibility. (2) Clone the required repositories into this area and set required environment variables that point to where everything is. (3) Run the tests to generate the “gold” benchmark data.</p>
+<ol class="arabic">
+<li><p>Make scratch area</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">mkdir</span> <span class="o">~/</span><span class="n">REG_TEST_AREA</span><span class="p">;</span> <span class="n">cd</span> <span class="o">~/</span><span class="n">REG_TEST_AREA</span>
+</pre></div>
+</div>
+</li>
+<li><p>Clone repositories (amrex, PeleC, PelePhysics, regression_testing (AMReX’s driver scripts) and PeleRegressionTesting (Pele-specific stuff))</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>git clone git@github.com:AMReX-Combustion/PeleRegressionTesting.git
+cd PeleRegressionTesting; git checkout development
+mkdir -p TestData/PeleC  # this is where the test results will be written
+mkdir Repositories   # this is where the src code to be tested is put
+cd Repositories
+export PELE_HOME=`pwd`/PeleC; git clone git@github.com:Pele-Suite/PeleC.git $PELE_HOME
+cd $PELE_HOME; git checkout development; cd ..
+export PELE_PHYSICS_HOME=`pwd`/PelePhysics; git clone git@github.com:Pele-Suite/PelePhysics.git $PELE_PHYSICS_HOME
+cd $PELE_PHYSICS_HOME; git checkout development; cd ..
+export AMREX_HOME=`pwd`/amrex; git clone git@github.com:AMReX-Codes/amrex.git $AMREX_HOME
+cd $AMREX_HOME; git checkout development; cd ..
+export AMREX_REGTEST_HOME=`pwd`/regression_testing; git clone git@github.com:AMReX-Codes/regression_testing.git $AMREX_REGTEST_HOME
+cd ..
+</pre></div>
+</div>
+</li>
+<li><p>Run the script to execute the tests to generate benchmarks. After it finishes building and running (12 as of March 2019) tests, it will archive the pltfiles that result from each into a folder in the TestData/PeleC folder in the PeleRegressionTesting folder.  Once the benchmarks exist, any changes to the repositories in the PeleRegressionTesting/Repositories can be tested to diff clean against these benchmarks by running the script (again from within the PeleRegressionTesting folder)</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="o">./</span><span class="n">Scripts</span><span class="o">/</span><span class="n">genbenchPC</span><span class="o">.</span><span class="n">sh</span>
+</pre></div>
+</div>
+</li>
+<li><p>Run the tests to execute the tests again, using local modifications (the scripts use a switch for the regtest.py function that says do NOT pull the latest copies off the web for all the repositories in the local testing area)</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="o">./</span><span class="n">Scripts</span><span class="o">/</span><span class="n">runtestsPC</span><span class="o">.</span><span class="n">sh</span>
+</pre></div>
+</div>
+</li>
+</ol>
+</section>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="PelePhysics.html" class="btn btn-neutral float-left" title="PelePhysics" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright AMReX Copyright (c) 2021, The Regents of the University of California, through Lawrence Berkeley National Laboratory, the Alliance for Sustainable Energy, LLC., through National Renewable Energy Laboratory, National Technology and Engineering Solutions of Sandia, LLC, and UT-Battelle, LLC (subject to receipt of any required approvals from the U.S. Dept. of Energy).  All rights reserved..</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

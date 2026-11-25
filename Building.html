@@ -1,0 +1,162 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Building &mdash; PeleC 0.1 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=03e43079" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=9edc463e" />
+
+  
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=2709fde1"></script>
+      <script src="_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Input Files and Controls" href="InputFiles.html" />
+    <link rel="prev" title="Getting Started" href="GettingStarted.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            PeleC
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="Introduction.html">Introduction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="Equations.html">Equations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="Algorithms.html">Numerical Treatment and Algorithms</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="GettingStarted.html">Getting Started</a><ul class="current">
+<li class="toctree-l2 current"><a class="reference internal" href="GettingStarted.html#navigation">Navigation</a><ul class="current">
+<li class="toctree-l3 current"><a class="current reference internal" href="#">Building</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#gnu-make">GNU Make</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#cmake">CMake</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="InputFiles.html">Input Files and Controls</a></li>
+<li class="toctree-l3"><a class="reference internal" href="Tutorials.html">Tutorials</a></li>
+<li class="toctree-l3"><a class="reference internal" href="Testing.html">Testing and Verification</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="BoundaryConditions.html">Boundary Conditions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="geometry/EB.html">Geometry treatment in PeleC</a></li>
+<li class="toctree-l1"><a class="reference internal" href="LES.html">LES and Hybrid LES/DNS Support</a></li>
+<li class="toctree-l1"><a class="reference internal" href="VandV.html">Correctness - Verification and Validation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="PelePhysics.html">PelePhysics</a></li>
+<li class="toctree-l1"><a class="reference internal" href="BoxlibBits.html">Development Reference</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">PeleC</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="GettingStarted.html">Getting Started</a></li>
+      <li class="breadcrumb-item active">Building</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/Building.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="building">
+<span id="id1"></span><h1>Building<a class="headerlink" href="#building" title="Link to this heading"></a></h1>
+<p>PeleC uses executables which are customized to the case in which the user intends to run. As listed earlier, specific source code files are considered input to the program and compiled into the executable itself. Therefore, PeleC has both compile-time and run-time inputs that the user must set for their case. The compile time inputs can be verified by running:</p>
+<dl class="simple">
+<dt>::</dt><dd><p>./PeleC –describe</p>
+</dd>
+</dl>
+<p>which will print out the build information (including git hashes, modules, EoS, some basic information from compiled chemistry network, etc).</p>
+<p>PeleC has the ability to use two build systems. First is the GNU Make build system. This build system is best for use on large computing facility machines and production runs. With the GNU Make implementation, the build system will inspect the machine and use known compiler optimizations explicit to that machine if possible. These explicit settings are kept up-to-date by the AMReX project. The second build system implemented is CMake. This is best used for developers of PeleC and more generalized. CMake allows for building as well as easy testing and verification of PeleC through the use of CTest which is included in CMake.</p>
+<section id="gnu-make">
+<h2>GNU Make<a class="headerlink" href="#gnu-make" title="Link to this heading"></a></h2>
+<p>Using the GNU Make build system involves first setting environment variables for the directories of the dependencies of PeleC which are the repositories of AMReX and PelePhysics. AMReX and PelePhysics are provided as git submodules in PeleC and can be populated by using <code class="docutils literal notranslate"><span class="pre">git</span> <span class="pre">submodule</span> <span class="pre">init</span> <span class="pre">&amp;&amp;</span> <span class="pre">git</span> <span class="pre">submodule</span> <span class="pre">update</span></code> in the PeleC repo, or before cloning by using <code class="docutils literal notranslate"><span class="pre">git</span> <span class="pre">clone</span> <span class="pre">--recursive</span> <span class="pre">&lt;pelec_repo&gt;</span></code>. Although submodules of these projects are provided, they can be placed externally as long as the <code class="docutils literal notranslate"><span class="pre">&lt;REPO_HOME&gt;</span></code> environment variables for each dependency is set correctly. An example of setting the <code class="docutils literal notranslate"><span class="pre">&lt;REPO_HOME&gt;</span></code> environment variables in the user’s <code class="docutils literal notranslate"><span class="pre">.bashrc</span></code> is shown below:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>export PELE_HOME=${HOME}/PeleC
+export PELE_PHYSICS_HOME=${PELE_HOME}/Submodules/PelePhysics
+export AMREX_HOME=${PELE_PHYSICS_HOME}/Submodules/amrex
+</pre></div>
+</div>
+<p>Then one edits the <code class="docutils literal notranslate"><span class="pre">GNUMakefile</span></code> in any of the examples in the <code class="docutils literal notranslate"><span class="pre">Exec</span></code> directory and uses the <code class="docutils literal notranslate"><span class="pre">make</span></code> command to build the executable.</p>
+</section>
+<section id="cmake">
+<h2>CMake<a class="headerlink" href="#cmake" title="Link to this heading"></a></h2>
+<p>Using CMake involves an additional configure step before using the <code class="docutils literal notranslate"><span class="pre">make</span></code> command. It is also expected that the user has cloned the PeleC repo with the <code class="docutils literal notranslate"><span class="pre">--recursive</span></code> option or performed <code class="docutils literal notranslate"><span class="pre">git</span> <span class="pre">submodule</span> <span class="pre">init;</span> <span class="pre">git</span> <span class="pre">submodule</span> <span class="pre">update</span></code> in the PeleC repo to populate its submodules.</p>
+<p>To build with CMake, a user typically creates a <code class="docutils literal notranslate"><span class="pre">build</span></code> directory in the project directory and in that directory the <code class="docutils literal notranslate"><span class="pre">cmake</span> <span class="pre">&lt;options&gt;</span> <span class="pre">..</span></code> command is used to configure the project before building it. PeleC provides an example build directory called <code class="docutils literal notranslate"><span class="pre">Build</span></code> with example scripts for performing the CMake configure. Once the CMake configure step is done, then the <code class="docutils literal notranslate"><span class="pre">make</span></code> command will build the executable.</p>
+<p>An example CMake configure command to build PeleC with MPI is listed below:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">cmake</span> <span class="o">-</span><span class="n">DCMAKE_BUILD_TYPE</span><span class="p">:</span><span class="n">STRING</span><span class="o">=</span><span class="n">Release</span> \
+      <span class="o">-</span><span class="n">DPELE_ENABLE_MPI</span><span class="p">:</span><span class="n">BOOL</span><span class="o">=</span><span class="n">ON</span> \
+      <span class="o">-</span><span class="n">DCMAKE_CXX_COMPILER</span><span class="p">:</span><span class="n">STRING</span><span class="o">=</span><span class="n">mpicxx</span> \
+      <span class="o">-</span><span class="n">DCMAKE_C_COMPILER</span><span class="p">:</span><span class="n">STRING</span><span class="o">=</span><span class="n">mpicc</span> \
+      <span class="o">..</span> <span class="o">&amp;&amp;</span> <span class="n">make</span>
+</pre></div>
+</div>
+<p>Note that CMake is able to generate makefiles for the Ninja build system as well which will allow for faster building of the executable(s).</p>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="GettingStarted.html" class="btn btn-neutral float-left" title="Getting Started" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="InputFiles.html" class="btn btn-neutral float-right" title="Input Files and Controls" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright AMReX Copyright (c) 2021, The Regents of the University of California, through Lawrence Berkeley National Laboratory, the Alliance for Sustainable Energy, LLC., through National Renewable Energy Laboratory, National Technology and Engineering Solutions of Sandia, LLC, and UT-Battelle, LLC (subject to receipt of any required approvals from the U.S. Dept. of Energy).  All rights reserved..</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

@@ -1,0 +1,168 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Testing and Verification &mdash; PeleC 0.1 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=03e43079" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=9edc463e" />
+
+  
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=2709fde1"></script>
+      <script src="_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Boundary Conditions" href="BoundaryConditions.html" />
+    <link rel="prev" title="Tutorials" href="Tutorials.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            PeleC
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="Introduction.html">Introduction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="Equations.html">Equations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="Algorithms.html">Numerical Treatment and Algorithms</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="GettingStarted.html">Getting Started</a><ul class="current">
+<li class="toctree-l2 current"><a class="reference internal" href="GettingStarted.html#navigation">Navigation</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="Building.html">Building</a></li>
+<li class="toctree-l3"><a class="reference internal" href="InputFiles.html">Input Files and Controls</a></li>
+<li class="toctree-l3"><a class="reference internal" href="Tutorials.html">Tutorials</a></li>
+<li class="toctree-l3 current"><a class="current reference internal" href="#">Testing and Verification</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#building-the-tests">Building the Tests</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#running-the-tests">Running the Tests</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#adding-tests">Adding Tests</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="BoundaryConditions.html">Boundary Conditions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="geometry/EB.html">Geometry treatment in PeleC</a></li>
+<li class="toctree-l1"><a class="reference internal" href="LES.html">LES and Hybrid LES/DNS Support</a></li>
+<li class="toctree-l1"><a class="reference internal" href="VandV.html">Correctness - Verification and Validation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="PelePhysics.html">PelePhysics</a></li>
+<li class="toctree-l1"><a class="reference internal" href="BoxlibBits.html">Development Reference</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">PeleC</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="GettingStarted.html">Getting Started</a></li>
+      <li class="breadcrumb-item active">Testing and Verification</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/Testing.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <p>#.. _Testing:</p>
+<section id="testing-and-verification">
+<h1>Testing and Verification<a class="headerlink" href="#testing-and-verification" title="Link to this heading"></a></h1>
+<p>Testing and verification of PeleC can be performed using CTest, which is included in the CMake build system. If one builds PeleC with CMake, the testing suite, and the verification suite, can be enabled during the CMake configure step. A nightly test is reflected on the dashboard <a class="reference external" href="https://my.cdash.org/index.php?project=Pele">here</a> .</p>
+<p>An example <code class="docutils literal notranslate"><span class="pre">cmake</span></code> configure command performed in the <code class="docutils literal notranslate"><span class="pre">Build</span></code> directory in PeleC is shown below with options relevant to the testing suite:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">cmake</span> <span class="o">-</span><span class="n">DCMAKE_INSTALL_PREFIX</span><span class="p">:</span><span class="n">PATH</span><span class="o">=./</span><span class="n">install</span> \
+      <span class="o">-</span><span class="n">DCMAKE_BUILD_TYPE</span><span class="p">:</span><span class="n">STRING</span><span class="o">=</span><span class="n">Release</span> \
+      <span class="o">-</span><span class="n">DPELE_ENABLE_MPI</span><span class="p">:</span><span class="n">BOOL</span><span class="o">=</span><span class="n">ON</span> \
+      <span class="o">-</span><span class="n">DCMAKE_CXX_COMPILER</span><span class="p">:</span><span class="n">STRING</span><span class="o">=</span><span class="n">mpicxx</span> \
+      <span class="o">-</span><span class="n">DCMAKE_C_COMPILER</span><span class="p">:</span><span class="n">STRING</span><span class="o">=</span><span class="n">mpicc</span> \
+      <span class="o">-</span><span class="n">DENABLE_FCOMPARE</span><span class="p">:</span><span class="n">BOOL</span><span class="o">=</span><span class="n">ON</span> \
+      <span class="o">-</span><span class="n">DENABLE_TESTS</span><span class="p">:</span><span class="n">BOOL</span><span class="o">=</span><span class="n">ON</span> \
+      <span class="o">-</span><span class="n">DENABLE_FCOMPARE_FOR_TESTS</span><span class="p">:</span><span class="n">BOOL</span><span class="o">=</span><span class="n">OFF</span> \
+      <span class="o">-</span><span class="n">DPELE_ENABLE_MASA</span><span class="p">:</span><span class="n">BOOL</span><span class="o">=</span><span class="n">ON</span> \
+      <span class="o">-</span><span class="n">DMASA_DIR</span><span class="p">:</span><span class="n">STRING</span><span class="o">=/</span><span class="n">path</span><span class="o">/</span><span class="n">to</span><span class="o">/</span><span class="n">masa</span><span class="o">/</span><span class="nb">dir</span> \
+      <span class="o">-</span><span class="n">DPELE_USE_CPP</span><span class="p">:</span><span class="n">BOOL</span><span class="o">=</span><span class="n">ON</span> \
+      <span class="o">..</span>
+</pre></div>
+</div>
+<p>While performing a <code class="docutils literal notranslate"><span class="pre">cmake</span> <span class="pre">-LAH</span> <span class="pre">..</span></code> command will give descriptions of every option for the CMake project. Descriptions of particular options regarding the testing suite are listed below:</p>
+<p><strong>ENABLE_FCOMPARE</strong> – builds the <code class="docutils literal notranslate"><span class="pre">fcompare</span></code> utility from AMReX as well as the executable(s), to allow for testing differences between plot files</p>
+<p><strong>ENABLE_TESTS</strong> – enables the base level regression test suite that will check whether each test will run its executable to completion successfully</p>
+<p><strong>ENABLE_FCOMPARE_FOR_TESTS</strong> – enables an additional step in the regression tests where the <code class="docutils literal notranslate"><span class="pre">fcompare</span></code> program from AMReX will also test for differences in the plots generated from the tests against “gold” files which contain previously verified results to machine precision</p>
+<p><strong>ENABLE_MASA</strong> – enables the verification suite which checks that PeleC is second order accurate using several additional tests, but note that the verification tests can take a significant amount of time to run and certain Python modules are expected to exist on the user’s system to generate PNG plot files</p>
+<p><strong>PELE_ENABLE_MASA</strong> and <strong>MASA_DIR</strong> – are required when the verification suite is enabled to perform the method of manufactured solutions</p>
+<section id="building-the-tests">
+<h2>Building the Tests<a class="headerlink" href="#building-the-tests" title="Link to this heading"></a></h2>
+<p>Once the user has performed the CMake configure step, the <code class="docutils literal notranslate"><span class="pre">make</span></code> command will build every executable required for each test. In this step, it is highly beneficial for the user to use the <code class="docutils literal notranslate"><span class="pre">-j</span></code> option for <code class="docutils literal notranslate"><span class="pre">make</span></code> to build source files in parallel. It is also beneficial if the user has access to the Ninja build system which is described in the section on building PeleC.</p>
+</section>
+<section id="running-the-tests">
+<h2>Running the Tests<a class="headerlink" href="#running-the-tests" title="Link to this heading"></a></h2>
+<p>Once the test executables are built, CTest also creates working directories for each test within the <code class="docutils literal notranslate"><span class="pre">Build</span></code> directory where plot files will be output, etc. This directory is analogous to the source location of the tests in <code class="docutils literal notranslate"><span class="pre">Testing/test_files</span></code>.</p>
+<p>To run the test suite, run <code class="docutils literal notranslate"><span class="pre">ctest</span></code> in the <code class="docutils literal notranslate"><span class="pre">Build</span></code> directory. CTest will run the tests and report their exit status. Useful options for CTest are <code class="docutils literal notranslate"><span class="pre">-VV</span></code> which runs in a verbose mode where the output of each test can be seen. <code class="docutils literal notranslate"><span class="pre">-R</span></code> where a regex string can be used to run specific sets of tests. <code class="docutils literal notranslate"><span class="pre">-j</span></code> where CTest will bin pack and run tests in parallel based on how many processes each test is specified to use and fit them into the amount of cores available on the machine. <code class="docutils literal notranslate"><span class="pre">-L</span></code> where the subset of tests containing a particular label will be run. Output for the last set of tests run is available in the <code class="docutils literal notranslate"><span class="pre">Build</span></code> directory in <code class="docutils literal notranslate"><span class="pre">Testing/Temporary/LastTest.log</span></code>.</p>
+</section>
+<section id="adding-tests">
+<h2>Adding Tests<a class="headerlink" href="#adding-tests" title="Link to this heading"></a></h2>
+<p>Developers are encouraged to add tests to PeleC and in this section we describe how the tests are organized in the CTest framework. The locations of the tests are in <code class="docutils literal notranslate"><span class="pre">PeleC/Tests</span></code>. To add a test, first create a test directory with a name in <code class="docutils literal notranslate"><span class="pre">PeleC/Exec/&lt;test_exe&gt;/tests/&lt;test_name&gt;</span></code>. Place the input file for the test as <code class="docutils literal notranslate"><span class="pre">PeleC/Tests/&lt;test_exe&gt;/tests/&lt;test_name&gt;/&lt;test_name&gt;.i</span></code> along with any other files necessary for the test. Any file in the test directory will be copied during CMake configure to the test’s working directory. Next, edit the <code class="docutils literal notranslate"><span class="pre">PeleC/Tests/CMakeLists.txt</span></code> file, add the test to the list. Note there are different categories of tests and if your test falls outside of these categories, a new function to add the test will need to be created. After these steps, your test will be automatically added to the test suite database when doing the CMake configure with the testing suite enabled.</p>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="Tutorials.html" class="btn btn-neutral float-left" title="Tutorials" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="BoundaryConditions.html" class="btn btn-neutral float-right" title="Boundary Conditions" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright AMReX Copyright (c) 2021, The Regents of the University of California, through Lawrence Berkeley National Laboratory, the Alliance for Sustainable Energy, LLC., through National Renewable Energy Laboratory, National Technology and Engineering Solutions of Sandia, LLC, and UT-Battelle, LLC (subject to receipt of any required approvals from the U.S. Dept. of Energy).  All rights reserved..</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
