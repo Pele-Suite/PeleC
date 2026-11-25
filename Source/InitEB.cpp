@@ -25,8 +25,8 @@ PeleC::init_eb()
   // Set up CC signed distance container to control EB refinement
   initialize_signed_distance();
 
-  // Covered-cell masks for the characteristic (NSCBC) boundary fill
-  nscbc_build_covered_mask();
+  // Covered-cell mask of the characteristic boundary band (once per level)
+  nscbc_init_eb_mask();
 }
 
 // Set up PeleC EB Datastructures from AMReX EB2 constructs

@@ -167,12 +167,18 @@ struct DefaultProblemSpecificFunctions
   // Type::off, which leaves that point to the ordinary bcnormal() path, so
   // pelec.bc_nscbc = 1 is a no-op for a problem that does not override this.
   // Because the decision is per point, a single face may mix an inflow, an
-  // outflow and a wall.
+  // outflow and a wall.  Called only on Hard/UserBC (ext_dir) faces.  To
+  // override it, define it as a static member of the problem's struct derived
+  // from this one (the one prob.H aliases to ProblemSpecificFunctions); a
+  // free function of the same name is never called.
   //
   // Only the fields relevant to the returned type are read:
   //     Type::outflow -> p
-  //     Type::inflow  -> u[], T, Y[]
-  // There is deliberately no relaxation coefficient for composition; see
+  //     Type::inflow  -> u[], T, Y[]; also p where the inflow is supersonic
+  //                      (every characteristic then enters, so the full state
+  //                      is needed), and optionally dudt and the passives.
+  // A missing p is counted as a target_incomplete fallback.  There is
+  // deliberately no relaxation coefficient for composition; see
   // Source/NSCBC.H.
   //
   // s_int is the state in the first interior cell along the boundary normal,

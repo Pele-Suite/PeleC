@@ -195,17 +195,27 @@ PeleC::read_params()
   pp.query("v", verbose);
 
   // Removed parameters. nscbc_adv/nscbc_diff controlled the Fortran
-  // Ghost-Cell NSCBC deleted in 2d3a6f6; they have had no effect since.
-  // Abort rather than ignore, so that an inputs file which believes it is
-  // configuring a characteristic boundary treatment is not silently wrong.
+  // Ghost-Cell NSCBC deleted in 2d3a6f6; they have had no effect since.  An
+  // inputs file that switches them OFF asks for exactly what the code does,
+  // so it runs with a deprecation warning.  One that switches them ON
+  // believes it is configuring a characteristic boundary treatment, which
+  // it is not getting: abort rather than run silently wrong.
   for (const char* removed : {"nscbc_adv", "nscbc_diff"}) {
     if (pp.contains(removed)) {
-      amrex::Abort(
+      bool on = false;
+      pp.query(removed, on);
+      const std::string msg =
         "pelec." + std::string(removed) +
         " has been removed: it has had no effect since the Fortran GC-NSCBC "
-        "was deleted. Remove it from your inputs file. See "
-        "Docs/sphinx/BoundaryConditions.rst for the currently recommended "
-        "subsonic inflow/outflow treatment.");
+        "was deleted. Remove it from your inputs file. The characteristic "
+        "treatment is now enabled with pelec.bc_nscbc = 1 and a static "
+        "bcnormal_nscbc member of the problem's ProblemSpecificFunctions "
+        "struct (prob.H); see Source/NSCBC.H and "
+        "Source/ProblemSpecificFunctions.H.";
+      if (on) {
+        amrex::Abort(msg);
+      }
+      amrex::Warning(msg + " (Ignored: it is set to 0.)");
     }
   }
 
@@ -340,20 +350,12 @@ PeleC::read_params()
   }
 
   if (bc_nscbc) {
-    pc_nscbc::Params probe = nscbc_params(0);
-    probe.sigma = bc_nscbc_sigma;
-    std::string why;
-    if (!probe.validate(why)) {
-      amrex::Abort("pelec.bc_nscbc_*: " + why);
-    }
-    nscbc_diag_init();
-    // The transverse terms use a Cartesian divergence of the tangential
-    // velocity; in RZ a z-face would miss the u_r / r term.
-    if (amrex::DefaultGeometry().IsRZ() && (bc_nscbc_beta < 1.0)) {
-      amrex::Abort(
-        "pelec.bc_nscbc_beta < 1 is not supported in RZ geometry: the "
-        "transverse terms omit the u_r / r part of the cylindrical "
-        "divergence.");
+    nscbc_init_diagnostics();
+    for (int dir = 0; dir < AMREX_SPACEDIM; ++dir) {
+      std::string why;
+      if (!nscbc_params(dir).validate(why)) {
+        amrex::Abort("pelec.bc_nscbc_*: " + why);
+      }
     }
     // The treatment only ever acts on ext_dir faces, i.e. Hard/UserBC.
     bool any_ext_dir = false;
@@ -377,9 +379,29 @@ PeleC::read_params()
         "integrated over grown tileboxes, which would advance chemistry in "
         "the ghost cells written by the boundary condition.");
     }
-    // Under EB the characteristic fill identifies covered stencil cells
-    // from per-level EBCellFlag masks of the boundary slabs (BCfill.cpp,
-    // nscbc_build_covered_mask), so any body state works.
+    // EB needs no special setting: covered stencil cells are identified
+    // from the EB geometry (PeleC::nscbc_init_eb_mask), so the default body
+    // state is fine and so is a body state restored from a checkpoint.
+    //
+    // Rotating frame: PeleC stores UEDEN net of the centrifugal potential,
+    // rho e + rho |u|^2 / 2 - rho (omega r)^2 / 2, and the characteristic
+    // ghost is packed without it, so ctoprim would decode every ghost too hot
+    // and over-pressured by a margin growing with r^2.  Not supported in this
+    // limit.
+    if (do_rf) {
+      amrex::Abort(
+        "pelec.bc_nscbc = 1 is not supported with the rotating frame "
+        "(pelec.do_rf = 1): the characteristic ghost state does not carry "
+        "the centrifugal energy term.");
+    }
+    // The transverse terms use a Cartesian divergence of the tangential
+    // velocity; in RZ a z-face would miss the u_r / r term.
+    if (amrex::DefaultGeometry().IsRZ() && (bc_nscbc_beta < 1.0)) {
+      amrex::Abort(
+        "pelec.bc_nscbc_beta < 1 is not supported in RZ geometry: the "
+        "transverse terms omit the u_r / r part of the cylindrical "
+        "divergence.");
+    }
     if (amrex::ParallelDescriptor::IOProcessor()) {
       amrex::Print()
         << "\n  NSCBC: characteristic boundary treatment ENABLED (advective "
@@ -409,8 +431,8 @@ PeleC::read_params()
             << " acoustic transit times at low Mach\n"
             << "               (tau_relax / tau_acoustic = 1 / (sigma (1 - "
                "M^2)));\n"
-            << "               it must be much larger than 1 and much smaller "
-               "than the run time.\n";
+            << "               tau_relax must be much longer than an acoustic "
+               "transit and much shorter than the run.\n";
         } else {
           amrex::Print() << "  ->  perfectly non-reflecting; the mean pressure "
                             "is NOT anchored and will drift.\n";
@@ -1263,6 +1285,15 @@ PeleC::post_restart()
     amrex::Gpu::hostToDevice, PeleC::h_prob_parm_device,
     PeleC::h_prob_parm_device + 1, PeleC::d_prob_parm_device);
 
+  // A restart runs neither post_init nor post_regrid, so the warning about
+  // refined grids on a characteristic face, and the periodic-seam check (a
+  // restart may switch bc_nscbc on or change beta or the grids), have to be
+  // issued from here.
+  nscbc_check_fine_faces();
+  if (level == 0) {
+    nscbc_check_periodic_wrap();
+  }
+
 #ifdef PELE_USE_SPRAY
   postRestartParticles(parent->theRestartFile());
 #endif
@@ -1289,16 +1320,6 @@ PeleC::post_restart()
   init_diagnostics();
 
   problem_post_restart();
-
-  // The NSCBC startup checks, as post_init runs them: a restart may switch
-  // bc_nscbc on or change beta or the grids.
-  if (level == 0) {
-    const int finest = parent->finestLevel();
-    for (int lev = 1; lev <= finest; ++lev) {
-      getLevel(lev).nscbc_check_fine_faces();
-    }
-    nscbc_check_periodic_wrap();
-  }
 }
 
 void
@@ -1307,16 +1328,19 @@ PeleC::postCoarseTimeStep(amrex::Real cumtime)
   BL_PROFILE("PeleC::postCoarseTimeStep()");
   AmrLevel::postCoarseTimeStep(cumtime);
 
-  // NSCBC counters must never be silent: without this, a run with the
-  // default sum_interval = -1 never calls nscbc_report_diagnostics() and a
-  // boundary counting millions of reversal fills looks identical to one
-  // counting none (that misread happened in NSCBC-Chamber; see its
-  // README).  When the user has not opted
-  // into periodic reporting, report on a fixed cadence -- the report only
-  // prints when something actually counted, so healthy runs stay quiet.
-  if (bc_nscbc && sum_interval <= 0 && sum_per <= 0.0) {
-    if (parent->levelSteps(0) % 100 == 0) {
-      nscbc_report_diagnostics();
+  // The NSCBC counters must not stay silent: a boundary counting millions
+  // of reversal fills must not look like one counting none.
+  // sum_integrated_quantities() reports them when it runs (pelec.v > 0, on
+  // the sum_interval / sum_per cadence); whatever that cadence, a report is
+  // also made here whenever 100 coarse steps have passed without one, and
+  // once more at the end of the run (from finalize).  The report prints
+  // only when something counted (or pelec.v > 1), so healthy runs stay
+  // quiet.
+  if (bc_nscbc) {
+    constexpr int nscbc_report_every = 100; // coarse steps
+    const int step = parent->levelSteps(0);
+    if (step - nscbc_last_report() >= nscbc_report_every) {
+      nscbc_report_diagnostics(step);
     }
   }
 }

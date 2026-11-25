@@ -7,13 +7,11 @@ PeleC::sum_integrated_quantities()
 {
   BL_PROFILE("PeleC::sum_integrated_quantities()");
 
-  // Before the verbosity gate: the NSCBC report prints only when a fallback
-  // was counted, and must not be silenced by pelec.v = 0.
-  nscbc_report_diagnostics();
-
   if (verbose <= 0) {
     return;
   }
+
+  nscbc_report_diagnostics(parent->levelSteps(0));
 
   bool local_flag = true;
 
