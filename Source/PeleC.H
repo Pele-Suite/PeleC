@@ -103,6 +103,13 @@ public:
   // Report and reset the NSCBC fallback counters.  A silent fallback is a bug
   // that will not be found; this is how it surfaces.
   static void nscbc_report_diagnostics();
+  // Allocate the device fallback counters.  Must be called from serial host
+  // code (read_params does it): the boundary fill runs inside OpenMP regions.
+  static void nscbc_diag_init();
+  // Build this level's EB covered-cell masks for the characteristic fill
+  // (one slab per Hard/UserBC face).  Collective; called from init_eb, so it
+  // runs for every new level and on restart.  No-op without EB or bc_nscbc.
+  void nscbc_build_covered_mask();
 
   // Boundary registers (Docs/NSCBC-boundary-registers-design.md): the
   // once-per-advance update, and checkpoint/restart of the register array.

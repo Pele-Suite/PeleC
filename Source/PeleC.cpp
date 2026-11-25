@@ -346,6 +346,15 @@ PeleC::read_params()
     if (!probe.validate(why)) {
       amrex::Abort("pelec.bc_nscbc_*: " + why);
     }
+    nscbc_diag_init();
+    // The transverse terms use a Cartesian divergence of the tangential
+    // velocity; in RZ a z-face would miss the u_r / r term.
+    if (amrex::DefaultGeometry().IsRZ() && (bc_nscbc_beta < 1.0)) {
+      amrex::Abort(
+        "pelec.bc_nscbc_beta < 1 is not supported in RZ geometry: the "
+        "transverse terms omit the u_r / r part of the cylindrical "
+        "divergence.");
+    }
     // The treatment only ever acts on ext_dir faces, i.e. Hard/UserBC.
     bool any_ext_dir = false;
     for (int dir = 0; dir < AMREX_SPACEDIM; ++dir) {
@@ -368,20 +377,9 @@ PeleC::read_params()
         "integrated over grown tileboxes, which would advance chemistry in "
         "the ghost cells written by the boundary condition.");
     }
-    // The characteristic fill has no EBCellFlag: it detects covered stencil
-    // cells by their non-positive density.  The DEFAULT body state is a
-    // sampled fluid state (define_body_state) -- positive density,
-    // undetectable -- so without eb_zero_body_state the fill would silently
-    // read body values as if they were interior data.  Fatal rather than
-    // silent: that is the standing rule for this boundary condition.
-    if (eb_in_domain && !eb_zero_body_state) {
-      amrex::Abort(
-        "pelec.bc_nscbc = 1 with EB geometry requires "
-        "pelec.eb_zero_body_state = 1: the characteristic fill detects "
-        "covered stencil cells by non-positive density, and the default "
-        "body state is a sampled fluid state it cannot distinguish from "
-        "interior data.");
-    }
+    // Under EB the characteristic fill identifies covered stencil cells
+    // from per-level EBCellFlag masks of the boundary slabs (BCfill.cpp,
+    // nscbc_build_covered_mask), so any body state works.
     if (amrex::ParallelDescriptor::IOProcessor()) {
       amrex::Print()
         << "\n  NSCBC: characteristic boundary treatment ENABLED (advective "
@@ -1291,6 +1289,16 @@ PeleC::post_restart()
   init_diagnostics();
 
   problem_post_restart();
+
+  // The NSCBC startup checks, as post_init runs them: a restart may switch
+  // bc_nscbc on or change beta or the grids.
+  if (level == 0) {
+    const int finest = parent->finestLevel();
+    for (int lev = 1; lev <= finest; ++lev) {
+      getLevel(lev).nscbc_check_fine_faces();
+    }
+    nscbc_check_periodic_wrap();
+  }
 }
 
 void
@@ -1306,7 +1314,7 @@ PeleC::postCoarseTimeStep(amrex::Real cumtime)
   // README).  When the user has not opted
   // into periodic reporting, report on a fixed cadence -- the report only
   // prints when something actually counted, so healthy runs stay quiet.
-  if (bc_nscbc && verbose > 0 && sum_interval <= 0 && sum_per <= 0.0) {
+  if (bc_nscbc && sum_interval <= 0 && sum_per <= 0.0) {
     if (parent->levelSteps(0) % 100 == 0) {
       nscbc_report_diagnostics();
     }

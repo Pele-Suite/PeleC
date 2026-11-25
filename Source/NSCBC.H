@@ -33,8 +33,13 @@
 //  directly.  The gradient form gives L_in an additive slot for the
 //  transverse terms (beta) and the reaction source (beta_s); a hard pin of
 //  R_- has none.  The fill is a pure algebraic function of the current
-//  interior state: idempotent under repeated FillPatch calls,
-//  bit-reproducible across restarts and decompositions.
+//  interior state: idempotent under repeated FillPatch calls and
+//  bit-reproducible across restarts.  It is NOT in general independent of
+//  the box layout: the normal stencil is cut to the FAB (a thin coarse patch
+//  in FillPatchTwoLevels drops to first order), and with beta < 1 the
+//  tangential stencil is cut to the FAB too, so the outermost tangential
+//  ghost column of a FAB differences one-sidedly where its neighbour
+//  differences centred.
 //
 //  SIGNS.  Every user-facing coefficient (sigma, relax_u, relax_t) is
 //  positive; all sign handling is internal and Params::validate() rejects
@@ -95,7 +100,8 @@ struct Params
   //     L_in = K (phi - phi_target) - (1 - beta) * T_transverse
   //   1 discards them (the 1-D-normal LODI limit, and the default: enabling
   //   them is an opt-in change), 0 includes them fully, < 0 selects the
-  //   pointwise local Mach number (the legacy Fortran convention).
+  //   pointwise OUTWARD-NORMAL Mach number, min(|u_n| / c, 1).  (The legacy
+  //   Fortran used the velocity magnitude |u| / c; this is not that.)
   //
   // Exact blend for a plane acoustic wave at angle theta in gas at rest:
   // beta_opt = 1 - cos(theta)/(1+cos(theta)) -- 0.5 head-on, toward 1 at
@@ -127,6 +133,15 @@ struct Params
 
   AMREX_GPU_HOST bool validate(std::string& why) const
   {
+    // ParmParse accepts "nan" and "inf", and NaN passes every `x < 0` test
+    // below, so non-finite values are rejected first.
+    if (
+      !std::isfinite(sigma) || !std::isfinite(relax_u) ||
+      !std::isfinite(relax_t) || !std::isfinite(beta) ||
+      !std::isfinite(L_ref)) {
+      why = "bc_nscbc_sigma, _relax_u, _relax_t and _beta must be finite";
+      return false;
+    }
     if (sigma < 0.0) {
       why = "bc_nscbc_sigma must be >= 0 (all NSCBC relaxation coefficients "
             "are positive in PeleC; internal signs are handled by the kernel)";
@@ -141,8 +156,9 @@ struct Params
       return false;
     }
     if (beta > 1.0) {
-      why = "bc_nscbc_beta must be <= 1 (1 discards the transverse terms, 0 "
-            "includes them fully, negative selects the local Mach number)";
+      why =
+        "bc_nscbc_beta must be <= 1 (1 discards the transverse terms, 0 "
+        "includes them fully, negative selects the outward-normal Mach number)";
       return false;
     }
     if ((order != 1) && (order != 2)) {
@@ -228,8 +244,14 @@ struct Transverse
 namespace Diag {
 enum : int {
   supersonic = 0,    // |M| >= 1: zero-gradient copy is exact, not a failure
+  eb_geometry,       // the EB mask marked a stencil or tangential neighbour
+                     // of a fluid boundary cell covered: the fill shortened
+                     // its stencil or went one-sided.  Expected wherever a
+                     // wall crosses the face, so reported but not a warning.
   reversed,          // flow ran the wrong way through the face
-  body_state,        // an EB-covered cell was found in the stencil
+  body_state,        // a neighbour the EB mask calls fluid (or any cell, with
+                     // no EB) holds a zero or non-finite state: stale or
+                     // corrupt data reached the boundary
   eos_failure,       // an EOS call returned a non-finite or non-positive value
   floored,           // a positivity floor was hit
   transverse_drop,   // a transverse derivative was unavailable or unusable
@@ -239,6 +261,9 @@ enum : int {
                      // required; the interior pressure was substituted, which
                      // makes the ghost depend on a domain it should be
                      // causally upstream of.  Set Target.p in bcnormal_nscbc.
+                     // Also counted for a subsonic outflow Target without p
+                     // and an inflow Target without T (the unset field is
+                     // dropped from the closure rather than relaxed to 0).
   passive_unset,     // an inflow Target left its passive scalars unset
                      // (Target::passives): the interior values were kept, so
                      // nothing about them enters through the inflow.
@@ -271,10 +296,10 @@ minmod(const amrex::Real a, const amrex::Real b) noexcept
   return (std::abs(a) < std::abs(b)) ? a : b;
 }
 
-// True if a state looks like EB body state rather than fluid, detected by
-// non-positive density.  This is why read_params makes eb_zero_body_state = 1
-// mandatory under EB: PeleC's default body state is a sampled fluid state the
-// stencil cannot distinguish from interior data.
+// True if a state cannot be fluid data: non-positive or non-finite density or
+// energy (a zero EB body state, or a corrupted cell).  EB-covered cells with
+// PeleC's default (sampled fluid) body state are NOT detected here; the caller
+// screens them with the EBCellFlag masks built in BCfill.cpp.
 AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE bool
 is_body_state(const amrex::Real s[NVAR]) noexcept
 {
@@ -540,9 +565,26 @@ apply(
       }
       bump(Diag::eos_failure);
     }
+    if (tgt.type == Type::outflow) {
+      // Supersonic BACKFLOW through an outflow: the zero-gradient copy is
+      // not exact here, it is a misplaced outflow.  Count it as a reversal so
+      // it enters the report's warning total.
+      bump(Diag::reversed);
+    }
     bump(Diag::supersonic);
     copy_state(s_N, s_ghost);
     return;
+  }
+
+  // Targets that leave a required field at its 0 default.  An outflow without
+  // p would relax the face toward vacuum, and an inflow without T toward 0 K;
+  // neither trips a floor (the p floor scales with qN.p when tgt.p is 0).  The
+  // unset field drops out of the closure (no pressure relaxation; the interior
+  // temperature is kept) and the event is counted.
+  const bool p_unset = (tgt.type == Type::outflow) && !(tgt.p > 0.0);
+  const bool T_unset = (tgt.type == Type::inflow) && !(tgt.T > 0.0);
+  if (p_unset || T_unset) {
+    bump(Diag::target_incomplete);
   }
 
   // ---- 3. Direction sanity ----------------------------------------------
@@ -694,7 +736,7 @@ apply(
   const amrex::Real dRm = 0.0;
 
   amrex::Real Rm_g;
-  if (outflow_face && prm.pin_farfield) {
+  if (outflow_face && prm.pin_farfield && !p_unset) {
     // Hard far-field pin: R_- takes its far-field value (u_out = 0,
     // p = p_target).  Value constraint, not a rate, and there is nowhere in it
     // to put a transverse term -- so pin_farfield ignores beta.
@@ -703,7 +745,7 @@ apply(
     amrex::Real L_in;
     if (outflow_face) {
       const amrex::Real K = prm.sigma * one_m_M2 * c_N / prm.L_ref;
-      L_in = K * (qN.p - tgt.p);
+      L_in = p_unset ? 0.0 : K * (qN.p - tgt.p);
     } else {
       const amrex::Real u_out_tgt = n_sgn * tgt.u[idir];
       const amrex::Real K = prm.relax_u * one_m_M2 * c_N / prm.L_ref;
@@ -832,7 +874,7 @@ apply(
     // Across the reversal band the Target's share w_tgt falls to zero and
     // the interior values take over (w_tgt = 1 for any true inflow).
     const amrex::Real wt = w_tgt * nu;
-    T_g = qN.T - wt * (qN.T - tgt.T);
+    T_g = T_unset ? qN.T : qN.T - wt * (qN.T - tgt.T);
     for (int d = 0; d < 3; d++) {
       if (d != idir) {
         u_g[d] = qN.u[d] - wt * (qN.u[d] - tgt.u[d]);

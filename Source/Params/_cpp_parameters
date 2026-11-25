@@ -97,8 +97,8 @@ bc_nscbc_relax_t            Real          0.2
 # Weight on the transverse terms in the modelled incoming acoustic wave:
 #   1  discard them -- the 1-D-normal LODI limit, and the DEFAULT
 #   0  include them fully
-#   <0 use the local Mach number (the legacy Fortran convention; not
-#      recommended, see below)
+#   <0 use the pointwise outward-normal Mach number |u_n|/c (not the
+#      legacy Fortran's |u|/c; not recommended, see below)
 #
 # The transverse terms are what a boundary needs when a wave arrives obliquely,
 # or when a vortex rather than a sound wave crosses it.  Measured in
