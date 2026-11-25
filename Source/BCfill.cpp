@@ -958,12 +958,13 @@ PeleC::nscbc_check_periodic_wrap()
     mom_scale = amrex::max<amrex::Real>(mom_scale, h_scale[n]);
   }
   const amrex::Real rho_scale = h_scale[URHO];
+  for (int n = UMX; n < UMX + AMREX_SPACEDIM; n++) {
+    h_scale[n] = mom_scale;
+  }
+  for (int n = UFS; n < UFS + NUM_SPECIES; n++) {
+    h_scale[n] = rho_scale;
+  }
   for (int n = 0; n < NVAR; n++) {
-    if ((n >= UMX) && (n < UMX + AMREX_SPACEDIM)) {
-      h_scale[n] = mom_scale;
-    } else if ((n >= UFS) && (n < UFS + NUM_SPECIES)) {
-      h_scale[n] = rho_scale;
-    }
     h_scale[n] = amrex::max<amrex::Real>(h_scale[n], tiny);
   }
   amrex::Gpu::DeviceVector<amrex::Real> d_scale(NVAR);
