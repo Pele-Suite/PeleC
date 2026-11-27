@@ -357,6 +357,21 @@ PeleC::read_params()
         amrex::Abort("pelec.bc_nscbc_*: " + why);
       }
     }
+    // The reaction-source term evaluates the chemistry rate in the fill.
+    // Without reactions it would add a source the domain does not have, and
+    // GammaLaw has no rate at all (its RTY2WDOT aborts inside the kernel).
+    if (bc_nscbc_beta_s < 1.0) {
+      if (!do_react) {
+        amrex::Abort(
+          "pelec.bc_nscbc_beta_s < 1 requires pelec.do_react = 1: it adds the "
+          "reaction source to the boundary model.");
+      }
+      if (!pc_nscbc::eos_has_reaction_rate) {
+        amrex::Abort(
+          "pelec.bc_nscbc_beta_s < 1 is not available with the GammaLaw EOS, "
+          "which has no reaction rate.");
+      }
+    }
     // The treatment only ever acts on ext_dir faces, i.e. Hard/UserBC.
     bool any_ext_dir = false;
     for (int dir = 0; dir < AMREX_SPACEDIM; ++dir) {

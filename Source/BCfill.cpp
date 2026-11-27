@@ -1264,17 +1264,38 @@ PeleC::nscbc_report_diagnostics(const int step)
     if (structure > 0) {
       // Advisory, not a fallback: a front is in the outflow boundary cells.
       // A flame there is what the flame closures exist for; a front without
-      // heat release is not (NSCBC-FlameOutflow/README.md, the exit test).
+      // heat release is not.  The advice depends on what is already set.
+      const bool flame_recipe =
+        bc_nscbc_extrap_temperature && (bc_nscbc_beta_s < 1.0);
       amrex::Print()
         << "  NSCBC: material structure (|dS| > 5% of rho per cell) sat in "
         << structure << " outflow boundary-cell fills since the last report.\n"
-        << "         A front is on this outflow.  If it burns, set "
-           "bc_nscbc_extrap_temperature = 1 and bc_nscbc_beta_s = 0\n"
-        << "         before it crosses; if it does not, raise bc_nscbc_sigma "
-           "toward 16 instead (extrap_temperature alone\n"
-        << "         over-vents an inert front at low sigma).  Keep "
-           "bc_nscbc_extrap_material off during a transit.\n"
-        << "         See the BCs chapter and NSCBC-FlameOutflow/README.md.\n";
+        << "         A front is on this outflow.";
+      if (flame_recipe) {
+        amrex::Print()
+          << "  The flame closures are on (extrap_temperature = 1, beta_s = "
+          << bc_nscbc_beta_s
+          << ").\n         If this front does not burn, raise bc_nscbc_sigma "
+             "toward 16 instead.\n";
+      } else if (do_react && pc_nscbc::eos_has_reaction_rate) {
+        amrex::Print()
+          << "  If it burns, set bc_nscbc_extrap_temperature = 1 and\n"
+          << "         bc_nscbc_beta_s = 0 before it crosses; if it does not, "
+             "raise bc_nscbc_sigma toward 16\n"
+          << "         instead (extrap_temperature alone over-vents an inert "
+             "front at low sigma).\n";
+      } else {
+        amrex::Print() << "  Without a reaction source, raise bc_nscbc_sigma "
+                          "toward 16 "
+                          "rather than enabling\n"
+                       << "         bc_nscbc_extrap_temperature (alone it "
+                          "over-vents an inert front at low sigma).\n";
+      }
+      if (bc_nscbc_extrap_material) {
+        amrex::Print()
+          << "         bc_nscbc_extrap_material is on: turn it off "
+             "if this front is crossing the boundary.\n";
+      }
     }
   }
   nscbc_diag().assign(nscbc_ncounters, 0);

@@ -66,6 +66,7 @@
 #include <cmath>
 #include <limits>
 #include <string>
+#include <type_traits>
 
 #include "IndexDefines.H"
 #include "Constants.H"
@@ -78,6 +79,14 @@ namespace pc_nscbc {
 //  A single face may carry a mixture (a jet inlet surrounded by outflow).
 // ---------------------------------------------------------------------------
 enum struct Type : int { off = 0, outflow = 1, inflow = 2 };
+
+// Whether the EOS can evaluate a reaction rate (RTY2WDOT), which the
+// reaction-source term (Params::beta_s < 1) needs.  GammaLaw cannot: its
+// RTY2WDOT calls amrex::Error, which inside the fill kernel would abort
+// mid-run.  Host-side checks only.
+inline constexpr bool eos_has_reaction_rate = !std::is_same_v<
+  pele::physics::PhysicsType::eos_type,
+  pele::physics::eos::GammaLaw>;
 
 // ---------------------------------------------------------------------------
 //  Numerical parameters.  POD, captured host-side into the boundary functor;
@@ -125,41 +134,42 @@ struct Params
   // relaxation has no model for; without this term the mean sits off target
   // by S_p/K.  Including it is the Sutherland-Kennedy (JCP 2003)
   // cancellation; the sign is PLUS because the exact steady flame has
-  // dR_-/dn = +S_p/(rho c^2) (convention-free check:
-  // Verification/NSCBC1D/source_sign_check.py).  Guidance, measured in
-  // NSCBC-FlameOutflow/README.md: sitting flame -- beta_s = 0 halves the
-  // sigma = 1 error and with extrap_temperature holds hard-outflow level at
-  // every sigma (at sigma = 16 it overshoots; do not stack both).  Crossing
-  // flame -- with extrap_temperature it cuts the transit disturbance 7-10x
+  // dR_-/dn = +S_p/(rho c^2).  Measured guidance: for a flame sitting on an
+  // outflow, beta_s = 0 halves the sigma = 1 error and, with
+  // extrap_temperature, holds the hard-outflow level at every sigma (at
+  // sigma = 16 it overshoots; do not stack both).  For a flame crossing an
+  // outflow, with extrap_temperature it cuts the transit disturbance 7-10x
   // and lets sigma < 16 survive.  Not obtainable from srcq(QPRES); see
-  // reaction_dpdt().
+  // reaction_dpdt().  Must lie in [0, 1]; values below 1 need do_react and
+  // an EOS with a reaction rate (not GammaLaw), checked in read_params.
   amrex::Real beta_s = 1.0;
 
   // Close the lambda_0 family on TEMPERATURE instead of the entropy
   // invariant.  The diffusion operator forms boundary-face fluxes from these
   // ghost cells, so the ghost dT/dn IS the heat flux leaving; the entropy
   // closure sets T as a by-product of the acoustic algebra and overstates a
-  // flame-like face gradient by 40% (check C8).  With this set, T rides the
-  // same minmod slope as everything else and rho follows from the EOS -- a
-  // deliberate Neumann condition on T instead of an accidental Dirichlet one.
-  // Default false (changes every outflow result).  Turn it on whenever
-  // thermal or compositional structure nears the boundary: it is the flag
-  // that lets a flame survive the outflow (NSCBC-FlameOutflow/README.md).
+  // flame-like face gradient by 40% (measured on a 1-D flame-like ramp).
+  // With this set, T rides the same minmod slope as everything else and rho
+  // follows from the EOS -- a deliberate Neumann condition on T instead of an
+  // accidental Dirichlet one.  Default false (changes every outflow result).
+  // Turn it on whenever thermal or compositional structure nears the
+  // boundary: it is the flag that lets a flame survive the outflow.
   bool extrap_temperature = false;
 
   // Continue the MATERIAL part of R_- into the ghost at an outflow, so a
   // dilatational gradient crossing the face is not converted into ghost
-  // pressure (the C9(a) bias, 1/2 rho c l du per layer).  The slope cannot be
-  // read from R_- itself (its gradient contains the boundary's own incoming
-  // waves; extrapolating them back is positive feedback, 16x on the rate,
-  // C5), so it is bounded through the acoustically-blind entropy family:
+  // pressure (a bias of 1/2 rho c l du per layer).  The slope cannot be read
+  // from R_- itself (its gradient contains the boundary's own incoming
+  // waves; extrapolating them back is positive feedback, measured at 16x on
+  // the relaxation rate), so it is bounded through the acoustically-blind
+  // entropy family:
   //     du_mat = -u_out dS / (rho (1 - M^2)),
   //     applied slope = minmod(measured dR_-, du_mat (1 + M)).
   // For pure acoustics the bound vanishes and the continuation shuts off.
-  // Quasi-steady bound: conservative for a moving front; keep sigma > 0.
-  // Default false.  For structure that SITS near the outflow; leave it off
-  // when a front crosses -- a transit over-vents (NSCBC-FlameOutflow/
-  // README.md).  pin_farfield ignores it.
+  // Quasi-steady bound: conservative for a moving front.  Requires
+  // sigma > 0 (validate() rejects sigma = 0 unless pin_farfield, which
+  // ignores this flag).  Default false.  For structure that SITS near the
+  // outflow; leave it off when a front crosses -- a transit over-vents.
   bool extrap_material = false;
 
   // Treat FIRM reversal at an outflow as a local inflow of reservoir gas:
@@ -169,10 +179,10 @@ struct Params
   // an outward-Mach band [1e-3, 1e-2] -- continuous with w_mat's band below
   // it, fully reservoir by Mach 0.01.  Without this, a face in sustained
   // recirculation feeds the domain its own exhaust: a hot domain drawing
-  // from a cold reservoir never cools (driver C14, the flush test).  Only
-  // active when the Target supplies a physical state (tgt.T > 0); breathing
-  // reversals (chamber ring-down, radial rarefaction: |M| << 1e-3 at the
-  // face) never leave the frozen closure.  Default false.
+  // from a cold reservoir never cools.  Only active when the Target supplies
+  // a physical state (tgt.T > 0); breathing reversals (chamber ring-down,
+  // radial rarefaction: |M| << 1e-3 at the face) never leave the frozen
+  // closure.  Default false.
   bool backflow_material = false;
 
   // Boundary-normal reference length, probhi[idir] - problo[idir].  Filled per
@@ -217,8 +227,16 @@ struct Params
       why = "bc_nscbc_relax_t must be finite and >= 0";
       return false;
     }
-    if (beta_s > 1.0) {
-      why = "bc_nscbc_beta_s must be <= 1";
+    // Written so that NaN fails as well.
+    if (!((beta_s >= 0.0) && (beta_s <= 1.0))) {
+      why = "bc_nscbc_beta_s must lie in [0, 1] (1 discards the reaction "
+            "source, 0 includes it fully)";
+      return false;
+    }
+    if (extrap_material && !pin_farfield && !(sigma > 0.0)) {
+      why = "bc_nscbc_extrap_material requires bc_nscbc_sigma > 0: the "
+            "material continuation is a quasi-steady model and needs the "
+            "relaxation to bound it";
       return false;
     }
     if (!(beta <= 1.0) || !amrex::Math::isfinite(beta)) {
@@ -501,7 +519,7 @@ cell_primitives(const amrex::Real s[NVAR]) noexcept
 //  conserves both, so the effect is purely compositional:
 //      dp/dt = sum_k (dp/dY_k)|_{rho,e} wdot_k / rho
 //            = Ru T sum_k wdot_k/W_k - p/(rho T c_v) sum_k e_k wdot_k
-//  (ideal-gas closed form, gated by C7).  SRK/manifold lack the composition
+//  (ideal-gas closed form).  SRK/manifold lack the composition
 //  derivative, so there a single directional finite difference along the
 //  reaction path is used (sum wdot = 0 keeps sum Y = 1 along it).
 // ---------------------------------------------------------------------------
