@@ -2,11 +2,6 @@ name: PeleC-CI
 
 on:
   workflow_dispatch:
-  schedule:
-    # Twice a week, so the ccaches are refreshed before GitHub evicts them
-    # after 7 days without access, with a margin for late scheduled starts.
-    # Jobs without a cache (CodeQL, codespell) skip the scheduled runs.
-    - cron: '0 3 * * 1,4'
   push:
     branches: [development]
   pull_request:
@@ -14,7 +9,7 @@ on:
 
 concurrency:
   # Only PR runs cancel an older run: on development a cancelled run would
-  # not save its caches, so runs (pushes and scheduled) queue, one at a time
+  # not save its caches, so runs queue, one at a time
   # (GitHub keeps only the newest pending one).
   group: ${{github.ref}}-${{github.head_ref}}-ci
   cancel-in-progress: ${{github.event_name == 'pull_request'}}
@@ -25,7 +20,7 @@ defaults:
     shell: bash
 
 env:
-  # Only development saves the ccaches (the scheduled runs keep them from
+  # Only development saves the ccaches (keep-caches.yml keeps them from
   # being evicted); PRs restore development's. A PR's own runs would each
   # store a full copy (~1.6 GB per PR) and push development's out of the
   # 10 GB limit.
@@ -33,10 +28,6 @@ env:
   # Compress hard only when the cache is kept; a PR's new entries are
   # discarded at the end of the job.
   CCACHE_COMPRESSLEVEL: ${{github.ref == 'refs/heads/development' && 10 || 1}}
-  # The scheduled runs only refresh the ccaches: they build (which also
-  # trims the caches to what is used) but skip the tests, which already
-  # ran on this commit.
-  RUN_TESTS: ${{github.event_name != 'schedule'}}
   # SUNDIALS writes its configure time into sundials_config.h (SUN_JOB_ID,
   # SUN_JOB_START_TIME) unless these are set, which changes the ccache and
   # ctcache keys of every file including it on every run: clang-tidy's -dD
@@ -51,8 +42,6 @@ env:
 
 jobs:
   Formatting:
-    # Also on the scheduled runs (it takes seconds), so the build jobs that
-    # need it run there to refresh their caches.
     runs-on: ubuntu-latest
     steps:
     - name: Clone
@@ -135,11 +124,9 @@ jobs:
           make -j ${{env.NPROCS}} KEEP_BUILDINFO_CPP=TRUE USE_CCACHE=TRUE COMP=gnu USE_MPI=FALSE DEBUG=TRUE USE_LCT_TRANSPORT=TRUE 2>&1 | tee -a build-output.txt
           ccache -s
       - name: PMF debug test
-        if: env.RUN_TESTS == 'true'
         working-directory: ./Exec/RegTests/PMF
         run: ./PeleC3d.gnu.DEBUG.ex pmf-lidryer-arkode.inp max_step=2 amr.plot_files_output=0 amr.checkpoint_files_output=0
       - name: PMF multicomponent diffusion debug test
-        if: env.RUN_TESTS == 'true'
         working-directory: ./Exec/RegTests/PMF
         run: ./PeleC3d.gnu.DEBUG.ex pmf-lidryer-multicomp.inp max_step=2 amr.plot_files_output=0 amr.checkpoint_files_output=0
       - name: PMF debug report
@@ -152,7 +139,6 @@ jobs:
           make -j ${{env.NPROCS}} KEEP_BUILDINFO_CPP=TRUE USE_CCACHE=TRUE COMP=gnu USE_MPI=FALSE DEBUG=TRUE 2>&1 | tee -a build-output.txt
           ccache -s
       - name: EB debug test
-        if: env.RUN_TESTS == 'true'
         working-directory: ./Exec/RegTests/EB-C10
         run: ./PeleC3d.gnu.DEBUG.ex eb-c10.inp max_step=2 amr.plot_files_output=0 amr.checkpoint_files_output=0
       - name: EB debug report
@@ -165,7 +151,6 @@ jobs:
           make -j ${{env.NPROCS}} KEEP_BUILDINFO_CPP=TRUE USE_CCACHE=TRUE COMP=gnu USE_MPI=FALSE DEBUG=TRUE USE_OMP=TRUE 2>&1 | tee -a build-output.txt
           ccache -s
       - name: EB OMP debug test
-        if: env.RUN_TESTS == 'true'
         working-directory: ./Exec/RegTests/EB-C10
         run: ./PeleC3d.gnu.DEBUG.OMP.ex eb-c10.inp max_step=2 amr.plot_files_output=0 amr.checkpoint_files_output=0
       - name: EB OMP debug report
@@ -178,7 +163,6 @@ jobs:
           make -j ${{env.NPROCS}} KEEP_BUILDINFO_CPP=TRUE USE_CCACHE=TRUE COMP=llvm USE_MPI=FALSE DEBUG=TRUE PRECISION=FLOAT 2>&1 | tee -a build-output.txt
           ccache -s
       - name: TG debug single precision test
-        if: env.RUN_TESTS == 'true'
         working-directory: ./Exec/RegTests/TG
         run: ./PeleC3d.llvm.FLOAT.DEBUG.ex tg-2.inp max_step=2 amr.plot_files_output=0 amr.checkpoint_files_output=0
       - name: TG debug single precision report
@@ -211,7 +195,6 @@ jobs:
           ccache -s
       - name: TurbInflowGenerator set up
         # Only the TurbInflow run below uses its output.
-        if: env.RUN_TESTS == 'true'
         working-directory: ./Submodules/PelePhysics/Support/TurbInflowGenerator
         run: |
           python3 -m pip install --user scipy matplotlib numpy
@@ -227,7 +210,6 @@ jobs:
           make -j ${{env.NPROCS}} KEEP_BUILDINFO_CPP=TRUE USE_CCACHE=TRUE COMP=gnu USE_MPI=FALSE 2>&1 | tee -a build-output.txt
           ccache -s
       - name: EB-ConvergingNozzle TurbInflow run
-        if: env.RUN_TESTS == 'true'
         working-directory: ./Exec/RegTests/EB-ConvergingNozzle
         run: |
           # Create and run with synthetic turbulent fluctuation inflow
@@ -324,7 +306,6 @@ jobs:
           ${{matrix.install_deps}}
       - name: Python packages
         # Only the tests use them.
-        if: env.RUN_TESTS == 'true'
         run: pip install pynose numpy pandas setuptools
       - *install_ccache
       - *restore_ccache
@@ -377,7 +358,6 @@ jobs:
       - name: Report
         run: .github/scripts/count_warnings.sh ${{runner.workspace}}/build-output.txt
       - name: Test
-        if: env.RUN_TESTS == 'true'
         working-directory: ${{runner.workspace}}/build
         run: ctest ${CTEST_ARGS} -VV --output-on-failure
       - name: Checkout Reference Version
@@ -774,8 +754,6 @@ jobs:
         run: ${{github.workspace}}/.github/scripts/count_warnings.sh clang-tidy-full-report.txt
   Lint-codeql:
     needs: Formatting
-    # No cache to refresh: skipped on the scheduled runs.
-    if: github.event_name != 'schedule'
     runs-on: ubuntu-24.04
     steps:
       - name: Clone
@@ -823,8 +801,6 @@ jobs:
           sarif_file: sarif-results/cpp.sarif
   Lint-codespell:
     needs: Formatting
-    # No cache to refresh: skipped on the scheduled runs.
-    if: github.event_name != 'schedule'
     runs-on: ubuntu-latest
     steps:
       - name: Clone

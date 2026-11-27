@@ -56,8 +56,8 @@ jobs:
           set +e
 
           # In our cache keys, the substring after `-git-` is the git hash, run
-          # id and attempt (so a scheduled run on an unchanged commit, or a
-          # re-run, can save); the substring before it is a unique id for jobs
+          # id and attempt (so a manual run on an unchanged commit, or a re-run,
+          # can save); the substring before it is a unique id for jobs
           # (e.g., `ccache-PeleC-CI-CPU-GNUmake`).
           # The goal is to keep the newest key of each job and delete all others.
 
