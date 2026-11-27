@@ -394,13 +394,29 @@ PeleC::read_params()
         "(pelec.do_rf = 1): the characteristic ghost state does not carry "
         "the centrifugal energy term.");
     }
+    // The transverse terms use a Cartesian divergence of the tangential
+    // velocity; in RZ a z-face would miss the u_r / r term.
+    if (amrex::DefaultGeometry().IsRZ() && (bc_nscbc_beta < 1.0)) {
+      amrex::Abort(
+        "pelec.bc_nscbc_beta < 1 is not supported in RZ geometry: the "
+        "transverse terms omit the u_r / r part of the cylindrical "
+        "divergence.");
+    }
     if (amrex::ParallelDescriptor::IOProcessor()) {
       amrex::Print()
         << "\n  NSCBC: characteristic boundary treatment ENABLED (advective "
-           "ghost fill).\n"
-        << "    This is the 1-D-normal LODI limit: no transverse terms and no\n"
-        << "    reaction-source correction. Place outflows away from flames,\n"
-        << "    shear layers and composition fronts. See Source/NSCBC.H.\n";
+           "ghost fill).\n";
+      if (bc_nscbc_beta >= 1.0) {
+        amrex::Print()
+          << "    1-D-normal LODI limit (beta = 1): no transverse terms and "
+             "no\n"
+          << "    reaction-source correction. Place outflows away from "
+             "flames,\n"
+          << "    shear layers and composition fronts. See Source/NSCBC.H.\n";
+      } else {
+        amrex::Print() << "    beta = " << bc_nscbc_beta
+                       << " (transverse terms); 1 = off\n";
+      }
       if (bc_nscbc_pin_farfield) {
         amrex::Print()
           << "    incoming acoustic PINNED to the far field; bc_nscbc_sigma "
@@ -1270,8 +1286,13 @@ PeleC::post_restart()
     PeleC::h_prob_parm_device + 1, PeleC::d_prob_parm_device);
 
   // A restart runs neither post_init nor post_regrid, so the warning about
-  // refined grids on a characteristic face has to be issued from here.
+  // refined grids on a characteristic face, and the periodic-seam check (a
+  // restart may switch bc_nscbc on or change beta or the grids), have to be
+  // issued from here.
   nscbc_check_fine_faces();
+  if (level == 0) {
+    nscbc_check_periodic_wrap();
+  }
 
 #ifdef PELE_USE_SPRAY
   postRestartParticles(parent->theRestartFile());
@@ -1355,6 +1376,7 @@ PeleC::post_init(amrex::Real /*stop_time*/)
     for (int lev = 1; lev <= finest; ++lev) {
       getLevel(lev).nscbc_check_fine_faces();
     }
+    nscbc_check_periodic_wrap();
   }
 
   amrex::Real dtlev = parent->dtLevel(level);
