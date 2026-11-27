@@ -37,6 +37,14 @@ env:
   # trims the caches to what is used) but skip the tests, which already
   # ran on this commit.
   RUN_TESTS: ${{github.event_name != 'schedule'}}
+  # SUNDIALS writes its configure time into sundials_config.h (SUN_JOB_ID,
+  # SUN_JOB_START_TIME) unless these are set, which changes the ccache and
+  # ctcache keys of every file including it on every run: clang-tidy's -dD
+  # puts the #defines in the hashed preprocessed source, and GPU-SYCL's
+  # CCACHE_DEPEND hashes the header itself. Non-zero: SUNDIALS tests them
+  # with if($ENV{...}), and 0 is false.
+  CI_JOB_ID: 1
+  CI_JOB_STARTED_AT: 1
   # The ccache directory the cache steps save and restore (ccache's default
   # on Linux; CPU-CMake sets its own per OS).
   COMPILER_CACHE_DIR: ~/.cache/ccache
