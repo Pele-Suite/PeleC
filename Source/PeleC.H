@@ -914,23 +914,11 @@ PeleC::numGrow()
 {
   int ng = 4;
   if (eb_in_domain) {
-    // IF MOL     + FRD then 5
-    // IF Godunov + FRD then 6
-    // IF MOL     + SRD then 6
-    // IF Godunov + SRD then 7
-    if (do_mol) {
-      if (redistribution_type == "FluxRedist") {
-        ng += 1;
-      } else if (redistribution_type == "StateRedist") {
-        ng += 2;
-      }
-    } else {
-      if (redistribution_type == "FluxRedist") {
-        ng += 2;
-      } else if (redistribution_type == "StateRedist") {
-        ng += 3;
-      }
-    }
+    // EB needs 1 more ghost cell with MOL and 2 more with Godunov, and
+    // StateRedist one more again. The other types (FluxRedist, NoRedist) use
+    // the same stencils.
+    const bool is_srd = redistribution_type == "StateRedist";
+    ng += (do_mol ? 1 : 2) + (is_srd ? 1 : 0);
   }
   return ng;
 }
