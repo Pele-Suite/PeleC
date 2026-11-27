@@ -417,12 +417,9 @@ PeleC::particle_redistribute(int lbase, bool init_part)
         amrex::Print() << "Calling redistribute because grid has changed "
                        << '\n';
       }
-      if (flev == 0) {
-        // Do a local redistribute
-        SprayPC->Redistribute(lbase, SprayPC->finestLevel(), 0, 1);
-      } else {
-        SprayPC->Redistribute(lbase, SprayPC->finestLevel(), 0);
-      }
+      // Global redistribute over all particle levels, including any level the
+      // regrid has just removed
+      SprayPC->Redistribute(lbase);
 
       // Use the new BoxArray and DistMap to define ba and dm for next time.
       for (int i = 0; i <= flev; i++) {
