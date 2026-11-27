@@ -1,5 +1,24 @@
 #include "PeleC.H"
 
+namespace {
+// A derived quantity can be NaN or Inf in a covered cell, for example when it
+// divides by a density that was zeroed in the body. Multiplying by a zero
+// volume fraction does not remove those values, so zero them explicitly.
+void
+zero_covered_cells(amrex::MultiFab& mf, const amrex::MultiFab& vfrac)
+{
+  auto const& mf_arrs = mf.arrays();
+  auto const& vf_arrs = vfrac.const_arrays();
+  amrex::ParallelFor(
+    mf, [=] AMREX_GPU_DEVICE(int nbx, int i, int j, int k) noexcept {
+      if (vf_arrs[nbx](i, j, k) <= 0.0) {
+        mf_arrs[nbx](i, j, k) = 0.0;
+      }
+    });
+  amrex::Gpu::synchronize();
+}
+} // namespace
+
 amrex::Real
 PeleC::sumDerive(const std::string& name, amrex::Real time, bool local)
 {
@@ -25,7 +44,6 @@ PeleC::volWgtSum(
 {
   BL_PROFILE("PeleC::volWgtSum()");
 
-  amrex::Real sum = 0.0;
   auto mf = derive(name, time, 0);
 
   AMREX_ASSERT(mf != nullptr);
@@ -36,16 +54,12 @@ PeleC::volWgtSum(
   }
 
   if (eb_in_domain) {
+    zero_covered_cells(*mf, vfrac);
     amrex::MultiFab::Multiply(*mf, vfrac, 0, 0, 1, 0);
   }
 
-  sum = amrex::MultiFab::Dot(*mf, 0, volume, 0, 1, 0, local);
-
-  if (!local) {
-    amrex::ParallelDescriptor::ReduceRealSum(sum);
-  }
-
-  return sum;
+  // Dot does the parallel reduction unless local is true
+  return amrex::MultiFab::Dot(*mf, 0, volume, 0, 1, 0, local);
 }
 
 amrex::Real
@@ -53,7 +67,6 @@ PeleC::volWgtSquaredSum(const std::string& name, amrex::Real time, bool local)
 {
   BL_PROFILE("PeleC::volWgtSquaredSum()");
 
-  amrex::Real sum = 0.0;
   auto mf = derive(name, time, 0);
 
   AMREX_ASSERT(mf != nullptr);
@@ -63,6 +76,10 @@ PeleC::volWgtSquaredSum(const std::string& name, amrex::Real time, bool local)
     amrex::MultiFab::Multiply(*mf, mask, 0, 0, 1, 0);
   }
 
+  if (eb_in_domain) {
+    zero_covered_cells(*mf, vfrac);
+  }
+
   amrex::MultiFab::Multiply(*mf, *mf, 0, 0, 1, 0);
 
   amrex::MultiFab vol(grids, dmap, 1, 0);
@@ -70,13 +87,7 @@ PeleC::volWgtSquaredSum(const std::string& name, amrex::Real time, bool local)
   if (eb_in_domain) {
     amrex::MultiFab::Multiply(vol, vfrac, 0, 0, 1, 0);
   }
-  sum = amrex::MultiFab::Dot(*mf, 0, vol, 0, 1, 0, local);
-
-  if (!local) {
-    amrex::ParallelDescriptor::ReduceRealSum(sum);
-  }
-
-  return sum;
+  return amrex::MultiFab::Dot(*mf, 0, vol, 0, 1, 0, local);
 }
 
 amrex::Real
@@ -85,7 +96,6 @@ PeleC ::volWgtSquaredSumDiff(int comp, amrex::Real /*time*/, bool local)
   // Calculate volume weighted sum of the square of the difference
   // between the old and new quantity
 
-  amrex::Real sum = 0.0;
   const amrex::MultiFab& S_old = get_old_data(State_Type);
   const amrex::MultiFab& S_new = get_new_data(State_Type);
   amrex::MultiFab diff(grids, dmap, 1, 0);
@@ -106,13 +116,7 @@ PeleC ::volWgtSquaredSumDiff(int comp, amrex::Real /*time*/, bool local)
   if (eb_in_domain) {
     amrex::MultiFab::Multiply(vol, vfrac, 0, 0, 1, 0);
   }
-  sum = amrex::MultiFab::Dot(diff, 0, vol, 0, 1, 0, local);
-
-  if (!local) {
-    amrex::ParallelDescriptor::ReduceRealSum(sum);
-  }
-
-  return sum;
+  return amrex::MultiFab::Dot(diff, 0, vol, 0, 1, 0, local);
 }
 
 amrex::Real
@@ -121,7 +125,6 @@ PeleC::volWgtSumMF(
 {
   BL_PROFILE("PeleC::volWgtSumMF()");
 
-  amrex::Real sum = 0.0;
   amrex::MultiFab vol(grids, dmap, 1, 0);
   amrex::MultiFab::Copy(vol, mf, comp, 0, 1, 0);
 
@@ -131,16 +134,11 @@ PeleC::volWgtSumMF(
   }
 
   if (eb_in_domain) {
+    zero_covered_cells(vol, vfrac);
     amrex::MultiFab::Multiply(vol, vfrac, 0, 0, 1, 0);
   }
 
-  sum = amrex::MultiFab::Dot(vol, 0, volume, 0, 1, 0, local);
-
-  if (!local) {
-    amrex::ParallelDescriptor::ReduceRealSum(sum);
-  }
-
-  return sum;
+  return amrex::MultiFab::Dot(vol, 0, volume, 0, 1, 0, local);
 }
 
 amrex::Real

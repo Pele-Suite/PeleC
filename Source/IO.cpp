@@ -631,8 +631,8 @@ PeleC::writeBuildInfo(std::ostream& os)
   os << "COMP:          " << amrex::buildInfoGetComp() << "\n";
   os << "COMP version:  " << amrex::buildInfoGetCompVersion() << "\n";
 
-  amrex::Print() << "C++ compiler:  " << amrex::buildInfoGetCXXName() << "\n";
-  amrex::Print() << "C++ flags:     " << amrex::buildInfoGetCXXFlags() << "\n";
+  os << "C++ compiler:  " << amrex::buildInfoGetCXXName() << "\n";
+  os << "C++ flags:     " << amrex::buildInfoGetCXXFlags() << "\n";
 
   os << "\n";
 
@@ -641,8 +641,8 @@ PeleC::writeBuildInfo(std::ostream& os)
 
   os << "\n";
 
-  amrex::Print() << "Link flags:    " << amrex::buildInfoGetLinkFlags() << "\n";
-  amrex::Print() << "Libraries:     " << amrex::buildInfoGetLibraries() << "\n";
+  os << "Link flags:    " << amrex::buildInfoGetLinkFlags() << "\n";
+  os << "Libraries:     " << amrex::buildInfoGetLibraries() << "\n";
 
   os << "\n";
 
