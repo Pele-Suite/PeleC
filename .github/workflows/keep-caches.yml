@@ -1,0 +1,57 @@
+name: KeepCaches
+
+# GitHub evicts a cache after 7 days without access, and a restore counts as
+# an access. Twice a week (a margin for late scheduled starts), this restores
+# each of development's ccaches, so PRs still find them when development has
+# had no push for a while; no build runs, and nothing is saved. The ccaches
+# themselves are only saved by PeleC-CI runs on development.
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 3 * * 1,4'
+
+permissions:
+  # gh cache list
+  actions: read
+  contents: read
+
+jobs:
+  List:
+    runs-on: ubuntu-latest
+    outputs:
+      caches: ${{steps.list.outputs.caches}}
+    steps:
+      - name: List development's ccaches
+        id: list
+        env:
+          GH_TOKEN: ${{secrets.GITHUB_TOKEN}}
+          # gh reads the repository from here, so no checkout is needed.
+          GH_REPO: ${{github.repository}}
+        run: |
+          # Each cache with the runner and path its job saved it with: a
+          # restore must give the same path, or it misses. Keep these in step
+          # with ci.yml (CPU-CMake's ccache_cache on macOS, Lint-clang-tidy's
+          # ccache and ctcache, COMPILER_CACHE_DIR for the rest).
+          caches=$(gh cache list -L 100 --ref refs/heads/development --key ccache- --json key | jq -c '[.[].key |
+            if test("-macos-") then {key: ., os: "macos-latest", path: "/Users/runner/Library/Caches/ccache"}
+            elif test("-Lint-clang-tidy-git-") then {key: ., os: "ubuntu-24.04", path: "~/.cache/ccache\n~/.cache/ctcache"}
+            else {key: ., os: "ubuntu-24.04", path: "~/.cache/ccache"} end]')
+          echo "${caches}" | jq .
+          echo "caches=${caches}" >> "$GITHUB_OUTPUT"
+  Restore:
+    needs: List
+    if: needs.List.outputs.caches != '[]'
+    strategy:
+      fail-fast: false
+      matrix:
+        cache: ${{fromJSON(needs.List.outputs.caches)}}
+    name: Restore ${{matrix.cache.key}}
+    runs-on: ${{matrix.cache.os}}
+    steps:
+      # Fails on a miss, which means the path here no longer matches the one
+      # ci.yml saved with.
+      - uses: actions/cache/restore@v5
+        with:
+          path: ${{matrix.cache.path}}
+          key: ${{matrix.cache.key}}
+          fail-on-cache-miss: true
