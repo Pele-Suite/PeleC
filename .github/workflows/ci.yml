@@ -492,8 +492,10 @@ jobs:
     needs: [Formatting, CPU-GNUmake]
     runs-on: ubuntu-24.04
     env:
-      # A cold build overflows 300M (126% after cleanups)
-      CCACHE_MAXSIZE: 800M
+      # One build fills ~700M: at 800M ccache evicted mid-build (90% after
+      # cleanups) and missed 15% of an unchanged commit. The saved cache is
+      # trimmed to one build, so the headroom costs no cache space.
+      CCACHE_MAXSIZE: 1200M
       CACHE_KEY: ccache-${{github.workflow}}-${{github.job}}
     steps:
       - name: Clone
