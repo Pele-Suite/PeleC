@@ -139,10 +139,11 @@ PeleC::getEBMaxLevel()
 {
   // Look into amr PP
   amrex::ParmParse ppa("amr");
-  int max_eb_level = -1;
+  int amr_max_level = -1;
+  ppa.query("max_level", amr_max_level);
 
   // Default to amr.max_level
-  ppa.query("max_level", max_eb_level);
+  int max_eb_level = amr_max_level;
 
   // Get the level in the restart file if present
   std::string restart_file;
@@ -160,6 +161,23 @@ PeleC::getEBMaxLevel()
   // Allow manual overwrite
   amrex::ParmParse ppeb("eb2");
   ppeb.query("max_level_generation", max_eb_level);
+
+  // The EB cannot be generated on a level that does not exist, e.g. when
+  // restarting with fewer levels than the checkpoint file was written with.
+  // Without a geometry the level makes no difference. With one, generating
+  // it on another level would change it under the checkpointed state.
+  if (max_eb_level > amr_max_level) {
+    std::string geom_type("all_regular");
+    ppeb.query("geom_type", geom_type);
+    if (geom_type != "all_regular") {
+      amrex::Abort(
+        "PeleC::getEBMaxLevel: the EB generation level (" +
+        std::to_string(max_eb_level) + ") is above amr.max_level (" +
+        std::to_string(amr_max_level) +
+        "). Raise amr.max_level or set eb2.max_level_generation.");
+    }
+    max_eb_level = amr_max_level;
+  }
 
   return max_eb_level;
 }
