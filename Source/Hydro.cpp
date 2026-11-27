@@ -667,22 +667,12 @@ pc_umdrv_eb(
     qec_arr{{AMREX_D_DECL(qec[0].array(), qec[1].array(), qec[2].array())}};
 
   // Quantities for redistribution
-  amrex::FArrayBox divc, redistwgt;
-  if (redistribution_type == "StateRedist") {
-    divc.resize(
-      bxg_i, NVAR,
-      amrex::The_Async_Arena()); // This will hold "dUdt" before redistribution
-    redistwgt.resize(
-      bxg_i, NVAR, amrex::The_Async_Arena()); // This will be "scratch" which
-                                              // holds "Uold + dt*dUdt"
-  } else {
-    divc.resize(
-      bxg_i, NVAR,
-      amrex::The_Async_Arena()); // This will hold "dUdt" before redistribution
-    redistwgt.resize(
-      bxg_i, 1, amrex::The_Async_Arena()); // This will hold the weights used in
-                                           // flux redistribution
-  }
+  // divc holds "dUdt" before redistribution. redistwgt holds the weights
+  // used in flux redistribution, or the "Uold + dt*dUdt" scratch state in
+  // state redistribution. It always has NVAR components because
+  // pc_post_eb_redistribution reuses it as an NVAR scratch state.
+  amrex::FArrayBox divc(bxg_i, NVAR, amrex::The_Async_Arena());
+  amrex::FArrayBox redistwgt(bxg_i, NVAR, amrex::The_Async_Arena());
   divc.setVal<amrex::RunOn::Device>(0.0);
   redistwgt.setVal<amrex::RunOn::Device>(0.0);
 
