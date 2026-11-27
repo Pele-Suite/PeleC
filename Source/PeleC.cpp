@@ -2033,9 +2033,13 @@ PeleC::derive(const std::string& name, amrex::Real time, int ngrow)
   // Can't use the AmrLevel derive for state variables with ghost cells:
   // That will fillpatch them individually, but we require the full state
   // for physBCs. Therefore, instead fillpatch the full state and then grab
-  // the component we need.
+  // the component we need. This only applies to State_Type: scomp is the
+  // component within the state type that owns the variable, so variables of
+  // the other types (e.g. heatRelease) are left to AmrLevel::derive.
   int index, scomp;
-  if (isStateVariable(name, index, scomp) && (ngrow > 0)) {
+  if (
+    isStateVariable(name, index, scomp) && (index == State_Type) &&
+    (ngrow > 0)) {
     amrex::MultiFab S_data(
       get_new_data(State_Type).boxArray(),
       get_new_data(State_Type).DistributionMap(), NVAR, ngrow, amrex::MFInfo(),
