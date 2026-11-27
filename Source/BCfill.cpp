@@ -822,8 +822,10 @@ PeleC::nscbc_check_fine_faces() const
 // ---------------------------------------------------------------------------
 //  Periodic-seam gate.  Measures how far the characteristic fill is from
 //  periodic where the domain is: the worst relative mismatch between ghost
-//  cells and their images one period away.  The clamped tangential stencil
-//  (see nscbc_fill) leaves a deliberate residual at the seam under amrex's
+//  cells and their images one period away.  The normal stencil row is read
+//  in place across a periodic direction, but the transverse terms' tangential
+//  neighbours (beta < 1) are clamped into the domain and the FAB (see
+//  nscbc_fill), which leaves a deliberate residual at the seam under amrex's
 //  corner-strip protocol -- measured 2e-4 on the inert vortex and 1.6e-3
 //  with a flame front sitting on the seam corner -- so the gate REPORTS the
 //  measured value and aborts only above 1e-2, an order of margin above the
