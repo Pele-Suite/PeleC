@@ -184,6 +184,11 @@ ExtrudedTriangles::build(
 
   // get user defined number of triangles
   pp.get("num_tri", num_tri);
+  if ((num_tri < 0) || (num_tri > max_tri)) {
+    amrex::Abort(
+      "extruded_triangles: num_tri must be between 0 and " +
+      std::to_string(max_tri));
+  }
 
   for (int itri = 0; itri < num_tri; itri++) {
     amrex::Array<amrex::Real, AMREX_SPACEDIM> point{

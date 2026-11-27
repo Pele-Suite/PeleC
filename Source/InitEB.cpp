@@ -395,15 +395,24 @@ initialize_EB2(
   std::string geom_type("all_regular");
   ppeb2.query("geom_type", geom_type);
 
+  // The geometry is generated on eb_max_level. EB always coarsens and refines
+  // by a factor of 2, so count the factor 2 levels needed below eb_max_level
+  // (down to AMR level 0) and above it (up to max_level).
   int max_coarsening_level = 0;
+  int num_fine_levels = 0;
   for (int lev = 0; lev < max_level; ++lev) {
-    // Since EB always coarsens by a factor of 2
+    int nlevs = 0;
     if (ref_ratio[lev] == 2) {
-      max_coarsening_level += 1;
+      nlevs = 1;
     } else if (ref_ratio[lev] == 4) {
-      max_coarsening_level += 2;
+      nlevs = 2;
     } else {
       amrex::Abort("initalize_EB2: Refinement ratio must be 2 or 4");
+    }
+    if (lev < eb_max_level) {
+      max_coarsening_level += nlevs;
+    } else {
+      num_fine_levels += nlevs;
     }
   }
 
@@ -427,7 +436,7 @@ initialize_EB2(
   // above.
   // EY: This condition is not acceptable in AMReX with stl format
   if ((geom_type != "chkfile") && (geom_type != "stl")) {
-    amrex::EB2::addFineLevels(max_level - eb_max_level);
+    amrex::EB2::addFineLevels(num_fine_levels);
   } else {
     // The AMReX implementation for these does not support addFineLevels
     AMREX_ALWAYS_ASSERT(max_level == eb_max_level);
