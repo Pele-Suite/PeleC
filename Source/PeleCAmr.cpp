@@ -18,7 +18,7 @@ PeleCAmr::writePlotFile()
   }
 
   // Don't continue if we have no variables to plot.
-  if (statePlotVars().empty()) {
+  if (statePlotVars().empty() && derivePlotVars().empty()) {
     return;
   }
 
@@ -29,7 +29,7 @@ PeleCAmr::writePlotFile()
     amrex::Print() << "PLOTFILE: file = " << pltfile << '\n';
   }
 
-  if ((record_run_info == 0) && amrex::ParallelDescriptor::IOProcessor()) {
+  if ((record_run_info != 0) && amrex::ParallelDescriptor::IOProcessor()) {
     runlog << "PLOTFILE: file = " << pltfile << '\n';
   }
 
@@ -60,7 +60,7 @@ PeleCAmr::writeSmallPlotFile()
   }
 
   // Don't continue if we have no variables to plot.
-  if (stateSmallPlotVars().empty()) {
+  if (stateSmallPlotVars().empty() && deriveSmallPlotVars().empty()) {
     return;
   }
 
@@ -71,7 +71,7 @@ PeleCAmr::writeSmallPlotFile()
     amrex::Print() << "SMALL PLOTFILE: file = " << pltfile << '\n';
   }
 
-  if ((record_run_info == 0) && amrex::ParallelDescriptor::IOProcessor()) {
+  if ((record_run_info != 0) && amrex::ParallelDescriptor::IOProcessor()) {
     runlog << "SMALL PLOTFILE: file = " << pltfile << '\n';
   }
 
@@ -89,8 +89,11 @@ PeleCAmr::constructPlotMF(
   amrex::Vector<std::pair<int, int>> plot_var_map;
   for (int typ = 0; typ < desc_lst.size(); typ++) {
     for (int comp = 0; comp < desc_lst[typ].nComp(); comp++) {
+      const std::string& name = desc_lst[typ].name(comp);
+      const bool is_plot_var = regular ? amrex::Amr::isStatePlotVar(name)
+                                       : amrex::Amr::isStateSmallPlotVar(name);
       if (
-        amrex::Amr::isStatePlotVar(desc_lst[typ].name(comp)) &&
+        is_plot_var &&
         desc_lst[typ].getType() == amrex::IndexType::TheCellType()) {
         plot_var_map.push_back(std::pair<int, int>(typ, comp));
       }
@@ -101,20 +104,21 @@ PeleCAmr::constructPlotMF(
   auto& derive_lst = amrex::AmrLevel::get_derive_lst();
   std::list<std::string> derive_names;
   const std::list<amrex::DeriveRec>& dlist = derive_lst.dlist();
-  if (regular) {
-    for (const auto& it : dlist) {
-      if (amrex::Amr::isDerivePlotVar(it.name())) {
-        derive_names.push_back(it.name());
-        num_derive += it.numDerive();
-      }
+  for (const auto& it : dlist) {
+    const bool is_plot_var = regular
+                               ? amrex::Amr::isDerivePlotVar(it.name())
+                               : amrex::Amr::isDeriveSmallPlotVar(it.name());
+    if (is_plot_var) {
+      derive_names.push_back(it.name());
+      num_derive += it.numDerive();
     }
-#ifdef PELE_USE_SPRAY
-    // Add spray derive variables
-    if (SprayParticleContainer::NumDeriveVars() > 0) {
-      num_derive += SprayParticleContainer::NumDeriveVars();
-    }
-#endif
   }
+#ifdef PELE_USE_SPRAY
+  // Add spray derive variables
+  if (regular && (SprayParticleContainer::NumDeriveVars() > 0)) {
+    num_derive += SprayParticleContainer::NumDeriveVars();
+  }
+#endif
 
   // Decide to plot vfrac
   bool plot_vfrac =
@@ -281,9 +285,11 @@ PeleCAmr::writePlotFileDoit(
     }
   }
 
-  if (regular && !write_hdf5_plots) {
-    for (int lev = 0; lev < nlevels; ++lev) {
-      amr_level[lev]->writePlotFilePost(pltfile, HeaderFile);
+  if (regular) {
+    if (!write_hdf5_plots) {
+      for (int lev = 0; lev < nlevels; ++lev) {
+        amr_level[lev]->writePlotFilePost(pltfile, HeaderFile);
+      }
     }
 
     last_plotfile = level_steps[0];
@@ -337,7 +343,7 @@ PeleCAmr::doInSituViz(const int step)
     amr_level[0]->setPlotVariables();
   }
 
-  if (statePlotVars().empty()) {
+  if (statePlotVars().empty() && derivePlotVars().empty()) {
     return;
   }
 
