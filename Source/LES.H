@@ -491,9 +491,14 @@ get_wale_sfs_stresses(
   amrex::Real DijDij5 = DijDij3 * DijDij * DijDij;
   amrex::Real SijSij5 = SijSij * SijSij * SijSij * SijSij * SijSij;
 
+  // The WALE operator is 0/0 where the velocity gradient vanishes, the eddy
+  // viscosity is zero there
+  const amrex::Real wale_den =
+    std::sqrt(SijSij5) + std::sqrt(std::sqrt(DijDij5));
+  const amrex::Real wale_op =
+    wale_den > 0.0 ? std::sqrt(DijDij3) / wale_den : 0.0;
   const amrex::Real mut =
-    0.5 * (q(iv, QRHO) + q(ivm, QRHO)) * deltabar * deltabar *
-    (std::sqrt(DijDij3) / (std::sqrt(SijSij5) + std::sqrt(std::sqrt(DijDij5))));
+    0.5 * (q(iv, QRHO) + q(ivm, QRHO)) * deltabar * deltabar * wale_op;
 
   alpha0 = 2.0 * mut * (S[dir][0] - (dir == 0 ? Skk / 3.0 : 0.0));
   alpha1 = 2.0 * mut * (S[dir][1] - (dir == 1 ? Skk / 3.0 : 0.0));
@@ -634,8 +639,13 @@ get_vreman_sfs_stresses(
   Sijmag = std::sqrt(2.0 * SijSij);
   const amrex::Real Skk = S[0][0] + S[1][1] + S[2][2];
 
-  const amrex::Real mut =
-    0.5 * (q(iv, QRHO) + q(ivm, QRHO)) * (std::sqrt(bbeta / aijaij));
+  // bbeta is non-negative analytically but can round below zero, and the
+  // ratio is 0/0 where the velocity gradient vanishes, the eddy viscosity is
+  // zero there
+  const amrex::Real vreman_op =
+    aijaij > 0.0 ? std::sqrt(amrex::max<amrex::Real>(bbeta, 0.0) / aijaij)
+                 : 0.0;
+  const amrex::Real mut = 0.5 * (q(iv, QRHO) + q(ivm, QRHO)) * vreman_op;
 
   alpha0 = 2.0 * mut * (S[dir][0] - (dir == 0 ? Skk / 3.0 : 0.0));
   alpha1 = 2.0 * mut * (S[dir][1] - (dir == 1 ? Skk / 3.0 : 0.0));
