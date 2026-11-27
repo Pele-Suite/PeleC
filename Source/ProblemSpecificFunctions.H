@@ -134,6 +134,8 @@ struct DefaultProblemSpecificFunctions
   {
     /* Notes: ext_src contains sources from velocity forcing coming in
        This function should add to rather than overwrite ext_src.
+       prob_parm is the host copy of the problem parameters: capture it
+       by value in device lambdas, do not capture its address.
     */
   }
 

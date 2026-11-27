@@ -72,7 +72,9 @@ PeleC::fill_ext_source(
     });
   amrex::Gpu::synchronize();
 
-  const ProbParmDevice* lprobparm = PeleC::d_prob_parm_device;
+  // problem_modify_ext_sources runs on the host, so give it the host copy of
+  // the problem parameters. The device copy is not readable from the host.
+  const ProbParmDevice* lprobparm = PeleC::h_prob_parm_device;
   const auto geomdata = geom.data();
   ProblemSpecificFunctions::problem_modify_ext_sources(
     time, dt, state_old, state_new, ext_src, ng, geomdata, *lprobparm);
