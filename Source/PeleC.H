@@ -125,6 +125,13 @@ public:
   // post_init and post_restart; no-op on level 0 or when bc_nscbc is off.
   void nscbc_check_fine_faces() const;
 
+  // Gate the characteristic fill's periodicity: a ghost cell and its image
+  // one period away along a periodic tangential direction must agree to the
+  // last bit, since they are built from the same data by the same arithmetic.
+  // Runs once, from post_init, and only when a characteristic face has a
+  // periodic tangential direction.
+  void nscbc_check_periodic_wrap();
+
   // Restart from a checkpoint file.
   void restart(
     amrex::Amr& papa, std::istream& is, bool bReadSpecial = false) override;

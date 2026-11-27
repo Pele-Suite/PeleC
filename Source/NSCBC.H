@@ -33,8 +33,13 @@
 //  directly.  The gradient form gives L_in an additive slot for the
 //  transverse terms (beta) and the reaction source (beta_s); a hard pin of
 //  R_- has none.  The fill is a pure algebraic function of the current
-//  interior state: idempotent under repeated FillPatch calls,
-//  bit-reproducible across restarts and decompositions.
+//  interior state: idempotent under repeated FillPatch calls and
+//  bit-reproducible across restarts.  It is NOT in general independent of
+//  the box layout: the normal stencil is cut to the FAB (a thin coarse patch
+//  in FillPatchTwoLevels drops to first order), and with beta < 1 the
+//  tangential stencil is cut to the FAB too, so the outermost tangential
+//  ghost column of a FAB differences one-sidedly where its neighbour
+//  differences centred.
 //
 //  SIGNS.  Every user-facing coefficient (sigma, relax_u, relax_t) is
 //  positive; all sign handling is internal and Params::validate() rejects
@@ -61,6 +66,7 @@
 #include <cmath>
 #include <limits>
 #include <string>
+#include <type_traits>
 
 #include "IndexDefines.H"
 #include "Constants.H"
@@ -73,6 +79,14 @@ namespace pc_nscbc {
 //  A single face may carry a mixture (a jet inlet surrounded by outflow).
 // ---------------------------------------------------------------------------
 enum struct Type : int { off = 0, outflow = 1, inflow = 2 };
+
+// Whether the EOS can evaluate a reaction rate (RTY2WDOT), which the
+// reaction-source term (Params::beta_s < 1) needs.  GammaLaw cannot: its
+// RTY2WDOT calls amrex::Error, which inside the fill kernel would abort
+// mid-run.  Host-side checks only.
+inline constexpr bool eos_has_reaction_rate = !std::is_same_v<
+  pele::physics::PhysicsType::eos_type,
+  pele::physics::eos::GammaLaw>;
 
 // ---------------------------------------------------------------------------
 //  Numerical parameters.  POD, captured host-side into the boundary functor;
@@ -93,6 +107,83 @@ struct Params
 
   // Inflow temperature and tangential-velocity relaxation.
   amrex::Real relax_t = 0.2;
+
+  // Weight on the transverse terms in the modelled incoming acoustic:
+  //     L_in = K (phi - phi_target) - (1 - beta) * T_transverse
+  //   1 discards them (the 1-D-normal LODI limit, and the default: enabling
+  //   them is an opt-in change), 0 includes them fully, < 0 selects the
+  //   pointwise OUTWARD-NORMAL Mach number, min(|u_n| / c, 1).  (The legacy
+  //   Fortran used the velocity magnitude |u| / c; this is not that.)
+  //
+  // Exact blend for a plane acoustic wave at angle theta in gas at rest:
+  // beta_opt = 1 - cos(theta)/(1+cos(theta)) -- 0.5 head-on, toward 1 at
+  // grazing.  The circular-pulse optimum (0.8) agrees; the convected vortex
+  // is outside that derivation and its 0.5 is empirical (NSCBC-COVO).  The
+  // response is asymmetric: beta = 0 goes unstable on a vortex and pointwise
+  // local-Mach is worse than no correction.  A wrong beta is more dangerous
+  // than an absent one: start at 0.5, raise toward 1 for grazing incidence.
+  amrex::Real beta = 1.0;
+
+  // Weight on the REACTION source term in the modelled incoming acoustic,
+  // with the same convention as beta:
+  //     L_in = K (phi - phi_target) - (1 - beta) T + (1 - beta_s) S_reaction
+  //   1 discards it (the default; correct when no heat release reaches the
+  //   boundary cells), 0 includes it fully.
+  //
+  // A flame in the boundary cells raises p at S_p = dp/dt|_react, which the
+  // relaxation has no model for; without this term the mean sits off target
+  // by S_p/K.  Including it is the Sutherland-Kennedy (JCP 2003)
+  // cancellation; the sign is PLUS because the exact steady flame has
+  // dR_-/dn = +S_p/(rho c^2).  Measured guidance: for a flame sitting on an
+  // outflow, beta_s = 0 halves the sigma = 1 error and, with
+  // extrap_temperature, holds the hard-outflow level at every sigma (at
+  // sigma = 16 it overshoots; do not stack both).  For a flame crossing an
+  // outflow, with extrap_temperature it cuts the transit disturbance 7-10x
+  // and lets sigma < 16 survive.  Not obtainable from srcq(QPRES); see
+  // reaction_dpdt().  Must lie in [0, 1]; values below 1 need do_react and
+  // an EOS with a reaction rate (not GammaLaw), checked in read_params.
+  amrex::Real beta_s = 1.0;
+
+  // Close the lambda_0 family on TEMPERATURE instead of the entropy
+  // invariant.  The diffusion operator forms boundary-face fluxes from these
+  // ghost cells, so the ghost dT/dn IS the heat flux leaving; the entropy
+  // closure sets T as a by-product of the acoustic algebra and overstates a
+  // flame-like face gradient by 40% (measured on a 1-D flame-like ramp).
+  // With this set, T rides the same minmod slope as everything else and rho
+  // follows from the EOS -- a deliberate Neumann condition on T instead of an
+  // accidental Dirichlet one.  Default false (changes every outflow result).
+  // Turn it on whenever thermal or compositional structure nears the
+  // boundary: it is the flag that lets a flame survive the outflow.
+  bool extrap_temperature = false;
+
+  // Continue the MATERIAL part of R_- into the ghost at an outflow, so a
+  // dilatational gradient crossing the face is not converted into ghost
+  // pressure (a bias of 1/2 rho c l du per layer).  The slope cannot be read
+  // from R_- itself (its gradient contains the boundary's own incoming
+  // waves; extrapolating them back is positive feedback, measured at 16x on
+  // the relaxation rate), so it is bounded through the acoustically-blind
+  // entropy family:
+  //     du_mat = -u_out dS / (rho (1 - M^2)),
+  //     applied slope = minmod(measured dR_-, du_mat (1 + M)).
+  // For pure acoustics the bound vanishes and the continuation shuts off.
+  // Quasi-steady bound: conservative for a moving front.  Requires
+  // sigma > 0 (validate() rejects sigma = 0 unless pin_farfield, which
+  // ignores this flag).  Default false.  For structure that SITS near the
+  // outflow; leave it off when a front crosses -- a transit over-vents.
+  bool extrap_material = false;
+
+  // Treat FIRM reversal at an outflow as a local inflow of reservoir gas:
+  // under sustained backflow the lambda_0 ghost content ramps from the
+  // frozen interior values (the transient-breathing closure) to the ambient
+  // state the face's Target carries (tgt.T, tgt.Y, tangential tgt.u), over
+  // an outward-Mach band [1e-3, 1e-2] -- continuous with w_mat's band below
+  // it, fully reservoir by Mach 0.01.  Without this, a face in sustained
+  // recirculation feeds the domain its own exhaust: a hot domain drawing
+  // from a cold reservoir never cools.  Only active when the Target supplies
+  // a physical state (tgt.T > 0); breathing reversals (chamber ring-down,
+  // radial rarefaction: |M| << 1e-3 at the face) never leave the frozen
+  // closure.  Default false.
+  bool backflow_material = false;
 
   // Boundary-normal reference length, probhi[idir] - problo[idir].  Filled per
   // face by the caller.  Only the ratio sigma/L_ref is physical, so this is
@@ -134,6 +225,24 @@ struct Params
     }
     if (bad(relax_t)) {
       why = "bc_nscbc_relax_t must be finite and >= 0";
+      return false;
+    }
+    // Written so that NaN fails as well.
+    if (!((beta_s >= 0.0) && (beta_s <= 1.0))) {
+      why = "bc_nscbc_beta_s must lie in [0, 1] (1 discards the reaction "
+            "source, 0 includes it fully)";
+      return false;
+    }
+    if (extrap_material && !pin_farfield && !(sigma > 0.0)) {
+      why = "bc_nscbc_extrap_material requires bc_nscbc_sigma > 0: the "
+            "material continuation is a quasi-steady model and needs the "
+            "relaxation to bound it";
+      return false;
+    }
+    if (!(beta <= 1.0) || !amrex::Math::isfinite(beta)) {
+      why = "bc_nscbc_beta must be finite and <= 1 (1 discards the transverse "
+            "terms, 0 includes them fully, negative selects the outward-normal "
+            "Mach number)";
       return false;
     }
     if ((order != 1) && (order != 2)) {
@@ -198,6 +307,22 @@ struct Target
 };
 
 // ---------------------------------------------------------------------------
+//  Tangential neighbours of the BOUNDARY CELL, for the transverse terms
+//      T_in = sum_t [ u_t (dp/dt - rho c du_out/dt) ] + gamma p sum_t du_t/dt
+//  (derivatives at the boundary cell; the outward frame absorbs the lo/hi
+//  sign flip).  Neighbour indexing is the caller's -- see tang_range() in
+//  BCfill.cpp -- and the spacing arrives as an explicit reciprocal, zero when
+//  a collapsed corner stencil leaves nothing to difference.
+// ---------------------------------------------------------------------------
+struct Transverse
+{
+  const amrex::Real* sm[AMREX_SPACEDIM] = {};
+  const amrex::Real* sp[AMREX_SPACEDIM] = {};
+  amrex::Real inv_dt[AMREX_SPACEDIM] = {};
+  bool valid = false;
+};
+
+// ---------------------------------------------------------------------------
 //  Diagnostic counters.  Every fallback is counted; a silent fallback is a
 //  bug that will not be found.  Storage is amrex::Long, not int: the
 //  counters are reset only when reported (at least every 100 coarse steps,
@@ -219,6 +344,12 @@ enum : int {
   body_state,        // an EB-covered cell was found in the stencil
   eos_failure,       // an EOS call returned a non-finite or non-positive value
   floored,           // a positivity floor was hit
+  transverse_drop,   // a transverse derivative was unavailable or unusable
+                     // (non-fluid neighbour primitives, or a non-finite
+                     // result): that term was left out of the incoming wave
+  source_drop,       // the reaction source (Params::beta_s < 1) could not be
+                     // evaluated (non-finite rate or EOS result): that term
+                     // was left out of the incoming wave
   stencil_short,     // the FAB held fewer interior cells along the normal
                      // than the extrapolation order wants (the coarse patch
                      // under a fine grid on the face): the order dropped to
@@ -238,6 +369,10 @@ enum : int {
   passive_unset,     // an inflow Target left its passive scalars unset
                      // (Target::passives): the interior values were kept, so
                      // nothing about them enters through the inflow.
+  structure,         // advisory, not a fallback: material (entropy-family)
+                     // structure above 5% of rho per cell sat in an outflow
+                     // boundary cell; the report then advises the flame
+                     // closures
   count
 };
 }
@@ -380,6 +515,92 @@ cell_primitives(const amrex::Real s[NVAR]) noexcept
 }
 
 // ---------------------------------------------------------------------------
+//  reaction_dpdt -- dp/dt from chemistry alone at fixed (rho, e).  Chemistry
+//  conserves both, so the effect is purely compositional:
+//      dp/dt = sum_k (dp/dY_k)|_{rho,e} wdot_k / rho
+//            = Ru T sum_k wdot_k/W_k - p/(rho T c_v) sum_k e_k wdot_k
+//  (ideal-gas closed form).  SRK/manifold lack the composition
+//  derivative, so there a single directional finite difference along the
+//  reaction path is used (sum wdot = 0 keeps sum Y = 1 along it).
+// ---------------------------------------------------------------------------
+AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE amrex::Real
+reaction_dpdt(CellPrim const& q, bool& ok) noexcept
+{
+  auto eos = pele::physics::PhysicsType::eos();
+  ok = true;
+
+  amrex::Real wdot[NUM_SPECIES] = {0.0}; // GCC -Wmaybe-uninitialized at -O:
+                                         // it cannot see RTY2WDOT fill it
+  eos.RTY2WDOT(q.rho, q.T, q.Y, wdot);
+  amrex::Real wmax = 0.0;
+  for (const amrex::Real wn : wdot) {
+    if (!amrex::Math::isfinite(wn)) {
+      ok = false;
+      return 0.0;
+    }
+    wmax = amrex::max<amrex::Real>(wmax, std::abs(wn));
+  }
+  if (wmax <= 0.0) {
+    return 0.0; // frozen chemistry here; nothing to correct
+  }
+
+#if defined(USE_SRK_EOS) || defined(USE_MANIFOLD_EOS)
+  // Directional finite difference along the reaction path.
+  const amrex::Real dY_scale = wmax / q.rho; // [1/s]
+  const amrex::Real tau = 1.0e-6 / dY_scale; // gives max |dY| ~ 1e-6
+  amrex::Real Yp[NUM_SPECIES], sum = 0.0;
+  for (int n = 0; n < NUM_SPECIES; n++) {
+    Yp[n] = amrex::max<amrex::Real>(q.Y[n] + tau * wdot[n] / q.rho, 0.0);
+    sum += Yp[n];
+  }
+  if (!(sum > 0.0)) {
+    ok = false;
+    return 0.0;
+  }
+  for (amrex::Real& yp : Yp) {
+    yp /= sum;
+  }
+  // Difference two evaluations made the same way: q.p comes from the
+  // maintained UTEMP, which need not agree with REY2T to the ~1e-6 relative
+  // that a perturbation of this size has to resolve.
+  amrex::Real T0 = q.T, p0 = 0.0;
+  eos.REY2T(q.rho, q.e, q.Y, T0);
+  eos.RTY2P(q.rho, T0, q.Y, p0);
+  amrex::Real Tp = T0, pp = 0.0;
+  eos.REY2T(q.rho, q.e, Yp, Tp);
+  eos.RTY2P(q.rho, Tp, Yp, pp);
+  if (
+    !amrex::Math::isfinite(pp) || !amrex::Math::isfinite(p0) ||
+    !amrex::Math::isfinite(Tp) || !(Tp > 0.0)) {
+    ok = false;
+    return 0.0;
+  }
+  return (pp - p0) / tau;
+#else
+  amrex::Real imw[NUM_SPECIES], ei[NUM_SPECIES], cv = 0.0;
+  eos.inv_molecular_weight(imw);
+  eos.RTY2Ei(q.rho, q.T, q.Y, ei);
+  eos.RTY2Cv(q.rho, q.T, q.Y, cv);
+  if (!amrex::Math::isfinite(cv) || !(cv > 0.0)) {
+    ok = false;
+    return 0.0;
+  }
+  amrex::Real mole_term = 0.0, heat_term = 0.0;
+  for (int n = 0; n < NUM_SPECIES; n++) {
+    mole_term += wdot[n] * imw[n];
+    heat_term += ei[n] * wdot[n];
+  }
+  const amrex::Real dpdt = pele::physics::Constants::RU * q.T * mole_term -
+                           q.p * heat_term / (q.rho * q.T * cv);
+  if (!amrex::Math::isfinite(dpdt)) {
+    ok = false;
+    return 0.0;
+  }
+  return dpdt;
+#endif
+}
+
+// ---------------------------------------------------------------------------
 //  Pack a set of ghost primitives into a conserved state.
 //
 //  Every NVAR slot is written, and the algebraic identities that the rest of
@@ -505,7 +726,8 @@ apply(
   Target const& tgt,
   Params const& prm,
   amrex::Real s_ghost[NVAR],
-  amrex::Long* diag = nullptr) noexcept
+  amrex::Long* diag = nullptr,
+  Transverse const* tr = nullptr) noexcept
 {
   auto eos = pele::physics::PhysicsType::eos();
 
@@ -732,6 +954,93 @@ apply(
       ? 1.0
       : amrex::max<amrex::Real>(0.0, 1.0 + u_out_N / (1.0e-3 * c_N));
 
+  // Transverse contribution to the modelled incoming wave.  Additive on the
+  // amplitude, which is exactly why the relaxation is written as a gradient
+  // increment: there is a well-defined slot for it here, and none at all in a
+  // hard far-field pin of R_-.
+  amrex::Real beta = prm.beta;
+  if (beta < 0.0) {
+    beta = amrex::min<amrex::Real>(std::abs(mach), 1.0);
+  }
+  amrex::Real T_in = 0.0;
+  if ((tr != nullptr) && tr->valid && (beta < 1.0)) {
+    amrex::Real gam = 0.0;
+    eos.RTY2G(qN.rho, qN.T, qN.Y, gam);
+    amrex::Real div_ut = 0.0;
+    bool any = false;
+    for (int d = 0; d < AMREX_SPACEDIM; ++d) {
+      if (
+        (d == idir) || (tr->sm[d] == nullptr) || (tr->sp[d] == nullptr) ||
+        (tr->inv_dt[d] == 0.0)) {
+        continue;
+      }
+      const CellPrim qm = cell_primitives(tr->sm[d]);
+      const CellPrim qp = cell_primitives(tr->sp[d]);
+      if (!qm.ok || !qp.ok) {
+        bump(Diag::transverse_drop);
+        continue;
+      }
+      const amrex::Real dpdt = (qp.p - qm.p) * tr->inv_dt[d];
+      // du_out/dt: the normal velocity in the OUTWARD frame, differentiated
+      // along the tangential direction.  The n_sgn here is what turns the
+      // legacy hi-face T1 and lo-face T4 into one expression.
+      const amrex::Real duodt =
+        n_sgn * (qp.u[idir] - qm.u[idir]) * tr->inv_dt[d];
+      const amrex::Real dutdt = (qp.u[d] - qm.u[d]) * tr->inv_dt[d];
+      T_in += qN.u[d] * (dpdt - rho_c * duodt);
+      div_ut += dutdt;
+      any = true;
+    }
+    if (any && amrex::Math::isfinite(gam) && (gam > 0.0)) {
+      T_in += gam * qN.p * div_ut;
+    } else {
+      T_in = 0.0;
+      bump(Diag::transverse_drop);
+    }
+    if (!amrex::Math::isfinite(T_in)) {
+      T_in = 0.0;
+      bump(Diag::transverse_drop);
+    }
+  }
+
+  // Entropy-family slope at the face: measured for two purposes below.  dS
+  // carries no acoustic content and is an OUTGOING family at an outflow, so
+  // nothing the incoming model consumes here can feed on the waves it
+  // launches.  Measured on the same stencil, in the same frozen-impedance
+  // variables, and with the same limiter as R_+.
+  amrex::Real dRm = 0.0;
+  if (outflow_face && linear && qNm1.ok && qNm2.ok) {
+    const amrex::Real inv_c2 = 1.0 / (c_N * c_N);
+    const amrex::Real S_N = qN.rho - qN.p * inv_c2;
+    const amrex::Real S_Nm1 = qNm1.rho - qNm1.p * inv_c2;
+    const amrex::Real S_Nm2 = qNm2.rho - qNm2.p * inv_c2;
+    const amrex::Real dS = minmod(S_N - S_Nm1, S_Nm1 - S_Nm2);
+
+    // The transit guard: count material structure in the outflow boundary
+    // cell so nscbc_report_diagnostics() can advise the flame closures
+    // (extrap_temperature, beta_s).  5% of rho per cell is well above
+    // acoustic or roundoff content and well below any front.
+    if ((layer == 1) && (std::abs(dS) > 0.05 * qN.rho)) {
+      bump(Diag::structure);
+    }
+
+    // Material-slope continuation of R_- (see Params::extrap_material): the
+    // measured slope of R_- is used only within the bound the entropy family
+    // supplies through steady continuity and the momentum-flux pressure
+    // gradient.
+    if (prm.extrap_material) {
+      const amrex::Real Rm_Nm1 = n_sgn * qNm1.u[idir] - qNm1.p / rho_c;
+      const amrex::Real Rm_Nm2 = n_sgn * qNm2.u[idir] - qNm2.p / rho_c;
+      const amrex::Real dRm_meas = minmod(Rm_N - Rm_Nm1, Rm_Nm1 - Rm_Nm2);
+      const amrex::Real du_mat = -u_out_N * dS / (qN.rho * one_m_M2);
+      dRm = w_mat * minmod(dRm_meas, du_mat * (1.0 + mach));
+      if (!amrex::Math::isfinite(dRm)) {
+        dRm = 0.0;
+        bump(Diag::floored);
+      }
+    }
+  }
+
   amrex::Real Rm_g;
   if (outflow_face && prm.pin_farfield) {
     // Hard far-field pin: R_- takes its far-field value (u_out = 0,
@@ -756,6 +1065,16 @@ apply(
       // velocity rate through the incoming invariant alone needs twice it.
       L_in += 2.0 * rho_c * (n_sgn * tgt.dudt);
     }
+    L_in -= (1.0 - beta) * T_in;
+    if (prm.beta_s < 1.0) {
+      bool src_ok = true;
+      const amrex::Real S_p = reaction_dpdt(qN, src_ok);
+      if (src_ok) {
+        L_in += (1.0 - prm.beta_s) * S_p;
+      } else {
+        bump(Diag::source_drop);
+      }
+    }
     // There is deliberately NO diffusive source term on L_in.  The
     // ghost-cell form does not have the flux-form's viscous-condition gap:
     // the diffusion operator reads these ghost cells, so the ghost closure
@@ -763,8 +1082,9 @@ apply(
     // counts it twice (measured on the viscous tests of the 1-D driver, a
     // later PR: it moves that error 104 -> -911).  Re-verify there before
     // revisiting.
-    Rm_g = Rm_N + static_cast<amrex::Real>(layer) * dx_normal * L_in /
-                    (lambda_in * rho_c);
+    Rm_g =
+      Rm_N + static_cast<amrex::Real>(layer) * dRm +
+      static_cast<amrex::Real>(layer) * dx_normal * L_in / (lambda_in * rho_c);
   }
 
   // ---- 6. Invert the acoustic pair --------------------------------------
@@ -821,6 +1141,12 @@ apply(
     const amrex::Real S_g = S_N + fl * dS;
     rho_g = S_g + p_g * inv_c2;
 
+    // Temperature closure: T on the same limited slope; rho from the EOS.
+    amrex::Real dT = 0.0;
+    if (prm.extrap_temperature && linear && qNm1.ok && qNm2.ok) {
+      dT = w_mat * minmod(qN.T - qNm1.T, qNm1.T - qNm2.T);
+    }
+
     amrex::Real Ysum = 0.0;
     for (int n = 0; n < NUM_SPECIES; n++) {
       Y_g[n] = amrex::max<amrex::Real>(qN.Y[n] + fl * dY[n], 0.0);
@@ -844,15 +1170,66 @@ apply(
       }
     }
 
-    const amrex::Real rho_floor =
-      amrex::max<amrex::Real>(1.0e-6 * qN.rho, constants::very_small_num());
-    if (!amrex::Math::isfinite(rho_g) || (rho_g < rho_floor)) {
-      rho_g = rho_floor;
-      bump(Diag::floored);
+    if (prm.extrap_temperature) {
+      T_g = qN.T + fl * dT;
+      // A temperature floor rather than a density one: rho is the derived
+      // quantity in this closure.
+      const amrex::Real T_floor =
+        amrex::max<amrex::Real>(1.0e-3 * qN.T, constants::very_small_num());
+      if (!amrex::Math::isfinite(T_g) || (T_g < T_floor)) {
+        T_g = T_floor;
+        bump(Diag::floored);
+      }
+      eos.PYT2RE(p_g, Y_g, T_g, rho_g, e_g);
+    } else {
+      const amrex::Real rho_floor =
+        amrex::max<amrex::Real>(1.0e-6 * qN.rho, constants::very_small_num());
+      if (!amrex::Math::isfinite(rho_g) || (rho_g < rho_floor)) {
+        rho_g = rho_floor;
+        bump(Diag::floored);
+      }
+      eos.RYP2T(rho_g, Y_g, p_g, T_g);
+      eos.RTY2E(rho_g, T_g, Y_g, e_g);
     }
-    eos.RYP2T(rho_g, Y_g, p_g, T_g);
-    eos.RTY2E(rho_g, T_g, Y_g, e_g);
 
+    // Sustained-backflow material (see Params::backflow_material): under
+    // firm reversal the lambda_0 content ramps from the frozen interior
+    // values just computed to the reservoir state the Target carries.  The
+    // ramp starts where w_mat's band ends (outward Mach -1e-3) and is
+    // complete by Mach -1e-2, so breathing reversals never feel it, and the
+    // acoustic side is untouched -- p_g stays the relaxation's.
+    if (prm.backflow_material && (u_out_N < 0.0) && (tgt.T > 0.0)) {
+      const amrex::Real m_lo = 1.0e-3, m_hi = 1.0e-2;
+      const amrex::Real w_rev = amrex::min<amrex::Real>(
+        amrex::max<amrex::Real>((-mach - m_lo) / (m_hi - m_lo), 0.0), 1.0);
+      if (w_rev > 0.0) {
+        amrex::Real Ysum_rev = 0.0;
+        for (int n = 0; n < NUM_SPECIES; n++) {
+          Y_g[n] = (1.0 - w_rev) * Y_g[n] +
+                   w_rev * amrex::max<amrex::Real>(tgt.Y[n], 0.0);
+          Ysum_rev += Y_g[n];
+        }
+        if (Ysum_rev > constants::very_small_num()) {
+          const amrex::Real inv = 1.0 / Ysum_rev;
+          for (amrex::Real& yg : Y_g) {
+            yg *= inv;
+          }
+        }
+        T_g = (1.0 - w_rev) * T_g + w_rev * tgt.T;
+        for (int d = 0; d < 3; d++) {
+          if (d != idir) {
+            u_g[d] = (1.0 - w_rev) * u_g[d] + w_rev * tgt.u[d];
+          }
+        }
+        const amrex::Real T_floor =
+          amrex::max<amrex::Real>(1.0e-3 * qN.T, constants::very_small_num());
+        if (!amrex::Math::isfinite(T_g) || (T_g < T_floor)) {
+          T_g = T_floor;
+          bump(Diag::floored);
+        }
+        eos.PYT2RE(p_g, Y_g, T_g, rho_g, e_g);
+      }
+    }
   } else {
     // Inflow.  One dimensionless nudge factor shared by temperature and the
     // tangential velocities -- both ride lambda_0, magnitude |u_out|:

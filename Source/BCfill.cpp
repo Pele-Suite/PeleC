@@ -354,10 +354,95 @@ struct PCHypFillExtDir
         s_Nm2[n] = dest(ivNm2, n);
       }
 
+      // Tangential neighbours of the boundary cell, for the transverse terms,
+      // clamped into the domain and the FAB: at a corner the clamp collapses
+      // the stencil and inv_dt falls to a one-sided spacing, or to zero if
+      // both neighbours land on the same cell.  Against a tangential wall or
+      // symmetry face the missing neighbour is known exactly -- it is the
+      // wall image of the boundary cell itself -- so the centred difference
+      // is kept there and the fill stays mirror-symmetric about the wall.
+      // An EB-covered neighbour is not fluid data: the difference falls back
+      // to one-sided against the boundary cell, and both sides covered leaves
+      // nothing to difference.  That is geometry, expected wherever a wall
+      // meets the face, so it is not counted (as a covered boundary cell is
+      // not).  A neighbour the mask calls fluid but whose state is zero or
+      // non-finite is bad data: same fallback, counted as body_state.
+      pc_nscbc::Transverse tr;
+      amrex::Real s_tm[AMREX_SPACEDIM][NVAR], s_tp[AMREX_SPACEDIM][NVAR];
+      if (m_nscbc_prm[idir].beta < 1.0) {
+        for (int d = 0; d < AMREX_SPACEDIM; ++d) {
+          if (d == idir) {
+            continue;
+          }
+          const int dlo = amrex::max<int>(domlo[d], fab_lo[d]);
+          const int dhi = amrex::min<int>(domhi[d], fab_hi[d]);
+          int jm = amrex::max<int>(ivN[d] - 1, dlo);
+          int jp = amrex::min<int>(ivN[d] + 1, dhi);
+          amrex::IntVect ivm(ivN), ivp(ivN);
+          ivm[d] = jm;
+          ivp[d] = jp;
+          for (int n = 0; n < NVAR; n++) {
+            s_tm[d][n] = dest(ivm, n);
+            s_tp[d][n] = dest(ivp, n);
+          }
+          const bool wall_m =
+            (ivN[d] == domlo[d]) && (bc[d] == amrex::BCType::reflect_even);
+          const bool wall_p =
+            (ivN[d] == domhi[d]) &&
+            (bc[d + AMREX_SPACEDIM] == amrex::BCType::reflect_even);
+          if (wall_m) {
+            jm = ivN[d] - 1;
+            for (int n = 0; n < NVAR; n++) {
+              s_tm[d][n] =
+                (bcr[n].lo(d) == amrex::BCType::reflect_odd) ? -s_N[n] : s_N[n];
+            }
+          }
+          if (wall_p) {
+            jp = ivN[d] + 1;
+            for (int n = 0; n < NVAR; n++) {
+              s_tp[d][n] =
+                (bcr[n].hi(d) == amrex::BCType::reflect_odd) ? -s_N[n] : s_N[n];
+            }
+          }
+          const bool cm = (jm != ivN[d]) && !wall_m && covered(ivm);
+          const bool cp = (jp != ivN[d]) && !wall_p && covered(ivp);
+          const bool xm = (jm != ivN[d]) && !wall_m && !cm &&
+                          pc_nscbc::is_body_state(s_tm[d]);
+          const bool xp = (jp != ivN[d]) && !wall_p && !cp &&
+                          pc_nscbc::is_body_state(s_tp[d]);
+          const bool bm = cm || xm;
+          const bool bp = cp || xp;
+          if (xm || xp) {
+            bump(pc_nscbc::Diag::body_state);
+          }
+          if (bm || bp) {
+            if (bm) {
+              jm = ivN[d];
+              for (int n = 0; n < NVAR; n++) {
+                s_tm[d][n] = s_N[n];
+              }
+            }
+            if (bp) {
+              jp = ivN[d];
+              for (int n = 0; n < NVAR; n++) {
+                s_tp[d][n] = s_N[n];
+              }
+            }
+          }
+          if (jp == jm) {
+            continue;
+          }
+          tr.sm[d] = s_tm[d];
+          tr.sp[d] = s_tp[d];
+          tr.inv_dt[d] = 1.0 / (static_cast<amrex::Real>(jp - jm) * dx[d]);
+          tr.valid = true;
+        }
+      }
+
       amrex::Real s_ghost[NVAR];
       if (!pc_nscbc::apply(
             s_N, s_Nm1, s_Nm2, n_stencil, dx[idir], idir, sgn, layer, tgt,
-            m_nscbc_prm[idir], s_ghost, m_nscbc_diag)) {
+            m_nscbc_prm[idir], s_ghost, m_nscbc_diag, &tr)) {
         // The boundary cell's data is not fluid (zero EB body state): there
         // is nothing to build a characteristic state from, so this face
         // does not own the cell.  Another direction may; otherwise the
@@ -734,6 +819,223 @@ PeleC::nscbc_check_fine_faces() const
   }
 }
 
+// ---------------------------------------------------------------------------
+//  Periodic-seam gate.  Measures how far the characteristic fill is from
+//  periodic where the domain is: the worst relative mismatch between ghost
+//  cells and their images one period away.  The normal stencil row is read
+//  in place across a periodic direction, but the transverse terms' tangential
+//  neighbours (beta < 1) are clamped into the domain and the FAB (see
+//  nscbc_fill), which leaves a deliberate residual at the seam under amrex's
+//  corner-strip protocol -- measured 2e-4 on the inert vortex and 1.6e-3
+//  with a flame front sitting on the seam corner -- so the gate REPORTS the
+//  measured value and aborts only above 1e-2, an order of margin above the
+//  worst known-good state and an order below a broken stencil (the naive
+//  wrap measured 2.2e-2 here).  The report guards its own blind spots: the
+//  tangential spread of the boundary row is printed beside the mismatch (a pass
+//  on a boundary-uniform row gates nothing), and a decomposition with no image
+//  pair in one FAB says NOT CHECKED instead of passing.  Exercised by
+//  NSCBC-COVO/nscbc-wrapgate.inp.
+// ---------------------------------------------------------------------------
+void
+PeleC::nscbc_check_periodic_wrap()
+{
+  if (!bc_nscbc || (level != 0)) {
+    return;
+  }
+  static bool done = false;
+  if (done) {
+    return;
+  }
+
+  const amrex::Box& dom = geom.Domain();
+  auto characteristic = [&](const int dir, const int side) {
+    const int t = (side == 0) ? phys_bc.lo(dir) : phys_bc.hi(dir);
+    return (t == PCPhysBCType::inflow) || (t == PCPhysBCType::user_bc);
+  };
+
+  bool relevant = false;
+  for (int idir = 0; idir < AMREX_SPACEDIM; ++idir) {
+    for (int d = 0; d < AMREX_SPACEDIM; ++d) {
+      relevant =
+        relevant || ((characteristic(idir, 0) || characteristic(idir, 1)) &&
+                     (d != idir) && geom.isPeriodic(d));
+    }
+  }
+  if (!relevant) {
+    return;
+  }
+  done = true;
+
+  const int ng = numGrow();
+  amrex::MultiFab S(grids, dmap, NVAR, ng, amrex::MFInfo(), Factory());
+  FillPatch(*this, S, ng, state[State_Type].curTime(), State_Type, 0, NVAR);
+
+  const amrex::Real big = std::numeric_limits<amrex::Real>::max();
+  const amrex::Real tiny = std::numeric_limits<amrex::Real>::min();
+
+  // One scale per component, taken over the whole field rather than
+  // pointwise: a component that is legitimately near zero at the seam (normal
+  // momentum where u_n ~ 0) would otherwise turn an O(1e-3) absolute residual
+  // into an O(1) relative one.  Momentum components share the momentum-vector
+  // scale and species densities share the density scale, so a trace species or
+  // a stagnant velocity component is measured against the flow it sits in.
+  amrex::Vector<amrex::Real> h_scale(NVAR);
+  for (int n = 0; n < NVAR; n++) {
+    h_scale[n] = S.norminf(n, ng);
+  }
+  amrex::Real mom_scale = 0.0;
+  for (int n = UMX; n < UMX + AMREX_SPACEDIM; n++) {
+    mom_scale = amrex::max<amrex::Real>(mom_scale, h_scale[n]);
+  }
+  const amrex::Real rho_scale = h_scale[URHO];
+  for (int n = UMX; n < UMX + AMREX_SPACEDIM; n++) {
+    h_scale[n] = mom_scale;
+  }
+  for (int n = UFS; n < UFS + NUM_SPECIES; n++) {
+    h_scale[n] = rho_scale;
+  }
+  for (int n = 0; n < NVAR; n++) {
+    h_scale[n] = amrex::max<amrex::Real>(h_scale[n], tiny);
+  }
+  amrex::Gpu::DeviceVector<amrex::Real> d_scale(NVAR);
+  amrex::Gpu::copy(
+    amrex::Gpu::hostToDevice, h_scale.begin(), h_scale.end(), d_scale.begin());
+  const amrex::Real* scale = d_scale.data();
+
+  for (int idir = 0; idir < AMREX_SPACEDIM; ++idir) {
+    for (int side = 0; side < 2; ++side) {
+      if (!characteristic(idir, side)) {
+        continue;
+      }
+      const int N_pos = (side == 0) ? dom.smallEnd(idir) : dom.bigEnd(idir);
+
+      for (int d = 0; d < AMREX_SPACEDIM; ++d) {
+        if ((d == idir) || (!geom.isPeriodic(d))) {
+          continue;
+        }
+        const int n_d = dom.length(d);
+        if (n_d < ng) {
+          continue; // the image slab would fold over itself
+        }
+
+        // The ghost cells of this face that sit above the domain in d.  The
+        // image of each is n_d cells below, and is a ghost of this face too.
+        amrex::Box reg = amrex::grow(dom, ng);
+        if (side == 0) {
+          reg.setBig(idir, dom.smallEnd(idir) - 1);
+        } else {
+          reg.setSmall(idir, dom.bigEnd(idir) + 1);
+        }
+        reg.setSmall(d, dom.bigEnd(d) + 1);
+        reg.setBig(d, dom.bigEnd(d) + ng);
+
+        const amrex::IntVect img = -n_d * amrex::IntVect::TheDimensionVector(d);
+
+        amrex::ReduceOps<
+          amrex::ReduceOpMax, amrex::ReduceOpSum, amrex::ReduceOpMax,
+          amrex::ReduceOpMin>
+          op;
+        amrex::ReduceData<amrex::Real, amrex::Long, amrex::Real, amrex::Real>
+          rd(op);
+        using RT = typename decltype(rd)::Type;
+
+        for (amrex::MFIter mfi(S); mfi.isValid(); ++mfi) {
+          auto const& a = S.const_array(mfi);
+          const amrex::Box& fbx = mfi.fabbox();
+
+          // The image pairs this FAB holds both halves of.
+          amrex::Box sh(fbx);
+          sh.shift(-img);
+          const amrex::Box pbx = fbx & reg & sh;
+          if (!pbx.isEmpty()) {
+            op.eval(pbx, rd, [=] AMREX_GPU_DEVICE(int i, int j, int k) -> RT {
+              amrex::ignore_unused(k); // 2-D: AMREX_D_DECL drops it
+              const amrex::IntVect iv(AMREX_D_DECL(i, j, k));
+              const amrex::IntVect iw = iv + img;
+              amrex::Real e = 0.0;
+              for (int n = 0; n < NVAR; n++) {
+                const amrex::Real u = a(iv, n);
+                const amrex::Real v = a(iw, n);
+                // A non-finite ghost must fail the check, not vanish into
+                // max(e, NaN) == e.
+                if (!amrex::Math::isfinite(u) || !amrex::Math::isfinite(v)) {
+                  e = big;
+                  break;
+                }
+                e = amrex::max<amrex::Real>(
+                  e, amrex::Math::abs(u - v) / scale[n]);
+              }
+              return {e, amrex::Long(1), -big, big};
+            });
+          }
+
+          // The tangential structure of the boundary row itself: valid data,
+          // so this measures whether the check above could have failed.
+          amrex::Box row = dom;
+          row.setSmall(idir, N_pos);
+          row.setBig(idir, N_pos);
+          row &= mfi.validbox();
+          if (!row.isEmpty()) {
+            op.eval(row, rd, [=] AMREX_GPU_DEVICE(int i, int j, int k) -> RT {
+              const amrex::Real r = a(i, j, k, URHO);
+              return {0.0, amrex::Long(0), r, r};
+            });
+          }
+        }
+
+        auto hv = rd.value(op);
+        amrex::Real worst = amrex::get<0>(hv);
+        amrex::Long npairs = amrex::get<1>(hv);
+        amrex::Real rmax = amrex::get<2>(hv);
+        amrex::Real rmin = amrex::get<3>(hv);
+        amrex::ParallelDescriptor::ReduceRealMax(worst);
+        amrex::ParallelDescriptor::ReduceLongSum(npairs);
+        amrex::ParallelDescriptor::ReduceRealMax(rmax);
+        amrex::ParallelDescriptor::ReduceRealMin(rmin);
+        const amrex::Real spread =
+          (rmax > -big)
+            ? (rmax - rmin) / amrex::max<amrex::Real>(
+                                amrex::Math::abs(rmax),
+                                std::numeric_limits<amrex::Real>::min())
+            : 0.0;
+
+        // Relative to each component's field scale (see h_scale above).
+        constexpr amrex::Real tol = 1.0e-2;
+        if (worst > tol) {
+          amrex::Abort(
+            "NSCBC periodic-seam check FAILED on direction " +
+            std::to_string(idir) + " " + (side == 0 ? "lo" : "hi") +
+            " with periodic tangential direction " + std::to_string(d) +
+            ": worst relative mismatch " + std::to_string(worst) + " over " +
+            std::to_string(npairs) +
+            " image pairs.  The characteristic fill is not periodic where the "
+            "domain is.");
+        }
+        if (amrex::ParallelDescriptor::IOProcessor() && (verbose > 0)) {
+          amrex::Print() << "  NSCBC periodic-seam check: dir " << idir
+                         << (side == 0 ? " lo" : " hi")
+                         << ", periodic tangential dir " << d << " -- ";
+          if (npairs == 0) {
+            amrex::Print()
+              << "NOT CHECKED: no box holds a ghost cell and its image "
+                 "together.  Raise amr.max_grid_size in direction "
+              << d << " to span the domain if you want this gated.\n";
+          } else {
+            amrex::Print() << npairs << " image pairs agree to " << worst
+                           << " (boundary-row density spread " << spread
+                           << ")\n";
+            if (spread == 0.0) {
+              amrex::Print()
+                << "    (that row is uniform along the boundary, so this pass "
+                   "is vacuous -- a clamped stencil would pass it too.)\n";
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
 pc_nscbc::Params
 PeleC::nscbc_params(const int idir)
 {
@@ -742,6 +1044,8 @@ PeleC::nscbc_params(const int idir)
   p.relax_u = bc_nscbc_relax_u;
   p.relax_t = bc_nscbc_relax_t;
   p.order = bc_nscbc_order;
+  p.beta = bc_nscbc_beta;
+  p.beta_s = bc_nscbc_beta_s;
   p.pin_farfield = bc_nscbc_pin_farfield;
   // Only the ratio sigma/L_ref is physical.  L_ref is fixed to the domain
   // extent along the boundary normal so that sigma keeps the meaning it has
@@ -750,6 +1054,9 @@ PeleC::nscbc_params(const int idir)
   // probhi(idir) and was therefore silently wrong for any domain not
   // anchored at the origin.
   const auto& geom = amrex::DefaultGeometry();
+  p.extrap_temperature = bc_nscbc_extrap_temperature;
+  p.extrap_material = bc_nscbc_extrap_material;
+  p.backflow_material = bc_nscbc_backflow_material;
   p.L_ref = geom.ProbHi(idir) - geom.ProbLo(idir);
   return p;
 }
@@ -934,20 +1241,62 @@ PeleC::nscbc_report_diagnostics(const int step)
   const amrex::Long total =
     h[pc_nscbc::Diag::reversed] + h[pc_nscbc::Diag::body_state] +
     h[pc_nscbc::Diag::eos_failure] + h[pc_nscbc::Diag::floored] +
+    h[pc_nscbc::Diag::transverse_drop] + h[pc_nscbc::Diag::source_drop] +
     h[pc_nscbc::Diag::stencil_short] + h[pc_nscbc::Diag::target_incomplete] +
     h[pc_nscbc::Diag::passive_unset];
-  if (amrex::ParallelDescriptor::IOProcessor() && (total > 0 || verbose > 1)) {
+  const amrex::Long structure = h[pc_nscbc::Diag::structure];
+  if (
+    amrex::ParallelDescriptor::IOProcessor() &&
+    (total > 0 || structure > 0 || verbose > 1)) {
     amrex::Print() << "  NSCBC fallbacks since last report:" << "  supersonic "
                    << h[pc_nscbc::Diag::supersonic] << ",  flow reversal "
                    << h[pc_nscbc::Diag::reversed] << ",  EB covered stencil "
                    << h[pc_nscbc::Diag::body_state] << ",  EOS failure "
                    << h[pc_nscbc::Diag::eos_failure] << ",  floored "
-                   << h[pc_nscbc::Diag::floored] << ",  short stencil "
+                   << h[pc_nscbc::Diag::floored] << ",  transverse dropped "
+                   << h[pc_nscbc::Diag::transverse_drop] << ",  source dropped "
+                   << h[pc_nscbc::Diag::source_drop] << ",  short stencil "
                    << h[pc_nscbc::Diag::stencil_short]
                    << ",  target incomplete "
                    << h[pc_nscbc::Diag::target_incomplete]
                    << ",  inflow passives unset "
                    << h[pc_nscbc::Diag::passive_unset] << "\n";
+    if (structure > 0) {
+      // Advisory, not a fallback: a front is in the outflow boundary cells.
+      // A flame there is what the flame closures exist for; a front without
+      // heat release is not.  The advice depends on what is already set.
+      const bool flame_recipe =
+        bc_nscbc_extrap_temperature && (bc_nscbc_beta_s < 1.0);
+      amrex::Print()
+        << "  NSCBC: material structure (|dS| > 5% of rho per cell) sat in "
+        << structure << " outflow boundary-cell fills since the last report.\n"
+        << "         A front is on this outflow.";
+      if (flame_recipe) {
+        amrex::Print()
+          << "  The flame closures are on (extrap_temperature = 1, beta_s = "
+          << bc_nscbc_beta_s
+          << ").\n         If this front does not burn, raise bc_nscbc_sigma "
+             "toward 16 instead.\n";
+      } else if (do_react && pc_nscbc::eos_has_reaction_rate) {
+        amrex::Print()
+          << "  If it burns, set bc_nscbc_extrap_temperature = 1 and\n"
+          << "         bc_nscbc_beta_s = 0 before it crosses; if it does not, "
+             "raise bc_nscbc_sigma toward 16\n"
+          << "         instead (extrap_temperature alone over-vents an inert "
+             "front at low sigma).\n";
+      } else {
+        amrex::Print() << "  Without a reaction source, raise bc_nscbc_sigma "
+                          "toward 16 "
+                          "rather than enabling\n"
+                       << "         bc_nscbc_extrap_temperature (alone it "
+                          "over-vents an inert front at low sigma).\n";
+      }
+      if (bc_nscbc_extrap_material) {
+        amrex::Print()
+          << "         bc_nscbc_extrap_material is on: turn it off "
+             "if this front is crossing the boundary.\n";
+      }
+    }
   }
   nscbc_diag().assign(nscbc_ncounters, 0);
   // The reset itself is a device fill on the current stream; the next
